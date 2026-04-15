@@ -1392,6 +1392,59 @@ function updateTeacherGroupProposalField(
       return null;
     }
   }
+async function restoreStudentStateFromDraft(email: string, sessionCode: string) {
+  const draft = loadStudentDraft(email, sessionCode);
+
+  setTransportTrips(draft?.transportTrips?.length ? draft.transportTrips : emptyTrips());
+  setDejeuner(draft?.dejeuner ?? emptyDejeuner());
+  setEquipement(draft?.equipement ?? emptyEquipement());
+  setAutres(draft?.autres ?? emptyAutres());
+
+  setStudentCompletion(draft?.studentCompletion ?? EMPTY_STUDENT_COMPLETION);
+
+  if (draft?.screen) {
+    setScreen(draft.screen);
+  }
+}
+
+  function saveStudentDraftSnapshot(params?: {
+  completion?: Partial<StudentCompletion>;
+  nextScreen?: StudentDraft["screen"];
+}) {
+  if (!studentEmail.trim() || !studentCodeSession.trim()) return;
+
+  const nextCompletion: StudentCompletion = {
+    ...studentCompletion,
+    ...(params?.completion ?? {}),
+  };
+
+  const payload: StudentDraft = {
+    transportTrips,
+    dejeuner,
+    equipement,
+    autres,
+    studentCompletion: nextCompletion,
+    screen:
+      params?.nextScreen ??
+      ([
+        "student_mise_en_oeuvre",
+        "student_transport",
+        "student_dejeuner",
+        "student_equipement",
+        "student_autres",
+        "student_analyses",
+        "student_synthese",
+        "student_vote",
+      ].includes(screen)
+        ? (screen as StudentDraft["screen"])
+        : "student_mise_en_oeuvre"),
+  };
+
+  localStorage.setItem(
+    getStudentDraftKey(studentEmail, studentCodeSession),
+    JSON.stringify(payload)
+  );
+}
 
   const saveTeacherDraft = useCallback(() => {
     if (!teacherUserEmail.trim() || !selectedSessionCode.trim()) return;
@@ -3503,23 +3556,12 @@ async function handleOpenSession(session: SessionRow) {
 
     const sessionRow = Array.isArray(resolvedSessionData) ? resolvedSessionData[0] : resolvedSessionData;
     const nextSessionId = String(sessionRow?.id ?? "");
-    const draft = loadStudentDraft(normalizedStudentEmail, normalizedSessionCode);
+setStudentEmail(normalizedStudentEmail);
+setStudentCodeSession(normalizedSessionCode);
+setStudentSelectedSessionId(nextSessionId);
+setStudentSelectedSessionCode(sessionRow?.session_code ?? normalizedSessionCode);
 
-    setStudentEmail(normalizedStudentEmail);
-    setStudentCodeSession(normalizedSessionCode);
-    setStudentSelectedSessionId(nextSessionId);
-    setStudentSelectedSessionCode(sessionRow?.session_code ?? normalizedSessionCode);
-    setTransportTrips(draft?.transportTrips?.length ? draft.transportTrips : emptyTrips());
-    setDejeuner(draft?.dejeuner ?? emptyDejeuner());
-    setEquipement(draft?.equipement ?? emptyEquipement());
-    setAutres(draft?.autres ?? emptyAutres());
-    setTransportMessage("");
-    setDejeunerMessage("");
-    setEquipementMessage("");
-    setStudentShowCarbonChart(false);
-    setAutresMessage("");
-    setStudentCompletion(draft?.studentCompletion ?? EMPTY_STUDENT_COMPLETION);
-    setTeacherGroupProposals(draft?.groupProposals ?? {});
+await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode);
 
     await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
     await loadTransportReportRows(nextSessionId, setStudentTransportReportRowsDb);
@@ -3647,8 +3689,10 @@ async function handleOpenSession(session: SessionRow) {
       await refreshStudentTransportData(sessionId);
     }
 
-    setStudentCompletion((prev) => ({ ...prev, transport: true }));
-    setTransportMessage("Questionnaire transport enregistré.");
+const nextCompletion = { ...studentCompletion, transport: true };
+setStudentCompletion(nextCompletion);
+saveStudentDraftSnapshot({ completion: { transport: true } });
+setTransportMessage("Questionnaire transport enregistré.");
   }
 
   async function handleSaveDejeuner() {
@@ -3701,8 +3745,10 @@ async function handleOpenSession(session: SessionRow) {
       await loadDejeunerReportRows(studentSelectedSessionId, setStudentDejeunerReportRowsDb);
     }
 
-    setStudentCompletion((prev) => ({ ...prev, dejeuner: true }));
-    setDejeunerMessage("Questionnaire déjeuner enregistré.");
+const nextCompletion = { ...studentCompletion, dejeuner: true };
+setStudentCompletion(nextCompletion);
+saveStudentDraftSnapshot({ completion: { dejeuner: true } });
+setDejeunerMessage("Questionnaire déjeuner enregistré.");
   }
 
   async function handleSaveEquipement() {
@@ -3731,6 +3777,13 @@ async function handleOpenSession(session: SessionRow) {
       ai_during_class_minutes: Number(equipement.ai_during_class_minutes || 0),
     };
 
+    console.log("DEBUG EQUIPEMENT", {
+  normalizedStudentEmail,
+  normalizedSessionCode,
+  studentSelectedSessionId,
+  equipement,
+});
+
     const { error } = await supabase.rpc("submit_equipement_response_student", {
       p_session_code: normalizedSessionCode,
       p_email: normalizedStudentEmail,
@@ -3747,8 +3800,10 @@ async function handleOpenSession(session: SessionRow) {
       await loadEquipementReportRows(studentSelectedSessionId, setStudentEquipementReportRowsDb);
     }
 
-    setStudentCompletion((prev) => ({ ...prev, equipement: true }));
-    setEquipementMessage("Questionnaire équipement enregistré.");
+const nextCompletion = { ...studentCompletion, equipement: true };
+setStudentCompletion(nextCompletion);
+saveStudentDraftSnapshot({ completion: { equipement: true } });
+setEquipementMessage("Questionnaire équipement enregistré.");
   }
 
   async function handleSaveAutres() {
@@ -3790,8 +3845,10 @@ async function handleOpenSession(session: SessionRow) {
       await loadAutresReportRows(studentSelectedSessionId, setStudentAutresReportRowsDb);
     }
 
-    setStudentCompletion((prev) => ({ ...prev, autres: true }));
-    setAutresMessage("Questionnaire autres consommations enregistré.");
+const nextCompletion = { ...studentCompletion, autres: true };
+setStudentCompletion(nextCompletion);
+saveStudentDraftSnapshot({ completion: { autres: true } });
+setAutresMessage("Questionnaire autres consommations enregistré.");
     window.alert(
       "Questionnaires terminés. Vous pouvez passer à l'analyse si le professeur l'a autorisée."
     );
