@@ -1306,6 +1306,26 @@ const studentSyntheseData = useMemo(
     };
   }, [openTeacherActionsId]);
 
+  useEffect(() => {
+  if (screen === "student_analyses" && !studentAnalysisUnlocked) {
+    setScreen("student_mise_en_oeuvre");
+    return;
+  }
+
+  if (screen === "student_synthese" && !studentSyntheseUnlocked) {
+    setScreen("student_mise_en_oeuvre");
+    return;
+  }
+
+  if (screen === "student_vote" && !studentVoteUnlocked) {
+    setScreen("student_mise_en_oeuvre");
+  }
+}, [
+  screen,
+  studentAnalysisUnlocked,
+  studentSyntheseUnlocked,
+  studentVoteUnlocked,
+]);
 
   function goToScreen(next: Screen) {
     setScreen(next);
