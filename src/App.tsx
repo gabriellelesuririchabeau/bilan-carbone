@@ -2756,7 +2756,6 @@ async function toggleStudentAnalysisAccess() {
     return;
   }
 
-  setStudentAnalysisUnlocked(nextValue);
   await loadSessionAnalysisAccess(selectedSessionId);
 }
 
