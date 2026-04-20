@@ -2719,23 +2719,24 @@ async function loadSessionVoteAccess(sessionId: string) {
   return unlocked;
 }
 
-  async function toggleStudentAnalysisAccess() {
-    if (!selectedSessionId) return;
+async function toggleStudentAnalysisAccess() {
+  if (!selectedSessionId) return;
 
-    const nextValue = !studentAnalysisUnlocked;
+  const nextValue = !studentAnalysisUnlocked;
 
-    const { error } = await supabase
-      .from("sessions")
-      .update({ student_analysis_unlocked: nextValue })
-      .eq("id", selectedSessionId);
+  const { error } = await supabase
+    .from("sessions")
+    .update({ student_analysis_unlocked: nextValue })
+    .eq("id", selectedSessionId);
 
-    if (error) {
-      setMessage(`Erreur mise à jour accès analyse : ${error.message}`);
-      return;
-    }
-
-    setStudentAnalysisUnlocked(nextValue);
+  if (error) {
+    setMessage(`Erreur mise à jour accès analyse : ${error.message}`);
+    return;
   }
+
+  setStudentAnalysisUnlocked(nextValue);
+  await loadSessionAnalysisAccess(selectedSessionId);
+}
 
   async function toggleStudentSyntheseAccess() {
     if (!selectedSessionId) return;
