@@ -969,8 +969,8 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
   const [message, setMessage] = useState("");
   const [teacherTransportReportRowsDb, setTeacherTransportReportRowsDb] = useState<GroupReportRow[]>([]);
   const [studentTransportReportRowsDb, setStudentTransportReportRowsDb] = useState<GroupReportRow[]>([]);
-  const [teacherTransportReportableRows, setTeacherTransportReportableRows] = useState<ReportableRow[]>([]);
-  const [studentTransportReportableRows, setStudentTransportReportableRows] = useState<ReportableRow[]>([]);
+const [, setTeacherTransportReportableRows] = useState<ReportableRow[]>([]);
+const [, setStudentTransportReportableRows] = useState<ReportableRow[]>([]);
   const [teacherDejeunerReportableRows, setTeacherDejeunerReportableRows] = useState<DejeunerReportableRowRpc[]>([]);
   const [studentDejeunerReportableRows, setStudentDejeunerReportableRows] = useState<DejeunerReportableRowRpc[]>([]);
   const [teacherDejeunerReportRowsDb, setTeacherDejeunerReportRowsDb] = useState<GroupReportRow[]>([]);
@@ -1096,8 +1096,37 @@ const studentEquipementRows = useMemo(
   const teacherTheme = getThemeForGroup(teacherGroupNumber);
   const studentTheme = getThemeForGroup(studentGroupNumber);
 
-  const teacherDisplayedTransportReportableRows = teacherTransportReportableRows;
-  const studentDisplayedTransportReportableRows = studentTransportReportableRows;
+  const teacherDisplayedTransportReportableRows = useMemo(
+    () =>
+      teacherTransportRows
+        .filter(
+          (row) =>
+            Number(row.persons ?? 0) > 0 || Number(row.distanceTotalKm ?? 0) > 0
+        )
+        .map((row) => ({
+          rowKey: row.rowKey,
+          label: row.label,
+          persons: Number(row.persons ?? 0),
+          quantity: Number(row.distanceTotalKm ?? 0),
+        })),
+    [teacherTransportRows]
+  );
+
+  const studentDisplayedTransportReportableRows = useMemo(
+    () =>
+      studentTransportRows
+        .filter(
+          (row) =>
+            Number(row.persons ?? 0) > 0 || Number(row.distanceTotalKm ?? 0) > 0
+        )
+        .map((row) => ({
+          rowKey: row.rowKey,
+          label: row.label,
+          persons: Number(row.persons ?? 0),
+          quantity: Number(row.distanceTotalKm ?? 0),
+        })),
+    [studentTransportRows]
+  );
 
 const teacherTransportChartRows = useMemo(
   () =>
@@ -1443,6 +1472,75 @@ async function restoreStudentStateFromDraft(email: string, sessionCode: string) 
   localStorage.setItem(
     getStudentDraftKey(studentEmail, studentCodeSession),
     JSON.stringify(payload)
+  );
+}
+
+async function loadStudentCompletionFromDb(
+  sessionId: string,
+  email: string,
+  sessionCode: string
+) {
+  if (!sessionId || !email) {
+    setStudentCompletion(EMPTY_STUDENT_COMPLETION);
+    return;
+  }
+
+  const normalizedEmailValue = normalizeEmail(email);
+
+  const [transportRes, dejeunerRes, equipementRes, autresRes] = await Promise.all([
+    supabase
+      .from("responses_transport")
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", sessionId)
+      .eq("email", normalizedEmailValue),
+    supabase
+      .from("responses_dejeuner")
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", sessionId)
+      .eq("email", normalizedEmailValue),
+    supabase
+      .from("responses_equipement")
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", sessionId)
+      .eq("email", normalizedEmailValue),
+    supabase
+      .from("responses_autres_consommations")
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", sessionId)
+      .eq("email", normalizedEmailValue),
+  ]);
+
+  const nextCompletion: StudentCompletion = {
+    transport: (transportRes.count ?? 0) > 0,
+    dejeuner: (dejeunerRes.count ?? 0) > 0,
+    equipement: (equipementRes.count ?? 0) > 0,
+    autres: (autresRes.count ?? 0) > 0,
+  };
+
+  setStudentCompletion(nextCompletion);
+
+  localStorage.setItem(
+    getStudentDraftKey(normalizedEmailValue, sessionCode),
+    JSON.stringify({
+      transportTrips,
+      dejeuner,
+      equipement,
+      autres,
+      studentCompletion: nextCompletion,
+      screen:
+        [
+          "student_mise_en_oeuvre",
+          "student_transport",
+          "student_dejeuner",
+          "student_equipement",
+          "student_autres",
+          "student_analyses",
+          "student_synthese",
+          "student_vote",
+        ].includes(screen)
+          ? screen
+          : "student_mise_en_oeuvre",
+    })
   );
 }
 
@@ -3576,6 +3674,11 @@ await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode
     await loadSessionSyntheseAccess(nextSessionId);
     await loadSessionVoteAccess(nextSessionId);
     await loadTeacherGroupProposals(nextSessionId);
+    await loadStudentCompletionFromDb(
+      nextSessionId,
+      normalizedStudentEmail,
+      normalizedSessionCode
+    );
 
     setScreen("student_mise_en_oeuvre");
   }
