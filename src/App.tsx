@@ -2515,20 +2515,18 @@ async function loadTransportReportableRows(
     return;
   }
 
-  const { data, error } = await supabase
-    .from("group_report_rows")
-    .select("*")
-    .eq("session_id", sessionId)
-    .eq("theme", "transport");
+  const { data, error } = await supabase.rpc("get_transport_reportable_rows", {
+    p_session_id: sessionId,
+  });
 
   if (error) {
     setRows([]);
-    setMessage(`Erreur chargement transport : ${error.message}`);
+    setMessage(`Erreur chargement données à reporter transport : ${error.message}`);
     return;
   }
 
   setRows(
-    (data ?? []).map((row: any) => ({
+    ((data ?? []) as TransportReportableRowRpc[]).map((row) => ({
       rowKey: String(row.row_key),
       label: String(row.label),
       persons: Number(row.persons ?? 0),
