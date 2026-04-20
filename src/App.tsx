@@ -1112,21 +1112,21 @@ const studentEquipementRows = useMemo(
     [teacherTransportRows]
   );
 
-  const studentDisplayedTransportReportableRows = useMemo(
-    () =>
-      studentTransportRows
-        .filter(
-          (row) =>
-            Number(row.persons ?? 0) > 0 || Number(row.distanceTotalKm ?? 0) > 0
-        )
-        .map((row) => ({
-          rowKey: row.rowKey,
-          label: row.label,
-          persons: Number(row.persons ?? 0),
-          quantity: Number(row.distanceTotalKm ?? 0),
-        })),
-    [studentTransportRows]
-  );
+const studentDisplayedTransportReportableRows = useMemo(
+  () =>
+    studentTransportRows
+      .filter(
+        (row) =>
+          Number(row.persons ?? 0) > 0 || Number(row.distanceTotalKm ?? 0) > 0
+      )
+      .map((row) => ({
+        rowKey: row.rowKey,
+        label: row.label,
+        persons: Number(row.persons ?? 0),
+        quantity: Number(row.distanceTotalKm ?? 0),
+      })),
+  [studentTransportRows]
+);
 
 const teacherTransportChartRows = useMemo(
   () =>
@@ -1481,7 +1481,6 @@ async function loadStudentCompletionFromDb(
   sessionCode: string
 ) {
   if (!sessionId || !email) {
-    setStudentCompletion(EMPTY_STUDENT_COMPLETION);
     return;
   }
 
@@ -1493,16 +1492,19 @@ async function loadStudentCompletionFromDb(
       .select("id", { count: "exact", head: true })
       .eq("session_id", sessionId)
       .eq("email", normalizedEmailValue),
+
     supabase
       .from("responses_dejeuner")
       .select("id", { count: "exact", head: true })
       .eq("session_id", sessionId)
       .eq("email", normalizedEmailValue),
+
     supabase
       .from("responses_equipement")
       .select("id", { count: "exact", head: true })
       .eq("session_id", sessionId)
       .eq("email", normalizedEmailValue),
+
     supabase
       .from("responses_autres_consommations")
       .select("id", { count: "exact", head: true })
@@ -1511,10 +1513,10 @@ async function loadStudentCompletionFromDb(
   ]);
 
   const nextCompletion: StudentCompletion = {
-    transport: (transportRes.count ?? 0) > 0,
-    dejeuner: (dejeunerRes.count ?? 0) > 0,
-    equipement: (equipementRes.count ?? 0) > 0,
-    autres: (autresRes.count ?? 0) > 0,
+    transport: studentCompletion.transport || (transportRes.count ?? 0) > 0,
+    dejeuner: studentCompletion.dejeuner || (dejeunerRes.count ?? 0) > 0,
+    equipement: studentCompletion.equipement || (equipementRes.count ?? 0) > 0,
+    autres: studentCompletion.autres || (autresRes.count ?? 0) > 0,
   };
 
   setStudentCompletion(nextCompletion);
@@ -3200,7 +3202,7 @@ async function saveSalleReportRow(params: {
 
   useEffect(() => {
     if (!studentSelectedSessionId) return;
-    void loadTransportReportableRows(studentSelectedSessionId, setStudentTransportReportableRows);
+    // void loadTransportReportableRows(studentSelectedSessionId, setStudentTransportReportableRows);
     void loadTransportReportRows(studentSelectedSessionId, setStudentTransportReportRowsDb);
     void loadDejeunerReportableRows(studentSelectedSessionId);
     void loadDejeunerReportRows(studentSelectedSessionId, setStudentDejeunerReportRowsDb);
@@ -3245,7 +3247,7 @@ async function saveSalleReportRow(params: {
 
     const timeoutId = window.setTimeout(() => {
       void loadTransportReportRows(selectedSessionId, setTeacherTransportReportRowsDb);
-      void loadTransportReportableRows(selectedSessionId, setTeacherTransportReportableRows);
+      // void loadTransportReportableRows(selectedSessionId, setTeacherTransportReportableRows);
       void loadTeacherDejeunerReportableRows(selectedSessionId);
       void loadDejeunerReportRows(selectedSessionId, setTeacherDejeunerReportRowsDb);
       void loadTeacherEquipementReportableRows(selectedSessionId);
@@ -3262,7 +3264,7 @@ async function saveSalleReportRow(params: {
     }, 0);
     const intervalId = window.setInterval(() => {
       void loadTransportReportRows(selectedSessionId, setTeacherTransportReportRowsDb);
-      void loadTransportReportableRows(selectedSessionId, setTeacherTransportReportableRows);
+      // void loadTransportReportableRows(selectedSessionId, setTeacherTransportReportableRows);
       void loadTeacherDejeunerReportableRows(selectedSessionId);
       void loadDejeunerReportRows(selectedSessionId, setTeacherDejeunerReportRowsDb);
       void loadTeacherEquipementReportableRows(selectedSessionId);
@@ -3288,7 +3290,7 @@ async function saveSalleReportRow(params: {
     if (screen !== "student_analyses" || !studentSelectedSessionId) return;
 
     const timeoutId = window.setTimeout(() => {
-      void loadTransportReportableRows(studentSelectedSessionId, setStudentTransportReportableRows);
+      // void loadTransportReportableRows(studentSelectedSessionId, setStudentTransportReportableRows);
       void loadTransportReportRows(studentSelectedSessionId, setStudentTransportReportRowsDb);
       void loadDejeunerReportableRows(studentSelectedSessionId);
       void loadDejeunerReportRows(studentSelectedSessionId, setStudentDejeunerReportRowsDb);
@@ -3661,7 +3663,7 @@ setStudentSelectedSessionCode(sessionRow?.session_code ?? normalizedSessionCode)
 
 await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode);
 
-    await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
+    // // await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
     await loadTransportReportRows(nextSessionId, setStudentTransportReportRowsDb);
     await loadDejeunerReportableRows(nextSessionId);
     await loadDejeunerReportRows(nextSessionId, setStudentDejeunerReportRowsDb);
@@ -3704,8 +3706,7 @@ await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode
 
   async function refreshStudentTransportData(sessionId: string) {
     if (!sessionId) return;
-    await loadTransportReportableRows(sessionId, setStudentTransportReportableRows);
-    await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
+await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
     await loadDejeunerReportableRows(sessionId);
     await loadDejeunerReportRows(sessionId, setStudentDejeunerReportRowsDb);
     await loadEquipementReportableRows(sessionId);
