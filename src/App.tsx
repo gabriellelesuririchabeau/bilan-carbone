@@ -7081,10 +7081,11 @@ style={
 <button
   type="button"
   style={openProposalGroup === teacherGroupNumber ? styles.sidebarButtonActive : styles.sidebarButton}
-  onClick={() => {
-    setOpenProposalGroup((prev) => (prev === teacherGroupNumber ? null : teacherGroupNumber));
-    setTeacherShowCarbonChart(false);
-  }}
+onClick={() => {
+  setTeacherAnalysesTab("report_des_donnees");
+  setTeacherShowCarbonChart(false);
+  setOpenProposalGroup(null);
+}}
 >
   Propositions
 </button>
