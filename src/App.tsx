@@ -2506,36 +2506,36 @@ async function loadEquipementReportRows(
   setRows((data ?? []) as GroupReportRow[]);
 }
 
-  async function loadTransportReportableRows(
-    sessionId: string,
-    setRows: React.Dispatch<React.SetStateAction<ReportableRow[]>>
-  ) {
-    if (!sessionId) {
-      setRows([]);
-      return;
-    }
-
-    const { data, error } = await supabase.rpc("get_transport_reportable_rows", {
-      p_session_id: sessionId,
-    });
-
-
-    if (error) {
-      setRows([]);
-      setMessage(`Erreur chargement données à reporter transport : ${error.message}`);
-      return;
-    }
-
-    setRows(
-      ((data ?? []) as TransportReportableRowRpc[]).map((row) => ({
-        rowKey: String(row.row_key),
-        label: String(row.label),
-        persons: Number(row.persons ?? 0),
-        quantity: Number(row.quantity ?? 0),
-      }))
-    );
+async function loadTransportReportableRows(
+  sessionId: string,
+  setRows: React.Dispatch<React.SetStateAction<ReportableRow[]>>
+) {
+  if (!sessionId) {
+    setRows([]);
+    return;
   }
 
+  const { data, error } = await supabase
+    .from("group_report_rows")
+    .select("*")
+    .eq("session_id", sessionId)
+    .eq("theme", "transport");
+
+  if (error) {
+    setRows([]);
+    setMessage(`Erreur chargement transport : ${error.message}`);
+    return;
+  }
+
+  setRows(
+    (data ?? []).map((row: any) => ({
+      rowKey: String(row.row_key),
+      label: String(row.label),
+      persons: Number(row.persons ?? 0),
+      quantity: Number(row.quantity ?? 0),
+    }))
+  );
+}
 
   async function loadDejeunerReportableRowsWithSetter(
     sessionId: string,
