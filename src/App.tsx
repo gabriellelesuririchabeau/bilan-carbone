@@ -2657,25 +2657,27 @@ async function loadTeacherAutresReportableRows(sessionId: string) {
   await loadAutresReportableRowsWithSetter(sessionId, setTeacherAutresReportableRows);
 }
 
-  async function loadSessionAnalysisAccess(sessionId: string) {
-    if (!sessionId) {
-      setStudentAnalysisUnlocked(false);
-      return false;
-    }
-
-    const { data, error } = await supabase.rpc("get_session_analysis_access", {
-      p_session_id: sessionId,
-    });
-
-    if (error) {
-      setStudentAnalysisUnlocked(false);
-      return false;
-    }
-
-    const unlocked = Boolean(data);
-    setStudentAnalysisUnlocked(unlocked);
-    return unlocked;
+async function loadSessionAnalysisAccess(sessionId: string) {
+  if (!sessionId) {
+    setStudentAnalysisUnlocked(false);
+    return false;
   }
+
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("student_analysis_unlocked")
+    .eq("id", sessionId)
+    .maybeSingle();
+
+  if (error) {
+    setStudentAnalysisUnlocked(false);
+    return false;
+  }
+
+  const unlocked = Boolean(data?.student_analysis_unlocked);
+  setStudentAnalysisUnlocked(unlocked);
+  return unlocked;
+}
 
 async function loadSessionSyntheseAccess(sessionId: string) {
   if (!sessionId) {
