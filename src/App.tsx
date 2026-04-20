@@ -7045,22 +7045,23 @@ onClick={() => {
     </button>
   )}
 
-  <button
-    type="button"
-style={
-  teacherAnalysesTab === "report_des_donnees" &&
-  !teacherShowCarbonChart &&
-  openProposalGroup === null
-    ? styles.sidebarButtonActive
-    : styles.sidebarButton
-}
-onClick={() => {
-  setOpenProposalGroup((prev) => (prev === teacherGroupNumber ? null : teacherGroupNumber));
-  setTeacherShowCarbonChart(false);
-}}
-  >
-    Report des données
-  </button>
+<button
+  type="button"
+  style={
+    teacherAnalysesTab === "report_des_donnees" &&
+    !teacherShowCarbonChart &&
+    openProposalGroup === null
+      ? styles.sidebarButtonActive
+      : styles.sidebarButton
+  }
+  onClick={() => {
+    setTeacherAnalysesTab("report_des_donnees");
+    setTeacherShowCarbonChart(false);
+    setOpenProposalGroup(null);
+  }}
+>
+  Report des données
+</button>
 
   <button
     type="button"
