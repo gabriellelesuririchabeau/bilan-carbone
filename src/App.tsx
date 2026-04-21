@@ -6875,167 +6875,7 @@ if (screen === "student_vote") {
 
               <div style={styles.twoCols}>
                 <div style={styles.innerCard}>
-                  <h3 style={styles.innerTitle}>Créer une session</h3>
-
-<label style={styles.label}>Campus</label>
-<select
-  style={styles.input}
-  value={quickSessionCampus}
-  onChange={(e) => setQuickSessionCampus(e.target.value)}
->
-  <option value="">Sélectionner un campus</option>
-  <option value="BOD">Bordeaux</option>
-  <option value="MRS">Marseille</option>
-  <option value="PAR">Paris</option>
-  <option value="TLN">Toulon</option>
-  <option value="BIA">Bastia</option>
-  <option value="AVN">Avignon</option>
-  <option value="DKR">Dakar</option>
-  <option value="BYO">Bayonne</option>
-  <option value="MDM">Mont-de-Marsan</option>
-</select>
-
-<label style={styles.label}>Programme</label>
-<select
-  style={styles.input}
-  value={quickSessionProgramme}
-  onChange={(e) => setQuickSessionProgramme(e.target.value)}
->
-  <option value="">Sélectionner un programme</option>
-  <option value="KBA">KEDGE Bachelor</option>
-  <option value="PGE">Programme Grande École</option>
-  <option value="EBP">EBP</option>
-  <option value="IBBA">IBBA</option>
-  <option value="OTH">Autre programme</option>
-</select>
-
-<label style={styles.label}>Niveau</label>
-<input
-  style={styles.input}
-  placeholder="Ex. 1, 2, 3..."
-  value={quickSessionLevel}
-  onChange={(e) => setQuickSessionLevel(e.target.value)}
-/>
-
-<label style={styles.label}>Campus</label>
-<select
-  style={styles.input}
-  value={quickSessionCampus}
-  onChange={(e) => setQuickSessionCampus(e.target.value)}
->
-  <option value="">Sélectionner un campus</option>
-  <option value="BOD">Bordeaux</option>
-  <option value="MRS">Marseille</option>
-  <option value="PAR">Paris</option>
-  <option value="TLN">Toulon</option>
-  <option value="BIA">Bastia</option>
-  <option value="AVN">Avignon</option>
-  <option value="DKR">Dakar</option>
-  <option value="BYO">Bayonne</option>
-  <option value="MDM">Mont-de-Marsan</option>
-</select>
-
-<label style={styles.label}>Programme</label>
-<select
-  style={styles.input}
-  value={quickSessionProgramme}
-  onChange={(e) => setQuickSessionProgramme(e.target.value)}
->
-  <option value="">Sélectionner un programme</option>
-  <option value="KBA">KEDGE Bachelor</option>
-  <option value="PGE">Programme Grande École</option>
-  <option value="EBP">EBP</option>
-  <option value="IBBA">IBBA</option>
-  <option value="OTH">Autre programme</option>
-</select>
-
-<label style={styles.label}>Niveau</label>
-<input
-  style={styles.input}
-  placeholder="Ex. 1, 2, 3..."
-  value={quickSessionLevel}
-  onChange={(e) => setQuickSessionLevel(e.target.value)}
-/>
-
-<label style={styles.label}>Campus</label>
-<select
-  style={styles.input}
-  value={quickSessionCampus}
-  onChange={(e) => setQuickSessionCampus(e.target.value)}
->
-  <option value="">Sélectionner un campus</option>
-  <option value="BOD">Bordeaux</option>
-  <option value="MRS">Marseille</option>
-  <option value="PAR">Paris</option>
-  <option value="TLN">Toulon</option>
-  <option value="BIA">Bastia</option>
-  <option value="AVN">Avignon</option>
-  <option value="DKR">Dakar</option>
-  <option value="BYO">Bayonne</option>
-  <option value="MDM">Mont-de-Marsan</option>
-</select>
-
-<label style={styles.label}>Programme</label>
-<select
-  style={styles.input}
-  value={quickSessionProgramme}
-  onChange={(e) => setQuickSessionProgramme(e.target.value)}
->
-  <option value="">Sélectionner un programme</option>
-  <option value="KBA">KEDGE Bachelor</option>
-  <option value="PGE">Programme Grande École</option>
-  <option value="EBP">EBP</option>
-  <option value="IBBA">IBBA</option>
-  <option value="OTH">Autre programme</option>
-</select>
-
-<label style={styles.label}>Niveau</label>
-<input
-  style={styles.input}
-  placeholder="Ex. 1, 2, 3..."
-  value={quickSessionLevel}
-  onChange={(e) => setQuickSessionLevel(e.target.value)}
-/>
-
-<label style={styles.label}>Campus</label>
-<select
-  style={styles.input}
-  value={quickSessionCampus}
-  onChange={(e) => setQuickSessionCampus(e.target.value)}
->
-  <option value="">Sélectionner un campus</option>
-  <option value="BOD">Bordeaux</option>
-  <option value="MRS">Marseille</option>
-  <option value="PAR">Paris</option>
-  <option value="TLN">Toulon</option>
-  <option value="BIA">Bastia</option>
-  <option value="AVN">Avignon</option>
-  <option value="DKR">Dakar</option>
-  <option value="BYO">Bayonne</option>
-  <option value="MDM">Mont-de-Marsan</option>
-</select>
-
-<label style={styles.label}>Programme</label>
-<select
-  style={styles.input}
-  value={quickSessionProgramme}
-  onChange={(e) => setQuickSessionProgramme(e.target.value)}
->
-  <option value="">Sélectionner un programme</option>
-  <option value="KBA">KEDGE Bachelor</option>
-  <option value="PGE">Programme Grande École</option>
-  <option value="EBP">EBP</option>
-  <option value="IBBA">IBBA</option>
-  <option value="OTH">Autre programme</option>
-</select>
-
-<label style={styles.label}>Niveau</label>
-<input
-  style={styles.input}
-  placeholder="Ex. 1, 2, 3..."
-  value={quickSessionLevel}
-  onChange={(e) => setQuickSessionLevel(e.target.value)}
-/>
+<h3 style={styles.innerTitle}>Créer une session</h3>
 
 <label style={styles.label}>Campus</label>
 <select
@@ -7084,6 +6924,7 @@ if (screen === "student_vote") {
   value={quickSessionSuffix}
   onChange={(e) => setQuickSessionSuffix(e.target.value)}
 />
+
 <div style={styles.emptyText}>
   Code généré :{" "}
   <strong>
@@ -7092,9 +6933,10 @@ if (screen === "student_vote") {
       : "—"}
   </strong>
 </div>
-                  <button style={styles.primaryButton} onClick={handleCreateSessionQuick}>
-                    Créer la session
-                  </button>
+
+<button style={styles.primaryButton} onClick={handleCreateSessionQuick}>
+  Créer la session
+</button>
                 </div>
 
                 <div style={styles.innerCard}>
