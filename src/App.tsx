@@ -3541,9 +3541,10 @@ async function handleStudentEnter() {
   const normalizedStudentEmail = normalizeEmail(studentEmail);
   const normalizedSessionCode = studentCodeSession.trim().toLowerCase();
 
-  const { data, error } = await supabase.rpc("get_open_session_by_code", {
-    p_session_code: normalizedSessionCode,
-  });
+const { data, error } = await supabase.rpc("get_open_session_by_code_for_student", {
+  p_session_code: normalizedSessionCode,
+  p_email: normalizedStudentEmail,
+});
 
   let resolvedSessionData = data;
 
@@ -3569,10 +3570,10 @@ async function handleStudentEnter() {
     }
   }
 
-  if (error || !resolvedSessionData || !resolvedSessionData.length) {
-    setMessage("Session introuvable.");
-    return;
-  }
+if (error || !resolvedSessionData || !resolvedSessionData.length) {
+  setMessage("Code session invalide ou email non autorisé.");
+  return;
+}
 
   const sessionRow = Array.isArray(resolvedSessionData)
     ? resolvedSessionData[0]
