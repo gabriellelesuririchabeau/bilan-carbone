@@ -3525,98 +3525,103 @@ async function handleOpenSession(session: SessionRow) {
     setTeacherMenu("sessions");
   }
 
-  async function handleStudentEnter() {
-    setMessage("");
+async function handleStudentEnter() {
+  setMessage("");
 
-    if (!studentEmail.trim()) {
-      setMessage("L'adresse mail est obligatoire.");
-      return;
+  if (!studentEmail.trim()) {
+    setMessage("L'adresse mail est obligatoire.");
+    return;
+  }
+
+  if (!studentCodeSession.trim()) {
+    setMessage("Le code session est obligatoire.");
+    return;
+  }
+
+  const normalizedStudentEmail = normalizeEmail(studentEmail);
+  const normalizedSessionCode = studentCodeSession.trim().toLowerCase();
+
+  const { data, error } = await supabase.rpc("get_open_session_by_code", {
+    p_session_code: normalizedSessionCode,
+  });
+
+  let resolvedSessionData = data;
+
+  if ((!resolvedSessionData || !resolvedSessionData.length) && !error) {
+    const { data: fallbackSession, error: fallbackError } = await supabase
+      .from("sessions")
+      .select("id,session_code")
+      .eq("session_code", normalizedSessionCode)
+      .limit(1);
+
+    if (!fallbackError && fallbackSession?.length) {
+      resolvedSessionData = fallbackSession;
     }
+  }
 
-    if (!studentCodeSession.trim()) {
-      setMessage("Le code session est obligatoire.");
-      return;
-    }
-
-    const normalizedStudentEmail = normalizeEmail(studentEmail);
-    const normalizedSessionCode = studentCodeSession.trim().toLowerCase();
-
-    const { data, error } = await supabase.rpc("get_open_session_by_code", {
-      p_session_code: normalizedSessionCode,
-    });
-
-    let resolvedSessionData = data;
-
-    if ((!resolvedSessionData || !resolvedSessionData.length) && !error) {
-      const { data: fallbackSession, error: fallbackError } = await supabase
-        .from("sessions")
-        .select("id,session_code")
-        .eq("session_code", normalizedSessionCode)
-        .limit(1);
-
-      if (!fallbackError && fallbackSession?.length) {
-        resolvedSessionData = fallbackSession;
-      }
-    }
-
-    if ((!resolvedSessionData || !resolvedSessionData.length) && teacherSessions.length) {
-      const localSession = teacherSessions.find(
-        (session) => (session.session_code ?? "").trim().toLowerCase() === normalizedSessionCode
-      );
-
-      if (localSession) {
-        resolvedSessionData = [localSession];
-      }
-    }
-
-    if (error || !resolvedSessionData || !resolvedSessionData.length) {
-      setMessage("Session introuvable.");
-      return;
-    }
-
-    const sessionRow = Array.isArray(resolvedSessionData) ? resolvedSessionData[0] : resolvedSessionData;
-    const nextSessionId = String(sessionRow?.id ?? "");
-        const { data: allowedRows, error: allowedError } = await supabase
-      .from("session_allowed_emails")
-      .select("email")
-      .eq("session_id", nextSessionId);
-
-    if (allowedError) {
-      setMessage(`Erreur vérification email autorisé : ${allowedError.message}`);
-      return;
-    }
-
-    const allowedEmails = (allowedRows ?? []).map((row) =>
-      normalizeEmail(String(row.email ?? ""))
+  if ((!resolvedSessionData || !resolvedSessionData.length) && teacherSessions.length) {
+    const localSession = teacherSessions.find(
+      (session) => (session.session_code ?? "").trim().toLowerCase() === normalizedSessionCode
     );
 
-    if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedStudentEmail)) {
-      setMessage("Email non autorisé");
-      return;
+    if (localSession) {
+      resolvedSessionData = [localSession];
     }
-setStudentEmail(normalizedStudentEmail);
-setStudentCodeSession(normalizedSessionCode);
-setStudentSelectedSessionId(nextSessionId);
-setStudentSelectedSessionCode(sessionRow?.session_code ?? normalizedSessionCode);
-
-await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode);
-
-    await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
-    await loadTransportReportRows(nextSessionId, setStudentTransportReportRowsDb);
-    await loadDejeunerReportableRows(nextSessionId);
-    await loadDejeunerReportRows(nextSessionId, setStudentDejeunerReportRowsDb);
-    await loadEquipementReportableRows(nextSessionId);
-    await loadEquipementReportRows(nextSessionId, setStudentEquipementReportRowsDb);
-    await loadAutresReportableRows(nextSessionId);
-    await loadAutresReportRows(nextSessionId, setStudentAutresReportRowsDb);
-    await loadSalleReportRows(nextSessionId, setStudentSalleReportRowsDb);
-    await loadSessionAnalysisAccess(nextSessionId);
-    await loadSessionSyntheseAccess(nextSessionId);
-    await loadSessionVoteAccess(nextSessionId);
-    await loadTeacherGroupProposals(nextSessionId);
-
-    setScreen("student_mise_en_oeuvre");
   }
+
+  if (error || !resolvedSessionData || !resolvedSessionData.length) {
+    setMessage("Session introuvable.");
+    return;
+  }
+
+  const sessionRow = Array.isArray(resolvedSessionData)
+    ? resolvedSessionData[0]
+    : resolvedSessionData;
+
+  const nextSessionId = String(sessionRow?.id ?? "");
+
+  const { data: allowedRows, error: allowedError } = await supabase
+    .from("session_allowed_emails")
+    .select("email")
+    .eq("session_id", nextSessionId);
+
+  if (allowedError) {
+    setMessage(`Erreur vérification email autorisé : ${allowedError.message}`);
+    return;
+  }
+
+  const allowedEmails = (allowedRows ?? []).map((row: { email: string | null }) =>
+    normalizeEmail(String(row.email ?? ""))
+  );
+
+  if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedStudentEmail)) {
+    setMessage("Email non autorisé");
+    return;
+  }
+
+  setStudentEmail(normalizedStudentEmail);
+  setStudentCodeSession(normalizedSessionCode);
+  setStudentSelectedSessionId(nextSessionId);
+  setStudentSelectedSessionCode(sessionRow?.session_code ?? normalizedSessionCode);
+
+  await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode);
+
+  await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
+  await loadTransportReportRows(nextSessionId, setStudentTransportReportRowsDb);
+  await loadDejeunerReportableRows(nextSessionId);
+  await loadDejeunerReportRows(nextSessionId, setStudentDejeunerReportRowsDb);
+  await loadEquipementReportableRows(nextSessionId);
+  await loadEquipementReportRows(nextSessionId, setStudentEquipementReportRowsDb);
+  await loadAutresReportableRows(nextSessionId);
+  await loadAutresReportRows(nextSessionId, setStudentAutresReportRowsDb);
+  await loadSalleReportRows(nextSessionId, setStudentSalleReportRowsDb);
+  await loadSessionAnalysisAccess(nextSessionId);
+  await loadSessionSyntheseAccess(nextSessionId);
+  await loadSessionVoteAccess(nextSessionId);
+  await loadTeacherGroupProposals(nextSessionId);
+
+  setScreen("student_mise_en_oeuvre");
+}
 
   function updateTrip(index: number, patch: Partial<TransportTrip>) {
     setTransportTrips((prev) => {
