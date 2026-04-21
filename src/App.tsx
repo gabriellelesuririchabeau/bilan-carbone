@@ -7183,10 +7183,11 @@ style={
     ? styles.sidebarButtonActive
     : styles.sidebarButton
 }
-    onClick={() => {
-      setTeacherAnalysesTab("report_des_donnees");
-      setTeacherShowCarbonChart(true);
-    }}
+onClick={() => {
+  setTeacherAnalysesTab("report_des_donnees");
+  setTeacherShowCarbonChart(true);
+  setOpenProposalGroup(null);
+}}
   >
     Visualiser le bilan carbone
   </button>
