@@ -2683,18 +2683,16 @@ async function loadSessionAnalysisAccess(sessionId: string) {
     return false;
   }
 
-  const { data, error } = await supabase
-    .from("sessions")
-    .select("student_analysis_unlocked")
-    .eq("id", sessionId)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("get_session_analysis_access", {
+    p_session_id: sessionId,
+  });
 
   if (error) {
     setStudentAnalysisUnlocked(false);
     return false;
   }
 
-  const unlocked = Boolean(data?.student_analysis_unlocked);
+  const unlocked = Boolean(data);
   setStudentAnalysisUnlocked(unlocked);
   return unlocked;
 }
@@ -2756,6 +2754,7 @@ async function toggleStudentAnalysisAccess() {
     return;
   }
 
+  setStudentAnalysisUnlocked(nextValue);
   await loadSessionAnalysisAccess(selectedSessionId);
 }
 
