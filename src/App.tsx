@@ -3677,11 +3677,10 @@ function removeTrip(index: number) {
     await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
   }
 
-  async function refreshStudentAnalysisData() {
-    if (!studentSelectedSessionId) return false;
-    await refreshStudentTransportData(studentSelectedSessionId);
-    return await loadSessionAnalysisAccess(studentSelectedSessionId);
-  }
+async function refreshStudentAnalysisData() {
+  if (!studentSelectedSessionId) return false;
+  return await loadSessionAnalysisAccess(studentSelectedSessionId);
+}
 
   async function refreshStudentSyntheseData() {
     if (!studentSelectedSessionId) return false;
