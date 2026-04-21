@@ -3576,6 +3576,24 @@ async function handleOpenSession(session: SessionRow) {
 
     const sessionRow = Array.isArray(resolvedSessionData) ? resolvedSessionData[0] : resolvedSessionData;
     const nextSessionId = String(sessionRow?.id ?? "");
+        const { data: allowedRows, error: allowedError } = await supabase
+      .from("session_allowed_emails")
+      .select("email")
+      .eq("session_id", nextSessionId);
+
+    if (allowedError) {
+      setMessage(`Erreur vérification email autorisé : ${allowedError.message}`);
+      return;
+    }
+
+    const allowedEmails = (allowedRows ?? []).map((row) =>
+      normalizeEmail(String(row.email ?? ""))
+    );
+
+    if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedStudentEmail)) {
+      setMessage("Email non autorisé");
+      return;
+    }
 setStudentEmail(normalizedStudentEmail);
 setStudentCodeSession(normalizedSessionCode);
 setStudentSelectedSessionId(nextSessionId);
