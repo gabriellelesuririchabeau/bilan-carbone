@@ -7287,15 +7287,15 @@ style={
   )
 )}
 
-{teacherAnalysesTab === "report_des_donnees" && teacherShowCarbonChart && teacherTheme === "salle" && (
-  renderCarbonHistogram(
+{teacherAnalysesTab === "report_des_donnees" && teacherShowCarbonChart && openProposalGroup === null && teacherTheme === "salle" && (
+    renderCarbonHistogram(
     `Bilan carbone ${getThemeLabelForButton(teacherTheme)}`,
     teacherSalleChartRows
   )
 )}
 
-{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && teacherTheme === "transport" && (
-  renderTransportAnalysisTable({
+{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && openProposalGroup === null && teacherTheme === "transport" && (
+    renderTransportAnalysisTable({
     rows: teacherTransportRows,
     groupNumber: teacherGroupNumber,
     sessionId: selectedSessionId,
@@ -7304,8 +7304,8 @@ style={
   })
 )}
 
-{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && teacherTheme === "dejeuner" && (
-  renderDejeunerAnalysisTable({
+{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && openProposalGroup === null && teacherTheme === "dejeuner" && (
+    renderDejeunerAnalysisTable({
     rows: teacherDejeunerRows,
     groupNumber: teacherGroupNumber,
     sessionId: selectedSessionId,
@@ -7314,8 +7314,8 @@ style={
   })
 )}
 
-{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && teacherTheme === "equipement" && (
-  renderEquipementAnalysisTable({
+{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && openProposalGroup === null && teacherTheme === "equipement" && (
+    renderEquipementAnalysisTable({
     rows: teacherEquipementRows,
     groupNumber: teacherGroupNumber,
     sessionId: selectedSessionId,
@@ -7324,8 +7324,8 @@ style={
   })
 )}
 
-{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && teacherTheme === "autres" && (
-  renderAutresAnalysisTable({
+{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && openProposalGroup === null && teacherTheme === "autres" && (
+    renderAutresAnalysisTable({
     rows: teacherAutresRows,
     groupNumber: teacherGroupNumber,
     sessionId: selectedSessionId,
@@ -7334,8 +7334,8 @@ style={
   })
 )}
 
-{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && teacherTheme === "salle" && (
-  renderSalleAnalysisTable({
+{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && openProposalGroup === null && teacherTheme === "salle" && (
+    renderSalleAnalysisTable({
     rows: teacherSalleRows,
     groupNumber: teacherGroupNumber,
     sessionId: selectedSessionId,
@@ -7344,8 +7344,8 @@ style={
   })
 )}
 
-                  {teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && teacherTheme !== "transport" && teacherTheme !== "dejeuner" && teacherTheme !== "equipement" && teacherTheme !== "autres" && teacherTheme !== "salle" && (
-                    <div style={styles.infoMessage}>
+{teacherAnalysesTab === "report_des_donnees" && !teacherShowCarbonChart && openProposalGroup === null && teacherTheme !== "transport" && teacherTheme !== "dejeuner" && teacherTheme !== "equipement" && teacherTheme !== "autres" && teacherTheme !== "salle" && (
+                      <div style={styles.infoMessage}>
                       Le tableau de calcul de cette thématique reste à implémenter.
                     </div>
                   )}
