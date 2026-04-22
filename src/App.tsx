@@ -7233,7 +7233,7 @@ style={
 )}
                   </div>
 
-{teacherAnalysesTab === "donnees_a_reporter" && (
+{teacherAnalysesTab === "donnees_a_reporter" && openProposalGroup === null && (
   teacherTheme === "transport" ? (
     <div>
       {renderTransportReportableBlock(
@@ -7259,28 +7259,28 @@ style={
   ) : null
 )}
 
-{teacherAnalysesTab === "report_des_donnees" && teacherShowCarbonChart && teacherTheme === "transport" && (
+{teacherAnalysesTab === "report_des_donnees" && teacherShowCarbonChart && openProposalGroup === null && teacherTheme === "transport" && (
   renderCarbonHistogram(
     `Bilan carbone ${getThemeLabelForButton(teacherTheme)}`,
     teacherTransportChartRows
   )
 )}
 
-{teacherAnalysesTab === "report_des_donnees" && teacherShowCarbonChart && teacherTheme === "dejeuner" && (
+{teacherAnalysesTab === "report_des_donnees" && teacherShowCarbonChart && openProposalGroup === null && teacherTheme === "dejeuner" && (
   renderCarbonHistogram(
     `Bilan carbone ${getThemeLabelForButton(teacherTheme)}`,
     teacherDejeunerChartRows
   )
 )}
 
-{teacherAnalysesTab === "report_des_donnees" && teacherShowCarbonChart && teacherTheme === "equipement" && (
+{teacherAnalysesTab === "report_des_donnees" && teacherShowCarbonChart && openProposalGroup === null && teacherTheme === "equipement" && (
   renderCarbonHistogram(
     `Bilan carbone ${getThemeLabelForButton(teacherTheme)}`,
     teacherEquipementChartRows
   )
 )}
 
-{teacherAnalysesTab === "report_des_donnees" && teacherShowCarbonChart && teacherTheme === "autres" && (
+{teacherAnalysesTab === "report_des_donnees" && teacherShowCarbonChart && openProposalGroup === null && teacherTheme === "autres" && (
   renderCarbonHistogram(
     `Bilan carbone ${getThemeLabelForButton(teacherTheme)}`,
     teacherAutresChartRows
