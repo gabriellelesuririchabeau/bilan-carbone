@@ -3401,43 +3401,51 @@ setQuickSessionSuffix("");
     setScreen("home");
   }
 
-  async function handleCreateSessionQuick() {
-    setMessage("");
-    if (!teacherUserId) { setMessage("Professeur non connecté."); return; }
-if (
-  !quickSessionCampus ||
-  !quickSessionProgramme ||
-  !quickSessionLevel ||
-  !quickSessionSuffix.trim()
-) {
-  setMessage("Tous les champs sont obligatoires pour créer une session.");
-  return;
-}
-
-const normalizedCode =
-  `${quickSessionCampus}-${quickSessionProgramme}${quickSessionLevel}-${quickSessionSuffix}`
-    .trim()
-    .toLowerCase();
-            const { data, error } = await supabase.rpc("create_session_quick", {
-      p_session_code: normalizedCode,
-      p_teacher_id: teacherUserId,
-    });
-
-    if (error) { setMessage(error.message); return; }
-
-    setSelectedSessionId(String(data));
-    setSelectedSessionCode(normalizedCode);
-    setSettingsTitle(normalizedCode);
-    setSettingsCampus("");
-    setSettingsAllowedEmailsText(teacherUserEmail || "");
-setQuickSessionCampus("");
-setQuickSessionProgramme("");
-setQuickSessionLevel("");
-setQuickSessionSuffix("");
-    await loadTeacherSessions(teacherUserId);
-    setScreen("teacher_session_settings");
-    setMessage(`Session créée : ${normalizedCode}`);
+async function handleCreateSessionQuick() {
+  setMessage("");
+  if (!teacherUserId) {
+    setMessage("Professeur non connecté.");
+    return;
   }
+
+  if (
+    !quickSessionCampus ||
+    !quickSessionProgramme ||
+    !quickSessionLevel ||
+    !quickSessionSuffix.trim()
+  ) {
+    setMessage("Tous les champs sont obligatoires pour créer une session.");
+    return;
+  }
+
+  const normalizedCode =
+    `${quickSessionCampus}-${quickSessionProgramme}${quickSessionLevel}-${quickSessionSuffix}`
+      .trim()
+      .toUpperCase();
+
+  const { data, error } = await supabase.rpc("create_session_quick", {
+    p_session_code: normalizedCode,
+    p_teacher_id: teacherUserId,
+  });
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  setSelectedSessionId(String(data));
+  setSelectedSessionCode(normalizedCode);
+  setSettingsTitle(normalizedCode);
+  setSettingsCampus("");
+  setSettingsAllowedEmailsText(teacherUserEmail || "");
+  setQuickSessionCampus("");
+  setQuickSessionProgramme("");
+  setQuickSessionLevel("");
+  setQuickSessionSuffix("");
+  await loadTeacherSessions(teacherUserId);
+  setScreen("teacher_session_settings");
+  setMessage(`Session créée : ${normalizedCode}`);
+}
 
 async function handleOpenSession(session: SessionRow) {
   setMessage("");
