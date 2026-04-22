@@ -7194,7 +7194,11 @@ onClick={() => {
 
 <button
   type="button"
-  style={openProposalGroup === teacherGroupNumber ? styles.sidebarButtonActive : styles.sidebarButton}
+style={
+  openProposalGroup === teacherGroupNumber && !teacherShowCarbonChart
+    ? styles.sidebarButtonActive
+    : styles.sidebarButton
+}
   onClick={() => {
     setOpenProposalGroup((prev) => (prev === teacherGroupNumber ? null : teacherGroupNumber));
     setTeacherShowCarbonChart(false);
@@ -7204,7 +7208,7 @@ onClick={() => {
 </button>
 </div>
 
-{openProposalGroup === teacherGroupNumber && (
+{openProposalGroup === teacherGroupNumber && !teacherShowCarbonChart && (
   <div style={styles.proposalsCard}>
     <h3 style={styles.innerTitle}>Propositions du groupe {teacherGroupNumber}</h3>
 
