@@ -6470,7 +6470,7 @@ onClick={() => {
               )}
             </div>
 
-{studentAnalysesTab === "donnees_a_reporter" &&
+{studentAnalysesTab === "donnees_a_reporter" && openProposalGroup === null &&
   (studentTheme === "transport" ? (
     renderTransportReportableBlock(
       studentDisplayedTransportReportableRows,
@@ -6493,42 +6493,42 @@ onClick={() => {
     )
   ) : null)}
 
-{studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && studentTheme === "transport" && (
+{studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && openProposalGroup === null && studentTheme === "transport" && (
   renderCarbonHistogram(
     `Bilan carbone ${getThemeLabelForButton(studentTheme)}`,
     studentTransportChartRows
   )
 )}
 
-{studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && studentTheme === "dejeuner" && (
+{studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && openProposalGroup === null && studentTheme === "dejeuner" && (
   renderCarbonHistogram(
     `Bilan carbone ${getThemeLabelForButton(studentTheme)}`,
     studentDejeunerChartRows
   )
 )}
 
-{studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && studentTheme === "equipement" && (
+{studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && openProposalGroup === null && studentTheme === "equipement" && (
   renderCarbonHistogram(
     `Bilan carbone ${getThemeLabelForButton(studentTheme)}`,
     studentEquipementChartRows
   )
 )}
 
-{studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && studentTheme === "autres" && (
+{studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && openProposalGroup === null && studentTheme === "autres" && (
   renderCarbonHistogram(
     `Bilan carbone ${getThemeLabelForButton(studentTheme)}`,
     studentAutresChartRows
   )
 )}
 
-{studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && studentTheme === "salle" && (
+{studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && openProposalGroup === null && studentTheme === "salle" && (
   renderCarbonHistogram(
     `Bilan carbone ${getThemeLabelForButton(studentTheme)}`,
     studentSalleChartRows
   )
 )}
 
-{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && studentTheme === "transport" && (
+{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "transport" && (
   renderTransportAnalysisTable({
     rows: studentTransportRows,
     groupNumber: studentGroupNumber,
@@ -6539,7 +6539,7 @@ onClick={() => {
   })
 )}
 
-{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && studentTheme === "dejeuner" && (
+{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "dejeuner" && (
   renderDejeunerAnalysisTable({
     rows: studentDejeunerRows,
     groupNumber: studentGroupNumber,
@@ -6550,7 +6550,7 @@ onClick={() => {
   })
 )}
 
-{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && studentTheme === "equipement" && (
+{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "equipement" && (
   renderEquipementAnalysisTable({
     rows: studentEquipementRows,
     groupNumber: studentGroupNumber,
@@ -6561,7 +6561,7 @@ onClick={() => {
   })
 )}
 
-{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && studentTheme === "autres" &&
+{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "autres" &&
   renderAutresAnalysisTable({
     rows: studentAutresRows,
     groupNumber: studentGroupNumber,
@@ -6571,7 +6571,7 @@ onClick={() => {
     onSave: saveAutresReportRow,
   })}
 
-{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && studentTheme === "salle" && (
+{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "salle" && (
   renderSalleAnalysisTable({
     rows: studentSalleRows,
     groupNumber: studentGroupNumber,
@@ -6582,7 +6582,7 @@ onClick={() => {
   })
 )}
 
-            {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && studentTheme !== "transport" && studentTheme !== "dejeuner" && studentTheme !== "equipement" && studentTheme !== "autres" && studentTheme !== "salle" && (
+            {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme !== "transport" && studentTheme !== "dejeuner" && studentTheme !== "equipement" && studentTheme !== "autres" && studentTheme !== "salle" && (
               <div style={styles.infoMessage}>
                 Le tableau de calcul de cette thématique reste à implémenter.
               </div>
