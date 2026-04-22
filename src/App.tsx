@@ -6561,7 +6561,7 @@ onClick={() => {
   })
 )}
 
-{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "autres" &&
+{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && studentTheme === "autres" &&
   renderAutresAnalysisTable({
     rows: studentAutresRows,
     groupNumber: studentGroupNumber,
