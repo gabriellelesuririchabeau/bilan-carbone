@@ -5347,10 +5347,13 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   )}
                 </div>
               ))}
-              <div style={styles.row}>
+              <div style={{ ...styles.row, justifyContent: "flex-start", marginBottom: 12 }}>
                 <button style={styles.secondaryButton} onClick={addTrip}>
                   Ajouter un trajet
                 </button>
+              </div>
+
+              <div style={styles.row}>
                 <button
                   style={studentCompletion.transport ? styles.secondaryButton : styles.primaryButton}
                   onClick={handleSaveTransport}
