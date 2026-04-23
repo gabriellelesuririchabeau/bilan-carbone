@@ -5173,34 +5173,38 @@ if (screen === "teacher_login") {
 <form
   onSubmit={(e) => {
     e.preventDefault();
-    void handleStudentEnter();
+    void handleTeacherLogin();
   }}
 >
-  <div style={styles.column}>
+  <div style={styles.formGroup}>
     <input
       style={styles.input}
       placeholder="Adresse e-mail"
-      value={studentEmail}
-      onChange={(e) => setStudentEmail(e.target.value)}
+      value={teacherEmail}
+      onChange={(e) => setTeacherEmail(e.target.value)}
     />
     <input
       style={styles.input}
-      placeholder="Code session"
-      value={studentCodeSession}
-      onChange={(e) => setStudentCodeSession(e.target.value)}
+      type="password"
+      placeholder="Mot de passe"
+      value={teacherPassword}
+      onChange={(e) => setTeacherPassword(e.target.value)}
     />
   </div>
 
-  <div style={styles.row}>
+  <div style={styles.formActions}>
     <button type="submit" style={styles.primaryButton}>
-      Entrer
+      Se connecter
     </button>
-    <button type="button" style={styles.secondaryButton} onClick={() => setScreen("home")}>
+    <button
+      type="button"
+      style={styles.secondaryButton}
+      onClick={() => setScreen("home")}
+    >
       Retour
     </button>
   </div>
 </form>
-
         {!!message && <div style={styles.infoMessage}>{message}</div>}
       </div>
     </div>
