@@ -5170,30 +5170,36 @@ if (screen === "teacher_login") {
           {authPortal === "admin" ? "Connexion administrateur" : "Connexion professeur"}
         </h1>
 
-<div style={styles.formGroup}>
-            <input
-            style={styles.input}
-            placeholder="Adresse e-mail"
-            value={teacherEmail}
-            onChange={(e) => setTeacherEmail(e.target.value)}
-          />
-          <input
-            style={styles.input}
-            type="password"
-            placeholder="Mot de passe"
-            value={teacherPassword}
-            onChange={(e) => setTeacherPassword(e.target.value)}
-          />
-        </div>
+<form
+  onSubmit={(e) => {
+    e.preventDefault();
+    void handleStudentEnter();
+  }}
+>
+  <div style={styles.column}>
+    <input
+      style={styles.input}
+      placeholder="Adresse e-mail"
+      value={studentEmail}
+      onChange={(e) => setStudentEmail(e.target.value)}
+    />
+    <input
+      style={styles.input}
+      placeholder="Code session"
+      value={studentCodeSession}
+      onChange={(e) => setStudentCodeSession(e.target.value)}
+    />
+  </div>
 
-<div style={styles.formActions}>
-            <button style={styles.primaryButton} onClick={handleTeacherLogin}>
-            Se connecter
-          </button>
-          <button style={styles.secondaryButton} onClick={() => setScreen("home")}>
-            Retour
-          </button>
-        </div>
+  <div style={styles.row}>
+    <button type="submit" style={styles.primaryButton}>
+      Entrer
+    </button>
+    <button type="button" style={styles.secondaryButton} onClick={() => setScreen("home")}>
+      Retour
+    </button>
+  </div>
+</form>
 
         {!!message && <div style={styles.infoMessage}>{message}</div>}
       </div>
