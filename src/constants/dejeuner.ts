@@ -4,7 +4,7 @@ export const sandwichOptions = [
   ["hamburger", "Hamburger"],
   ["jambon_beurre", "Sandwich jambon-beurre"],
   ["fromage", "Sandwich fromage"],
-  ["thon_crudites", "Sandwich thon crudités"],
+  ["thon_crudites", "Sandwich poisson crudités"],
   ["crudites", "Sandwich crudités"],
   ["panini", "Panini"],
 ] as const;
@@ -34,7 +34,7 @@ export const viandeRougeOptions = [
 export const autreViandeOptions = [
   ["none", "Non"],
   ["pork", "Porc"],
-  ["chicken", "Poulet"],
+  ["chicken", "Volaille"],
 ] as const;
 
 export const poissonOptions = [

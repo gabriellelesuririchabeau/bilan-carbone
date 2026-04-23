@@ -164,7 +164,7 @@ const DEJEUNER_ANALYSIS_ROWS: DejeunerAnalysisRow[] = [
   { rowKey: "boeuf", category: "Protéines", label: "Bœuf", factor: 3530, quantity: 0 },
   { rowKey: "agneau", category: "Protéines", label: "Agneau", factor: 5220, quantity: 0 },
   { rowKey: "porc", category: "Protéines", label: "Porc", factor: 1330, quantity: 0 },
-{ rowKey: "poulet", category: "Protéines", label: "Volaille", factor: 933, quantity: 0 },
+  { rowKey: "poulet", category: "Protéines", label: "Volaille", factor: 933, quantity: 0 },
   { rowKey: "poisson", category: "Protéines", label: "Poisson", factor: 1193, quantity: 0 },
   { rowKey: "oeufs_omelette", category: "Protéines", label: "Œufs (omelette)", factor: 680, quantity: 0 },
 
@@ -199,8 +199,8 @@ const EQUIPEMENT_ANALYSIS_ROWS: EquipementAnalysisRow[] = [
   { rowKey: "tablet", category: "Matériel", label: "Tablette", factor: 0.05, quantity: 0 },
   { rowKey: "smartphone", category: "Matériel", label: "Smartphone", factor: 0.08, quantity: 0 },
   { rowKey: "stationery", category: "Matériel", label: "Papeterie", factor: 22.9, quantity: 0 },
-  { rowKey: "emails_without_attachment", category: "Activité", label: "Email sans PJ", factor: 4, quantity: 0 },
-  { rowKey: "emails_with_attachment", category: "Activité", label: "Email avec PJ", factor: 11, quantity: 0 },
+  { rowKey: "emails_without_attachment", category: "Activité", label: "Nombre d'emails envoyés sans pièce jointe", factor: 4, quantity: 0 },
+  { rowKey: "emails_with_attachment", category: "Activité", label: "Nombre d'emails envoyés avec pièce jointe", factor: 11, quantity: 0 },
   { rowKey: "social_minutes", category: "Activité", label: "Réseaux sociaux", factor: 1.1, quantity: 0 },
   { rowKey: "ai_minutes", category: "Activité", label: "IA", factor: 5, quantity: 0 },
 ];
@@ -596,6 +596,10 @@ function formatDecimal(value: number | string | null | undefined, digits = 2) {
   }).format(numericValue);
 }
 
+function formatSessionCode(value: string | null | undefined) {
+  return String(value ?? "").toUpperCase();
+}
+
 type CarbonBarRow = {
   label: string;
   total: number;
@@ -840,7 +844,7 @@ function StudentSidebar({
           >
             {sessionCode && (
               <div>
-                <strong>Code :</strong> {sessionCode}
+                <strong>Code :</strong> {formatSessionCode(sessionCode)}
               </div>
             )}
             {sessionId && (
@@ -3517,7 +3521,7 @@ async function handleOpenSession(session: SessionRow) {
     }
 
     await loadTeacherSessions(teacherUserId);
-    setMessage(`Session supprimée : ${session.session_code}`);
+    setMessage(`Session supprimée : ${formatSessionCode(session.session_code)}`);
   }
 
   async function handleSaveSessionSettings() {
@@ -3546,7 +3550,7 @@ async function handleOpenSession(session: SessionRow) {
     }
 
     await loadTeacherSessions(teacherUserId);
-    setMessage(`Paramètres enregistrés pour ${selectedSessionCode}`);
+   setMessage(`Paramètres enregistrés pour ${formatSessionCode(selectedSessionCode)}`);
     setScreen("teacher_dashboard");
     setTeacherMenu("sessions");
   }
@@ -5271,7 +5275,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             </div>
             <div style={{ ...styles.homeCard, width: "100%", padding: 0, background: "transparent", boxShadow: "none" }}>
               <div style={styles.subtleText}>Mail : {studentEmail}</div>
-              <div style={styles.subtleText}>Code session : {studentSelectedSessionCode || studentCodeSession}</div>
+              <div style={styles.subtleText}>
+  Code session : {formatSessionCode(studentSelectedSessionCode || studentCodeSession)}
+</div>
               {transportTrips.map((trip, index) => (
                 <div key={index} style={styles.sectionCard}>
                   <div style={styles.sectionHeader}>
@@ -5423,7 +5429,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             </div>
             <div style={{ ...styles.homeCard, width: "100%", padding: 0, background: "transparent", boxShadow: "none" }}>
               <div style={styles.subtleText}>Mail : {studentEmail}</div>
-              <div style={styles.subtleText}>Code session : {studentSelectedSessionCode || studentCodeSession}</div>
+              <div style={styles.subtleText}>
+  Code session : {formatSessionCode(studentSelectedSessionCode || studentCodeSession)}
+</div>
               <div style={styles.sectionCard}>
                 <div style={styles.sectionHeader}>
                   <div style={styles.sectionIcon}>🍽️</div>
@@ -5662,7 +5670,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
             <div style={{ ...styles.homeCard, width: "100%", padding: 0, background: "transparent", boxShadow: "none" }}>
               <div style={styles.subtleText}>Mail : {studentEmail}</div>
-              <div style={styles.subtleText}>Code session : {studentSelectedSessionCode || studentCodeSession}</div>
+              <div style={styles.subtleText}>
+  Code session : {formatSessionCode(studentSelectedSessionCode || studentCodeSession)}
+</div>
 
               <div style={styles.sectionCard}>
                 <div style={styles.sectionHeader}>
@@ -5686,15 +5696,27 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   <h3 style={styles.sectionTitle}>Emails</h3>
                 </div>
 
-                <div style={styles.questionBlock}>
-                  <label style={styles.questionLabel}>Emails avec pièce jointe</label>
-                  <input style={styles.input} type="number" min="0" value={equipement.emails_with_attachment} onChange={(e) => setEquipement((s) => ({ ...s, emails_with_attachment: e.target.value }))} />
-                </div>
+<div style={styles.questionBlock}>
+  <label style={styles.questionLabel}>Nombre d'emails envoyés avec pièce jointe</label>
+  <input
+    style={styles.input}
+    type="number"
+    min="0"
+    value={equipement.emails_with_attachment}
+    onChange={(e) => setEquipement((s) => ({ ...s, emails_with_attachment: e.target.value }))}
+  />
+</div>
 
-                <div style={styles.questionBlock}>
-                  <label style={styles.questionLabel}>Emails sans pièce jointe</label>
-                  <input style={styles.input} type="number" min="0" value={equipement.emails_without_attachment} onChange={(e) => setEquipement((s) => ({ ...s, emails_without_attachment: e.target.value }))} />
-                </div>
+<div style={styles.questionBlock}>
+  <label style={styles.questionLabel}>Nombre d'emails envoyés sans pièce jointe</label>
+  <input
+    style={styles.input}
+    type="number"
+    min="0"
+    value={equipement.emails_without_attachment}
+    onChange={(e) => setEquipement((s) => ({ ...s, emails_without_attachment: e.target.value }))}
+  />
+</div>
               </div>
 
               <div style={styles.sectionCard}>
@@ -5819,7 +5841,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
             <div style={{ ...styles.homeCard, width: "100%", padding: 0, background: "transparent", boxShadow: "none" }}>
               <div style={styles.subtleText}>Mail : {studentEmail}</div>
-              <div style={styles.subtleText}>Code session : {studentSelectedSessionCode || studentCodeSession}</div>
+              <div style={styles.subtleText}>
+  Code session : {formatSessionCode(studentSelectedSessionCode || studentCodeSession)}
+</div>
 
               <div style={styles.sectionCard}>
                 <div style={styles.sectionHeader}>
@@ -6926,10 +6950,10 @@ if (screen === "student_vote") {
   onChange={(e) => setQuickSessionLevel(e.target.value)}
 />
 
-<label style={styles.label}>Suffixe libre</label>
+<label style={styles.label}>Nom de la session</label>
 <input
   style={styles.input}
-  placeholder="Ex. 210426"
+  placeholder="Ex. SECTION 1 ou 210426"
   value={quickSessionSuffix}
   onChange={(e) => setQuickSessionSuffix(e.target.value)}
 />
