@@ -3479,7 +3479,7 @@ async function handleOpenSession(session: SessionRow) {
   await loadSessionSyntheseAccess(session.id);
   await loadTeacherGroupProposals(session.id);
   await loadConsolidatedProposals(session.id);
-  setMessage(`Session ouverte : ${session.session_code}`);
+  setMessage(`Session ouverte : ${formatSessionCode(session.session_code)}`);
 }
 
   async function handleDeleteSession(session: SessionRow) {
@@ -6209,7 +6209,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                         <tbody>
                           {filteredAdminSessions.map((session) => (
                             <tr key={session.id}>
-                              <td style={styles.reportTd}>{session.session_code}</td>
+                              <td style={styles.reportTd}>{formatSessionCode(session.session_code)}</td>
                               <td style={styles.reportTd}>{session.teacher_name || "—"}</td>
                               <td style={styles.reportTd}>{session.teacher_email || "—"}</td>
                             </tr>
@@ -6273,7 +6273,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <header style={styles.topHeader}>
             <div style={styles.topHeaderTitle}>PARAMÉTRER LA SESSION</div>
             <div style={styles.topHeaderSub}>
-              Professeur : {teacherDisplayName || teacherUserEmail || "—"} · Code session : {selectedSessionCode || "—"}
+              Professeur : {teacherDisplayName || teacherUserEmail || "—"} · Code session : {formatSessionCode(selectedSessionCode) || "—"}
             </div>
           </header>
 
@@ -6982,11 +6982,8 @@ if (screen === "student_vote") {
                       {teacherSessions.map((session) => (
                         <div key={session.id} style={styles.sessionItem}>
                           <div>
-                            {session.title && session.title !== session.session_code ? (
-                              <div style={styles.sessionItemTitle}>{session.title}</div>
-                            ) : null}
                             <div style={styles.sessionItemMeta}>
-                              Code : <strong>{session.session_code}</strong>
+                              Code : <strong>{formatSessionCode(session.session_code)}</strong>
                             </div>
                           </div>
 
@@ -7009,7 +7006,7 @@ if (screen === "student_vote") {
                 <h3 style={styles.innerTitle}>Session sélectionnée</h3>
                 <div style={styles.emptyText}>
                   {selectedSessionCode
-                    ? `Code session actif : ${selectedSessionCode} — ID : ${selectedSessionId}`
+                    ? `Code session actif : ${formatSessionCode(selectedSessionCode)} — ID : ${selectedSessionId}`
                     : "Aucune session sélectionnée"}
                 </div>
               </div>
@@ -7065,7 +7062,7 @@ if (screen === "student_vote") {
                 <h3 style={styles.innerTitle}>Session active</h3>
                 <div style={styles.emptyText}>
                   {selectedSessionCode
-                    ? `Code session actif : ${selectedSessionCode} — ID : ${selectedSessionId}`
+                    ? `Code session actif : ${formatSessionCode(selectedSessionCode)} — ID : ${selectedSessionId}`
                     : "Aucune session sélectionnée"}
                 </div>
               </div>
@@ -7099,7 +7096,7 @@ if (screen === "student_vote") {
                   <h3 style={styles.innerTitle}>Utilisateurs autorisés</h3>
 
                   <div style={styles.sessionItemMeta}>
-                    Session : <strong>{selectedSessionCode || "—"}</strong>
+                    Session : <strong>{formatSessionCode(selectedSessionCode) || "—"}</strong>
                   </div>
 
                   <input
