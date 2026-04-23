@@ -4008,19 +4008,59 @@ setAutresMessage("Questionnaire autres consommations enregistré.");
 
 
 function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyText: string) {
+  const dejeunerLabelMap: Record<string, string> = Object.fromEntries(
+    DEJEUNER_ANALYSIS_ROWS.map((row) => [row.rowKey, row.label])
+  );
+
+  const normalizeDejeunerCategory = (value: string | null | undefined) => {
+    const raw = String(value ?? "").trim();
+
+    if (
+      raw === "Sandwich" ||
+      raw === "Plat de pâtes" ||
+      raw === "Salade composée" ||
+      raw === "Protéines" ||
+      raw === "Accompagnements" ||
+      raw === "Boissons" ||
+      raw === "Desserts" ||
+      raw === "Fruits"
+    ) {
+      return raw;
+    }
+
+    if (raw === "Plat principal") return "Sandwich";
+    if (raw === "Desserts et fruits") return "Desserts";
+
+    return raw || "Autres";
+  };
+
   const groupedRows = rows.reduce<Record<string, DejeunerReportableRowRpc[]>>((acc, row) => {
-    const category = String(row.category ?? "Autres");
+    const category = normalizeDejeunerCategory(row.category);
+    const normalizedLabel = String(row.label ?? "").trim();
+
     if (!acc[category]) acc[category] = [];
-    acc[category].push(row);
+
+    acc[category].push({
+      ...row,
+      category,
+      label:
+        dejeunerLabelMap[String((row as { row_key?: string | null }).row_key ?? "")] ||
+        normalizedLabel ||
+        String(row.label ?? row.category ?? ""),
+    });
+
     return acc;
   }, {});
 
   const categoryOrder = [
-    "Plat principal",
+    "Sandwich",
+    "Plat de pâtes",
+    "Salade composée",
     "Protéines",
     "Accompagnements",
-    "Desserts et fruits",
     "Boissons",
+    "Desserts",
+    "Fruits",
   ];
 
   const orderedCategories = Object.keys(groupedRows).sort((a, b) => {
@@ -4139,27 +4179,56 @@ function renderEquipementReportableBlock(rows: EquipementReportableRowRpc[], emp
     papeterie: "Papeterie",
     ordinateur_portable_desktop_tablette: "Ordinateur portable et ordinateur de bureau et/ou tablette",
     ordinateur_portable_et_ordinateur_de_bureau_et_ou_tablette: "Ordinateur portable et ordinateur de bureau et/ou tablette",
-    emails_without_attachment: "Email sans PJ",
-    emails_with_attachment: "Email avec PJ",
-    social_minutes: "Réseaux sociaux",
-    social_prep_minutes: "Réseaux sociaux",
-    social_during_class_minutes: "Réseaux sociaux",
-    ai_minutes: "IA",
-    ai_prep_minutes: "IA",
-    ai_during_class_minutes: "IA",
+    emails_without_attachment: "Nombre d'emails envoyés sans pièce jointe",
+    emails_with_attachment: "Nombre d'emails envoyés avec pièce jointe",
+    social_minutes: "Temps consacré aux réseaux sociaux",
+    social_prep_minutes: "Temps consacré aux réseaux sociaux",
+    social_during_class_minutes: "Temps consacré aux réseaux sociaux",
+    ai_minutes: "Temps consacré à l'IA",
+    ai_prep_minutes: "Temps consacré à l'IA",
+    ai_during_class_minutes: "Temps consacré à l'IA",
+  };
+
+  const normalizeEquipementCategory = (value: string | null | undefined) => {
+    const raw = String(value ?? "").trim();
+
+    if (raw === "Équipements utilisés") return "Matériel";
+    if (raw === "Emails" || raw === "Réseaux sociaux" || raw === "IA") return "Activité";
+
+    return raw || "Autres";
+  };
+
+  const equipmentRowOrder: Record<string, number> = {
+    ordinateur_portable: 0,
+    desktop_computer: 1,
+    ordinateur_bureau: 1,
+    ordinateur_portable_desktop_tablette: 2,
+    ordinateur_portable_et_ordinateur_de_bureau_et_ou_tablette: 2,
+    tablette: 3,
+    smartphone: 4,
+    papeterie: 5,
+    emails_without_attachment: 6,
+    emails_with_attachment: 7,
+    social_minutes: 8,
+    social_prep_minutes: 8,
+    social_during_class_minutes: 8,
+    ai_minutes: 9,
+    ai_prep_minutes: 9,
+    ai_during_class_minutes: 9,
   };
 
   const groupedRows = rows.reduce<Record<string, EquipementReportableRowRpc[]>>((acc, row) => {
-    const category = String(row.category ?? "Autres");
+    const category = normalizeEquipementCategory(row.category);
     if (!acc[category]) acc[category] = [];
     acc[category].push({
       ...row,
+      category,
       label: equipmentLabelMap[String(row.row_key ?? "")] || String(row.label ?? row.row_key ?? ""),
     });
     return acc;
   }, {});
 
-  const categoryOrder = ["Matériel", "Équipements utilisés", "Activité", "Emails", "Réseaux sociaux", "IA"];
+  const categoryOrder = ["Matériel", "Activité"];
 
   const orderedCategories = Object.keys(groupedRows).sort((a, b) => {
     const ia = categoryOrder.indexOf(a);
@@ -4200,19 +4269,26 @@ function renderEquipementReportableBlock(rows: EquipementReportableRowRpc[], emp
                   textAlign: "left",
                 }}
               >
-                {category === "Équipements utilisés" ? "Matériel" : category}
+                {category}
               </div>
 
               <div style={{ overflowX: "auto" }}>
                 <table style={{ ...styles.reportTable, marginTop: 0 }}>
                   <thead>
                     <tr>
-                      <th style={{ ...styles.reportTh, textAlign: "left", width: "70%" }}>Équipement</th>
+                      <th style={{ ...styles.reportTh, textAlign: "left", width: "70%" }}>Élément</th>
                       <th style={{ ...styles.reportTh, textAlign: "center", width: "30%" }}>Quantité</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {[...groupedRows[category]].sort(compareAutresReportableRows).map((row, index) => (
+                    {[...groupedRows[category]]
+                      .sort((a, b) => {
+                        const ka = equipmentRowOrder[String(a.row_key ?? "")] ?? 999;
+                        const kb = equipmentRowOrder[String(b.row_key ?? "")] ?? 999;
+                        if (ka !== kb) return ka - kb;
+                        return String(a.label ?? "").localeCompare(String(b.label ?? ""));
+                      })
+                      .map((row, index) => (
                       <tr key={`${String(row.row_key ?? "")}-${index}`}>
                         <td style={{ ...styles.reportTd, textAlign: "left", paddingLeft: 18 }}>
                           {String(row.label ?? "")}
