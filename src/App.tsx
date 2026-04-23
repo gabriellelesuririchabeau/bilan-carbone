@@ -3479,7 +3479,7 @@ async function handleOpenSession(session: SessionRow) {
   await loadSessionSyntheseAccess(session.id);
   await loadTeacherGroupProposals(session.id);
   await loadConsolidatedProposals(session.id);
-  setMessage(`Session ouverte : ${formatSessionCode(session.session_code)}`);
+  setMessage(`Session ouverte : ${session.session_code}`);
 }
 
   async function handleDeleteSession(session: SessionRow) {
@@ -6209,7 +6209,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                         <tbody>
                           {filteredAdminSessions.map((session) => (
                             <tr key={session.id}>
-                              <td style={styles.reportTd}>{formatSessionCode(session.session_code)}</td>
+                              <td style={styles.reportTd}>{session.session_code}</td>
                               <td style={styles.reportTd}>{session.teacher_name || "—"}</td>
                               <td style={styles.reportTd}>{session.teacher_email || "—"}</td>
                             </tr>
@@ -6273,7 +6273,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <header style={styles.topHeader}>
             <div style={styles.topHeaderTitle}>PARAMÉTRER LA SESSION</div>
             <div style={styles.topHeaderSub}>
-              Professeur : {teacherDisplayName || teacherUserEmail || "—"} · Code session : {formatSessionCode(selectedSessionCode) || "—"}
+              Professeur : {teacherDisplayName || teacherUserEmail || "—"} · Code session : {selectedSessionCode || "—"}
             </div>
           </header>
 
@@ -7096,7 +7096,7 @@ if (screen === "student_vote") {
                   <h3 style={styles.innerTitle}>Utilisateurs autorisés</h3>
 
                   <div style={styles.sessionItemMeta}>
-                    Session : <strong>{formatSessionCode(selectedSessionCode) || "—"}</strong>
+                    Session : <strong>{selectedSessionCode || "—"}</strong>
                   </div>
 
                   <input
