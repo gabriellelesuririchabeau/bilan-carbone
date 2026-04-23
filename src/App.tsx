@@ -147,7 +147,7 @@ const DEJEUNER_ANALYSIS_ROWS: DejeunerAnalysisRow[] = [
 { rowKey: "hamburger", category: "Sandwich", label: "Hamburger", factor: 4375, quantity: 0 },
 { rowKey: "sandwich_jambon_beurre", category: "Sandwich", label: "Sandwich Jambon-beurre", factor: 1455, quantity: 0 },
 { rowKey: "sandwich_fromage", category: "Sandwich", label: "Sandwich Fromage", factor: 1428, quantity: 0 },
-{ rowKey: "sandwich_thon_crudites", category: "Sandwich", label: "Sandwich Thon crudités", factor: 750, quantity: 0 },
+{ rowKey: "sandwich_thon_crudites", category: "Sandwich", label: "Sandwich Poisson crudités", factor: 750, quantity: 0 },
 { rowKey: "sandwich_crudites", category: "Sandwich", label: "Sandwich Crudités", factor: 693, quantity: 0 },
 { rowKey: "panini", category: "Sandwich", label: "Panini", factor: 1100, quantity: 0 },
 
@@ -164,7 +164,7 @@ const DEJEUNER_ANALYSIS_ROWS: DejeunerAnalysisRow[] = [
   { rowKey: "boeuf", category: "Protéines", label: "Bœuf", factor: 3530, quantity: 0 },
   { rowKey: "agneau", category: "Protéines", label: "Agneau", factor: 5220, quantity: 0 },
   { rowKey: "porc", category: "Protéines", label: "Porc", factor: 1330, quantity: 0 },
-  { rowKey: "poulet", category: "Protéines", label: "Poulet", factor: 933, quantity: 0 },
+{ rowKey: "poulet", category: "Protéines", label: "Volaille", factor: 933, quantity: 0 },
   { rowKey: "poisson", category: "Protéines", label: "Poisson", factor: 1193, quantity: 0 },
   { rowKey: "oeufs_omelette", category: "Protéines", label: "Œufs (omelette)", factor: 680, quantity: 0 },
 
