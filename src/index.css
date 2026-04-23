@@ -142,12 +142,25 @@ button::-moz-focus-inner {
 }
 
 input,
-select,
 textarea {
-  -webkit-appearance: none;
-  appearance: none;
-  border-radius: 0;
   box-sizing: border-box;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: auto;
+  -webkit-appearance: checkbox;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 select::-ms-expand {
