@@ -4008,47 +4008,53 @@ setAutresMessage("Questionnaire autres consommations enregistré.");
 
 
 function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyText: string) {
-  const dejeunerLabelMap: Record<string, string> = Object.fromEntries(
-    DEJEUNER_ANALYSIS_ROWS.map((row) => [row.rowKey, row.label])
-  );
+  const categorySet = new Set(DEJEUNER_ANALYSIS_ROWS.map((row) => row.category));
+  const labelToCategory = new Map(DEJEUNER_ANALYSIS_ROWS.map((row) => [row.label, row.category]));
+  const rowKeyToLabel = new Map(DEJEUNER_ANALYSIS_ROWS.map((row) => [row.rowKey, row.label]));
+  const rowKeyToCategory = new Map(DEJEUNER_ANALYSIS_ROWS.map((row) => [row.rowKey, row.category]));
 
-  const normalizeDejeunerCategory = (value: string | null | undefined) => {
-    const raw = String(value ?? "").trim();
+  const resolveCategory = (row: DejeunerReportableRowRpc) => {
+    const rowKey = String((row as { row_key?: string | null }).row_key ?? "");
+    const rawCategory = String(row.category ?? "").trim();
+    const rawLabel = String(row.label ?? "").trim();
 
-    if (
-      raw === "Sandwich" ||
-      raw === "Plat de pâtes" ||
-      raw === "Salade composée" ||
-      raw === "Protéines" ||
-      raw === "Accompagnements" ||
-      raw === "Boissons" ||
-      raw === "Desserts" ||
-      raw === "Fruits"
-    ) {
-      return raw;
-    }
+    if (categorySet.has(rawCategory)) return rawCategory;
+    if (categorySet.has(rawLabel)) return rawLabel;
+    if (rowKeyToCategory.has(rowKey)) return String(rowKeyToCategory.get(rowKey));
+    if (labelToCategory.has(rawLabel)) return String(labelToCategory.get(rawLabel));
+    if (labelToCategory.has(rawCategory)) return String(labelToCategory.get(rawCategory));
 
-    if (raw === "Plat principal") return "Sandwich";
-    if (raw === "Desserts et fruits") return "Desserts";
+    if (rawCategory === "Plat principal") return "Sandwich";
+    if (rawCategory === "Desserts et fruits") return "Desserts";
+    if (rawLabel === "Plat principal") return "Sandwich";
+    if (rawLabel === "Desserts et fruits") return "Desserts";
 
-    return raw || "Autres";
+    return rawCategory || rawLabel || "Autres";
   };
 
-  const groupedRows = rows.reduce<Record<string, DejeunerReportableRowRpc[]>>((acc, row) => {
-    const category = normalizeDejeunerCategory(row.category);
-    const normalizedLabel = String(row.label ?? "").trim();
+  const resolveLabel = (row: DejeunerReportableRowRpc) => {
+    const rowKey = String((row as { row_key?: string | null }).row_key ?? "");
+    const rawCategory = String(row.category ?? "").trim();
+    const rawLabel = String(row.label ?? "").trim();
 
+    if (rowKeyToLabel.has(rowKey)) return String(rowKeyToLabel.get(rowKey));
+    if (rawLabel && !categorySet.has(rawLabel) && rawLabel !== "Plat principal" && rawLabel !== "Desserts et fruits") {
+      return rawLabel;
+    }
+    if (rawCategory && !categorySet.has(rawCategory) && rawCategory !== "Plat principal" && rawCategory !== "Desserts et fruits") {
+      return rawCategory;
+    }
+
+    return rawLabel || rawCategory || "—";
+  };
+
+  const groupedRows = rows.reduce<Record<string, Array<DejeunerReportableRowRpc & { label: string }>>>((acc, row) => {
+    const category = resolveCategory(row);
     if (!acc[category]) acc[category] = [];
-
     acc[category].push({
       ...row,
-      category,
-      label:
-        dejeunerLabelMap[String((row as { row_key?: string | null }).row_key ?? "")] ||
-        normalizedLabel ||
-        String(row.label ?? row.category ?? ""),
+      label: resolveLabel(row),
     });
-
     return acc;
   }, {});
 
@@ -4134,7 +4140,9 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
                     </tr>
                   </thead>
                   <tbody>
-                    {groupedRows[category].map((row, index) => (
+                    {groupedRows[category]
+                      .sort((a, b) => String(a.label).localeCompare(String(b.label)))
+                      .map((row, index) => (
                       <tr key={`${String(row.label ?? "")}-${index}`}>
                         <td
                           style={{
@@ -4170,15 +4178,20 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
 
 function renderEquipementReportableBlock(rows: EquipementReportableRowRpc[], emptyText: string) {
   const equipmentLabelMap: Record<string, string> = {
+    laptop: "Ordinateur portable",
     ordinateur_portable: "Ordinateur portable",
+    desktop: "Ordinateur de bureau",
     desktop_computer: "Ordinateur de bureau",
     ordinateur_bureau: "Ordinateur de bureau",
-    ecran: "Écran",
-    tablette: "Tablette",
-    smartphone: "Smartphone",
-    papeterie: "Papeterie",
+    laptop_desktop_tablet: "Ordinateur portable et ordinateur de bureau et/ou tablette",
     ordinateur_portable_desktop_tablette: "Ordinateur portable et ordinateur de bureau et/ou tablette",
     ordinateur_portable_et_ordinateur_de_bureau_et_ou_tablette: "Ordinateur portable et ordinateur de bureau et/ou tablette",
+    ecran: "Écran",
+    tablet: "Tablette",
+    tablette: "Tablette",
+    smartphone: "Smartphone",
+    stationery: "Papeterie",
+    papeterie: "Papeterie",
     emails_without_attachment: "Nombre d'emails envoyés sans pièce jointe",
     emails_with_attachment: "Nombre d'emails envoyés avec pièce jointe",
     social_minutes: "Temps consacré aux réseaux sociaux",
@@ -4189,41 +4202,99 @@ function renderEquipementReportableBlock(rows: EquipementReportableRowRpc[], emp
     ai_during_class_minutes: "Temps consacré à l'IA",
   };
 
-  const normalizeEquipementCategory = (value: string | null | undefined) => {
-    const raw = String(value ?? "").trim();
+  const materialKeys = new Set([
+    "laptop",
+    "ordinateur_portable",
+    "desktop",
+    "desktop_computer",
+    "ordinateur_bureau",
+    "laptop_desktop_tablet",
+    "ordinateur_portable_desktop_tablette",
+    "ordinateur_portable_et_ordinateur_de_bureau_et_ou_tablette",
+    "ecran",
+    "tablet",
+    "tablette",
+    "smartphone",
+    "stationery",
+    "papeterie",
+  ]);
 
-    if (raw === "Équipements utilisés") return "Matériel";
-    if (raw === "Emails" || raw === "Réseaux sociaux" || raw === "IA") return "Activité";
+  const activityKeys = new Set([
+    "emails_without_attachment",
+    "emails_with_attachment",
+    "social_minutes",
+    "social_prep_minutes",
+    "social_during_class_minutes",
+    "ai_minutes",
+    "ai_prep_minutes",
+    "ai_during_class_minutes",
+  ]);
 
-    return raw || "Autres";
+  const categorySet = new Set(["Matériel", "Activité", "Équipements utilisés", "Emails", "Réseaux sociaux", "IA"]);
+
+  const resolveCategory = (row: EquipementReportableRowRpc) => {
+    const rowKey = String(row.row_key ?? "");
+    const rawCategory = String(row.category ?? "").trim();
+    const rawLabel = String(row.label ?? "").trim();
+
+    if (materialKeys.has(rowKey)) return "Matériel";
+    if (activityKeys.has(rowKey)) return "Activité";
+
+    if (rawCategory === "Équipements utilisés") return "Matériel";
+    if (rawCategory === "Emails" || rawCategory === "Réseaux sociaux" || rawCategory === "IA") return "Activité";
+    if (rawLabel === "Équipements utilisés") return "Matériel";
+    if (rawLabel === "Emails" || rawLabel === "Réseaux sociaux" || rawLabel === "IA") return "Activité";
+
+    if (rawCategory === "Matériel" || rawCategory === "Activité") return rawCategory;
+    if (rawLabel === "Matériel" || rawLabel === "Activité") return rawLabel;
+
+    return rawCategory || rawLabel || "Autres";
+  };
+
+  const resolveLabel = (row: EquipementReportableRowRpc) => {
+    const rowKey = String(row.row_key ?? "");
+    const rawCategory = String(row.category ?? "").trim();
+    const rawLabel = String(row.label ?? "").trim();
+
+    if (equipmentLabelMap[rowKey]) return equipmentLabelMap[rowKey];
+    if (rawLabel && !categorySet.has(rawLabel)) return rawLabel;
+    if (rawCategory && !categorySet.has(rawCategory)) return rawCategory;
+
+    return rawLabel || rawCategory || rowKey || "—";
   };
 
   const equipmentRowOrder: Record<string, number> = {
+    laptop: 0,
     ordinateur_portable: 0,
+    desktop: 1,
     desktop_computer: 1,
     ordinateur_bureau: 1,
+    laptop_desktop_tablet: 2,
     ordinateur_portable_desktop_tablette: 2,
     ordinateur_portable_et_ordinateur_de_bureau_et_ou_tablette: 2,
-    tablette: 3,
-    smartphone: 4,
-    papeterie: 5,
-    emails_without_attachment: 6,
-    emails_with_attachment: 7,
-    social_minutes: 8,
-    social_prep_minutes: 8,
-    social_during_class_minutes: 8,
-    ai_minutes: 9,
-    ai_prep_minutes: 9,
-    ai_during_class_minutes: 9,
+    ecran: 3,
+    tablet: 4,
+    tablette: 4,
+    smartphone: 5,
+    stationery: 6,
+    papeterie: 6,
+    emails_without_attachment: 7,
+    emails_with_attachment: 8,
+    social_minutes: 9,
+    social_prep_minutes: 9,
+    social_during_class_minutes: 9,
+    ai_minutes: 10,
+    ai_prep_minutes: 10,
+    ai_during_class_minutes: 10,
   };
 
-  const groupedRows = rows.reduce<Record<string, EquipementReportableRowRpc[]>>((acc, row) => {
-    const category = normalizeEquipementCategory(row.category);
+  const groupedRows = rows.reduce<Record<string, Array<EquipementReportableRowRpc & { label: string; category: string }>>>((acc, row) => {
+    const category = resolveCategory(row);
     if (!acc[category]) acc[category] = [];
     acc[category].push({
       ...row,
       category,
-      label: equipmentLabelMap[String(row.row_key ?? "")] || String(row.label ?? row.row_key ?? ""),
+      label: resolveLabel(row),
     });
     return acc;
   }, {});
@@ -4580,6 +4651,9 @@ const categoryOrder = [
 
 function renderAutresReportableBlock(rows: AutresReportableRowRpc[], emptyText: string) {
   const labels: Record<string, string> = {
+    eau_robinet: "Eau du robinet",
+    eau_bouteille: "Eau bouteille",
+    soda: "Soda",
     biscuits: "Biscuits",
     chips: "Chips",
     chocolat: "Chocolat",
@@ -4588,12 +4662,16 @@ function renderAutresReportableBlock(rows: AutresReportableRowRpc[], emptyText: 
     bonbons: "Bonbons",
     viennoiserie: "Viennoiserie",
     pomme: "Pomme",
+    apple: "Pomme",
     poire: "Poire",
+    pear: "Poire",
     raisin: "Raisin",
+    grapes: "Raisin",
     banana: "Banane",
     banane: "Banane",
     mango: "Mangue",
     mangue: "Mangue",
+    pineapple: "Ananas",
     ananas: "Ananas",
     cafe: "Café",
     coffee: "Café",
@@ -4604,12 +4682,37 @@ function renderAutresReportableBlock(rows: AutresReportableRowRpc[], emptyText: 
     hot_chocolate: "Chocolat chaud",
   };
 
-  const groupedRows = rows.reduce<Record<string, AutresReportableRowRpc[]>>((acc, row) => {
-    const category = String(row.category ?? "Autres");
+  const categorySet = new Set(AUTRES_CATEGORY_ORDER);
+
+  const resolveCategory = (row: AutresReportableRowRpc) => {
+    const rawCategory = String(row.category ?? "").trim();
+    const rawLabel = String(row.label ?? "").trim();
+
+    if (categorySet.has(rawCategory)) return rawCategory;
+    if (categorySet.has(rawLabel)) return rawLabel;
+
+    return rawCategory || rawLabel || "Autres";
+  };
+
+  const resolveLabel = (row: AutresReportableRowRpc) => {
+    const rawCategory = String(row.category ?? "").trim();
+    const rawLabel = String(row.label ?? "").trim();
+    const mapped = labels[String(row.row_key ?? "")];
+
+    if (mapped) return mapped;
+    if (rawLabel && !categorySet.has(rawLabel)) return rawLabel;
+    if (rawCategory && !categorySet.has(rawCategory)) return rawCategory;
+
+    return rawLabel || rawCategory || String(row.row_key ?? "") || "—";
+  };
+
+  const groupedRows = rows.reduce<Record<string, Array<AutresReportableRowRpc & { label: string; category: string }>>>((acc, row) => {
+    const category = resolveCategory(row);
     if (!acc[category]) acc[category] = [];
     acc[category].push({
       ...row,
-      label: labels[String(row.row_key ?? "")] || String(row.label ?? row.row_key ?? ""),
+      category,
+      label: resolveLabel(row),
     });
     return acc;
   }, {});
