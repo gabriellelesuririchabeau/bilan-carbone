@@ -142,6 +142,15 @@ type TeacherVoteResult = {
   rank3Count: number;
 };
 
+type AssignmentMode = "emails" | "groups";
+
+type StudentAssignmentDraft = {
+  email: string;
+  first_name: string;
+  last_name: string;
+  group_number: number;
+};
+
 const DEJEUNER_ANALYSIS_ROWS: DejeunerAnalysisRow[] = [
 { rowKey: "kebab", category: "Sandwich", label: "Kebab", factor: 3570, quantity: 0 },
 { rowKey: "hamburger", category: "Sandwich", label: "Hamburger", factor: 4375, quantity: 0 },
@@ -618,6 +627,57 @@ function formatReportNumber(value: number | string | null | undefined, digits = 
 
 function formatSessionCode(value: string | null | undefined) {
   return String(value ?? "").toUpperCase();
+}
+
+function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
+  return rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line, index) => {
+      if (index !== 0) return true;
+      return !line.toLowerCase().includes("email");
+    })
+    .map((line) => {
+      const separator = line.includes(";") ? ";" : "\t";
+      const parts = line.split(separator).map((part) => part.trim());
+
+      return {
+        email: normalizeEmail(parts[0] ?? ""),
+        first_name: parts[1] ?? "",
+        last_name: parts[2] ?? "",
+        group_number: Number(parts[3] ?? 0),
+      };
+    })
+    .filter((student) => {
+      return (
+        student.email &&
+        student.email.includes("@") &&
+        Number.isInteger(student.group_number) &&
+        student.group_number >= 1 &&
+        student.group_number <= 10
+      );
+    });
+}
+
+function downloadAssignmentTemplate() {
+  const content = [
+    "email;prenom;nom;groupe",
+    "etudiant1@exemple.com;Marie;Durand;1",
+    "etudiant2@exemple.com;Lucas;Martin;2",
+  ].join("\n");
+
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "template_assignation_groupes.txt";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
 }
 
 type DraftNumberInputProps = {
@@ -1189,6 +1249,9 @@ const [quickSessionSuffix, setQuickSessionSuffix] = useState("");  const [teache
   const [settingsAllowedEmailsText, setSettingsAllowedEmailsText] = useState("");
   const [userSearch, setUserSearch] = useState("");
 
+const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("emails");
+const [assignmentRawText, setAssignmentRawText] = useState("");
+
   const [transportTrips, setTransportTrips] = useState<TransportTrip[]>(emptyTrips());
   const [transportMessage, setTransportMessage] = useState("");
 
@@ -1506,6 +1569,11 @@ const studentSyntheseData = useMemo(
       .sort((a, b) => a.localeCompare(b))
       .filter((email) => email.includes(userSearch.toLowerCase()));
   }, [settingsAllowedEmailsText, userSearch]);
+
+  const parsedStudentAssignments = useMemo(() => {
+  if (assignmentMode !== "groups") return [];
+  return parseStudentAssignments(assignmentRawText);
+}, [assignmentMode, assignmentRawText]);
 
   const filteredAdminTeachers = useMemo(() => {
     const q = teacherSearch.trim().toLowerCase();
@@ -3667,18 +3735,53 @@ async function handleCreateSessionQuick() {
     return;
   }
 
-  setSelectedSessionId(String(data));
-  setSelectedSessionCode(normalizedCode);
-  setSettingsTitle(normalizedCode);
-  setSettingsCampus("");
+const newSessionId = String(data);
+
+setSelectedSessionId(newSessionId);
+setSelectedSessionCode(normalizedCode);
+setSettingsTitle(normalizedCode);
+setSettingsCampus("");
+
+if (assignmentMode === "groups") {
+  setSettingsAllowedEmailsText(
+    parsedStudentAssignments.map((student) => student.email).join("\n")
+  );
+
+  if (parsedStudentAssignments.length === 0) {
+    setMessage("Aucune assignation valide détectée. Vérifiez le format : email;prenom;nom;groupe.");
+    return;
+  }
+
+  const { error: assignmentError } = await supabase
+    .from("session_student_assignments")
+    .insert(
+      parsedStudentAssignments.map((student) => ({
+        session_id: newSessionId,
+        email: student.email,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        group_number: student.group_number,
+      }))
+    );
+
+  if (assignmentError) {
+    setMessage(`Session créée, mais erreur assignation groupes : ${assignmentError.message}`);
+    return;
+  }
+} else {
   setSettingsAllowedEmailsText(teacherUserEmail || "");
-  setQuickSessionCampus("");
-  setQuickSessionProgramme("");
-  setQuickSessionLevel("");
-  setQuickSessionSuffix("");
-  await loadTeacherSessions(teacherUserId);
-  setScreen("teacher_session_settings");
-  setMessage(`Session créée : ${normalizedCode}`);
+}
+
+setQuickSessionCampus("");
+setQuickSessionProgramme("");
+setQuickSessionLevel("");
+setQuickSessionSuffix("");
+setAssignmentMode("emails");
+setAssignmentRawText("");
+
+await loadTeacherSessions(teacherUserId);
+setScreen("teacher_session_settings");
+setMessage(`Session créée : ${normalizedCode}`);
 }
 
 async function handleOpenSession(session: SessionRow) {
@@ -3689,7 +3792,6 @@ async function handleOpenSession(session: SessionRow) {
   setSettingsTitle(session.title || "");
   setSettingsCampus(session.campus || "");
 
-  // ✅ Charger les emails depuis session_allowed_emails
   const { data: emailData } = await supabase
     .from("session_allowed_emails")
     .select("email")
@@ -3697,6 +3799,33 @@ async function handleOpenSession(session: SessionRow) {
   setSettingsAllowedEmailsText(
     (emailData ?? []).map((row: { email: string }) => row.email).join("\n")
   );
+
+  const { data: assignmentData } = await supabase
+  .from("session_student_assignments")
+  .select("email, first_name, last_name, group_number")
+  .eq("session_id", session.id)
+  .order("group_number", { ascending: true })
+  .order("last_name", { ascending: true });
+
+if (assignmentData && assignmentData.length > 0) {
+  setAssignmentMode("groups");
+  setAssignmentRawText(
+    assignmentData
+      .map((student: any) =>
+        [
+          student.email ?? "",
+          student.first_name ?? "",
+          student.last_name ?? "",
+          student.group_number ?? "",
+        ].join(";")
+      )
+      .join("\n")
+  );
+} else {
+  setAssignmentMode("emails");
+  setAssignmentRawText("");
+}
+
 
   setTeacherMenu("session_open");
   setTeacherSessionTab(draft?.teacherSessionTab ?? "counts");
@@ -3732,7 +3861,8 @@ async function handleOpenSession(session: SessionRow) {
       setSelectedSessionCode("");
       setSettingsTitle("");
       setSettingsCampus("");
-      // ✅ CORRIGÉ : vider les emails dans handleDeleteSession
+setAssignmentMode("emails");
+setAssignmentRawText("");
       setSettingsAllowedEmailsText("");
       setCounts(EMPTY_COUNTS);
       setTeacherTransportReportRowsDb([]);
@@ -3762,12 +3892,15 @@ async function handleOpenSession(session: SessionRow) {
       return;
     }
 
-    const allowedEmails = settingsAllowedEmailsText
-      .split("\n")
-      .map((v) => normalizeEmail(v))
-      .filter(Boolean);
+const allowedEmails =
+  assignmentMode === "groups"
+    ? parsedStudentAssignments.map((student) => student.email)
+    : settingsAllowedEmailsText
+        .split("\n")
+        .map((v) => normalizeEmail(v))
+        .filter(Boolean);
 
-    const { error } = await supabase.rpc("update_session_settings", {
+            const { error } = await supabase.rpc("update_session_settings", {
       p_session_id: selectedSessionId,
       p_title: settingsTitle,
       p_campus: settingsCampus,
@@ -3778,6 +3911,40 @@ async function handleOpenSession(session: SessionRow) {
       setMessage(error.message);
       return;
     }
+
+    const { error: deleteAssignmentsError } = await supabase
+  .from("session_student_assignments")
+  .delete()
+  .eq("session_id", selectedSessionId);
+
+if (deleteAssignmentsError) {
+  setMessage(`Paramètres emails enregistrés, mais erreur suppression assignations : ${deleteAssignmentsError.message}`);
+  return;
+}
+
+if (assignmentMode === "groups") {
+  if (parsedStudentAssignments.length === 0) {
+    setMessage("Aucune assignation valide détectée. Vérifiez le format : email;prenom;nom;groupe.");
+    return;
+  }
+
+  const { error: insertAssignmentsError } = await supabase
+    .from("session_student_assignments")
+    .insert(
+      parsedStudentAssignments.map((student) => ({
+        session_id: selectedSessionId,
+        email: student.email,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        group_number: student.group_number,
+      }))
+    );
+
+  if (insertAssignmentsError) {
+    setMessage(`Paramètres emails enregistrés, mais erreur assignations : ${insertAssignmentsError.message}`);
+    return;
+  }
+}
 
     await loadTeacherSessions(teacherUserId);
    setMessage(`Paramètres enregistrés pour ${formatSessionCode(selectedSessionCode)}`);
@@ -6523,11 +6690,60 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               <input style={styles.input} value={settingsTitle} onChange={(e) => setSettingsTitle(e.target.value)} />
 
               <label style={styles.label}>Emails autorisés (un par ligne)</label>
-              <textarea
-                style={{ ...styles.input, minHeight: 180 } as React.CSSProperties}
-                value={settingsAllowedEmailsText}
-                onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
-              />
+              <div style={{ marginBottom: 16 }}>
+  <label style={styles.label}>Mode d'accès étudiant</label>
+
+  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <label>
+      <input
+        type="radio"
+        checked={assignmentMode === "emails"}
+        onChange={() => setAssignmentMode("emails")}
+      />{" "}
+      Liste simple d'emails autorisés
+    </label>
+
+    <label>
+      <input
+        type="radio"
+        checked={assignmentMode === "groups"}
+        onChange={() => setAssignmentMode("groups")}
+      />{" "}
+      Assignation des étudiants à un groupe
+    </label>
+  </div>
+</div>
+{assignmentMode === "emails" ? (
+  <textarea
+    style={styles.textarea}
+    value={settingsAllowedEmailsText}
+    onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
+    placeholder="Un email par ligne"
+  />
+) : (
+  <>
+    <button
+      type="button"
+      style={styles.secondaryButton}
+      onClick={downloadAssignmentTemplate}
+    >
+      Télécharger le modèle
+    </button>
+
+    <textarea
+      style={{ ...styles.textarea, marginTop: 12 }}
+      value={assignmentRawText}
+      onChange={(e) => setAssignmentRawText(e.target.value)}
+      placeholder={
+        "email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"
+      }
+    />
+
+    <div style={styles.emptyText}>
+      {parsedStudentAssignments.length} assignation(s) valide(s)
+    </div>
+  </>
+)}
 
               <div style={styles.row}>
                 <button style={styles.primaryButton} onClick={handleSaveSessionSettings}>
@@ -7204,6 +7420,68 @@ if (screen === "student_vote") {
       : "—"}
   </strong>
 </div>
+
+<div style={{ marginTop: 16 }}>
+  <label style={styles.label}>Mode d'accès étudiant</label>
+
+  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <label>
+      <input
+        type="radio"
+        checked={assignmentMode === "emails"}
+        onChange={() => setAssignmentMode("emails")}
+      />{" "}
+      Liste simple d'emails autorisés
+    </label>
+
+    <label>
+      <input
+        type="radio"
+        checked={assignmentMode === "groups"}
+        onChange={() => setAssignmentMode("groups")}
+      />{" "}
+      Assignation des étudiants à un groupe
+    </label>
+  </div>
+</div>
+
+{assignmentMode === "groups" && (
+  <div style={{ marginTop: 16 }}>
+    <button
+      type="button"
+      style={styles.secondaryButton}
+      onClick={downloadAssignmentTemplate}
+    >
+      Télécharger le modèle
+    </button>
+
+    <textarea
+      style={{ ...styles.textarea, marginTop: 12 }}
+      placeholder={"Collez ici le contenu du fichier :\nemail;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
+      value={assignmentRawText}
+      onChange={(e) => setAssignmentRawText(e.target.value)}
+    />
+
+    <div style={styles.emptyText}>
+      {parsedStudentAssignments.length} assignation(s) valide(s) détectée(s).
+    </div>
+
+    {parsedStudentAssignments.length > 0 && (
+      <div style={{ maxHeight: 180, overflowY: "auto", marginTop: 8 }}>
+        {parsedStudentAssignments.slice(0, 8).map((student) => (
+          <div key={`${student.email}-${student.group_number}`} style={styles.emptyText}>
+            Groupe {student.group_number} — {student.first_name} {student.last_name} — {student.email}
+          </div>
+        ))}
+        {parsedStudentAssignments.length > 8 && (
+          <div style={styles.emptyText}>
+            + {parsedStudentAssignments.length - 8} autre(s)
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)}
 
 <button style={styles.primaryButton} onClick={handleCreateSessionQuick}>
   Créer la session
