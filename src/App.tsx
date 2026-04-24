@@ -598,6 +598,10 @@ function formatDecimal(value: number | string | null | undefined, digits = 2) {
   }).format(numericValue);
 }
 
+function formatReportNumber(value: number | string | null | undefined, digits = 2) {
+  return formatDecimal(value, digits);
+}
+
 function formatSessionCode(value: string | null | undefined) {
   return String(value ?? "").toUpperCase();
 }
@@ -4490,7 +4494,7 @@ function renderEquipementAnalysisTable(params: {
           textAlign: "right",
         }}
       >
-        Total émissions : {formatDecimal(tableTotal)}
+        Total émissions : {formatReportNumber(tableTotal)}
       </div>
 
       <div style={{ overflowX: "auto", marginTop: 14 }}>
@@ -4522,7 +4526,7 @@ function renderEquipementAnalysisTable(params: {
                     <td style={{ ...styles.reportTd, textAlign: "left" }}>{row.label}</td>
                     <td style={styles.reportTd}>
                       {readOnly ? (
-                        <span>{row.quantity}</span>
+                        <span>{formatReportNumber(row.quantity)}</span>
                       ) : (
                         <DraftNumberInput
                           value={row.quantity}
@@ -4541,8 +4545,8 @@ function renderEquipementAnalysisTable(params: {
                         />
                       )}
                     </td>
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{row.factor}</td>
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatDecimal(total)}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(row.factor)}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(total)}</td>
                   </tr>
                 </React.Fragment>
               );
@@ -4623,7 +4627,7 @@ function renderDejeunerAnalysisTable(params: {
           fontWeight: 700,
         }}
       >
-        Total du tableau : {formatDecimal(tableTotal)} gCO2
+        Total du tableau : {formatReportNumber(tableTotal)} gCO2
       </div>
 
       <div style={{ overflowX: "auto" }}>
@@ -4686,7 +4690,7 @@ function renderDejeunerAnalysisTable(params: {
                     <td style={{ ...styles.reportTd, textAlign: "left" }}>{row.label}</td>
                     <td style={styles.reportTd}>
                       {readOnly ? (
-                        <span>{row.quantity}</span>
+                        <span>{formatReportNumber(row.quantity)}</span>
                       ) : (
                         <DraftNumberInput
                           value={row.quantity}
@@ -4705,8 +4709,8 @@ function renderDejeunerAnalysisTable(params: {
                         />
                       )}
                     </td>
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{row.factor}</td>
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatDecimal(total)}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(row.factor)}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(total)}</td>
                   </tr>
                 </React.Fragment>
               );
@@ -4873,7 +4877,7 @@ function renderAutresAnalysisTable(params: {
           textAlign: "right",
         }}
       >
-        Total émissions : {formatDecimal(tableTotal)}
+        Total émissions : {formatReportNumber(tableTotal)}
       </div>
 
       <div style={{ overflowX: "auto", marginTop: 14 }}>
@@ -4915,7 +4919,7 @@ function renderAutresAnalysisTable(params: {
 
                     <td style={styles.reportTd}>
                       {readOnly ? (
-                        <span>{row.quantity}</span>
+                        <span>{formatReportNumber(row.quantity)}</span>
                       ) : (
                         <DraftNumberInput
                           value={row.quantity}
@@ -4936,11 +4940,11 @@ function renderAutresAnalysisTable(params: {
                     </td>
 
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                      {row.factor}
+                      {formatReportNumber(row.factor)}
                     </td>
 
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                      {formatDecimal(total)}
+                      {formatReportNumber(total)}
                     </td>
                   </tr>
                 </React.Fragment>
@@ -5005,7 +5009,7 @@ function renderTransportAnalysisTable(params: {
           textAlign: "right",
         }}
       >
-        Total émissions : {formatDecimal(tableTotal)}
+        Total émissions : {formatReportNumber(tableTotal)}
       </div>
 
       <div
@@ -5039,7 +5043,7 @@ function renderTransportAnalysisTable(params: {
                   <td style={styles.reportTd}>{row.label}</td>
                   <td style={styles.reportTd}>
                     {readOnly ? (
-                      <span>{row.persons}</span>
+                      <span>{formatReportNumber(row.persons)}</span>
                     ) : (
                       <DraftNumberInput
                         value={row.persons}
@@ -5061,7 +5065,7 @@ function renderTransportAnalysisTable(params: {
                   </td>
                   <td style={styles.reportTd}>
                     {readOnly ? (
-                      <span>{row.distanceTotalKm}</span>
+                      <span>{formatReportNumber(row.distanceTotalKm)}</span>
                     ) : (
                       <DraftNumberInput
                         value={row.distanceTotalKm}
@@ -5081,8 +5085,8 @@ function renderTransportAnalysisTable(params: {
                       />
                     )}
                   </td>
-                  <td style={styles.reportTd}>{row.factor}</td>
-                  <td style={styles.reportTd}>{formatDecimal(total)}</td>
+                  <td style={styles.reportTd}>{formatReportNumber(row.factor)}</td>
+                  <td style={styles.reportTd}>{formatReportNumber(total)}</td>
                 </tr>
               );
             })}
@@ -5139,7 +5143,7 @@ function renderSalleAnalysisTable(params: {
           textAlign: "right",
         }}
       >
-        Total émissions : {formatDecimal(tableTotal)}
+        Total émissions : {formatReportNumber(tableTotal)}
       </div>
 
       <div style={{ overflowX: "auto", marginTop: 14 }}>
@@ -5165,7 +5169,7 @@ function renderSalleAnalysisTable(params: {
                       row.rowKey === "chauffage" || row.rowKey === "climatisation" ? (
                         <span>{Number(row.quantity || 0) > 0 ? "Oui" : "Non"}</span>
                       ) : (
-                        <span>{row.quantity}</span>
+                        <span>{formatReportNumber(row.quantity)}</span>
                       )
                     ) : row.rowKey === "chauffage" || row.rowKey === "climatisation" ? (
                       <select
@@ -5208,10 +5212,10 @@ function renderSalleAnalysisTable(params: {
                   </td>
 
                   <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                    {row.factor}
+                    {formatReportNumber(row.factor)}
                   </td>
                   <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                    {formatDecimal(total)}
+                    {formatReportNumber(total)}
                   </td>
                 </tr>
               );
