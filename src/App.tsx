@@ -150,6 +150,8 @@ const DEJEUNER_ANALYSIS_ROWS: DejeunerAnalysisRow[] = [
 { rowKey: "sandwich_thon_crudites", category: "Sandwich", label: "Sandwich Poisson crudités", factor: 750, quantity: 0 },
 { rowKey: "sandwich_crudites", category: "Sandwich", label: "Sandwich Crudités", factor: 693, quantity: 0 },
 { rowKey: "panini", category: "Sandwich", label: "Panini", factor: 1100, quantity: 0 },
+{ rowKey: "quiche", category: "Quiche/Pizza", label: "Quiche", factor: 856, quantity: 0 },
+{ rowKey: "pizza", category: "Quiche/Pizza", label: "Pizza", factor: 616, quantity: 0 },
 
 { rowKey: "spaghetti_bolognaise", category: "Plat de pâtes", label: "Spaghetti bolognaise", factor: 1659, quantity: 0 },
 { rowKey: "lasagnes", category: "Plat de pâtes", label: "Lasagnes", factor: 1542, quantity: 0 },
@@ -598,6 +600,169 @@ function formatDecimal(value: number | string | null | undefined, digits = 2) {
 
 function formatSessionCode(value: string | null | undefined) {
   return String(value ?? "").toUpperCase();
+}
+
+type DejeunerStructureItem = {
+  rowKey: string;
+  label: string;
+  aliases?: string[];
+};
+
+type DejeunerStructureGroup = {
+  title: string;
+  items: DejeunerStructureItem[];
+};
+
+type DejeunerStructureSection = {
+  title: string;
+  groups: DejeunerStructureGroup[];
+};
+
+const DEJEUNER_REPORT_STRUCTURE: DejeunerStructureSection[] = [
+  {
+    title: "Plat principal",
+    groups: [
+      {
+        title: "Sandwich",
+        items: [
+          { rowKey: "kebab", label: "Kebab" },
+          { rowKey: "hamburger", label: "Hamburger" },
+          { rowKey: "sandwich_jambon_beurre", label: "Sandwich Jambon-beurre" },
+          { rowKey: "sandwich_fromage", label: "Sandwich Fromage" },
+          {
+            rowKey: "sandwich_thon_crudites",
+            label: "Sandwich poisson crudités",
+            aliases: ["Sandwich Poisson crudités", "Sandwich Thon crudités"],
+          },
+          { rowKey: "sandwich_crudites", label: "Sandwich Crudités" },
+          { rowKey: "panini", label: "Panini" },
+        ],
+      },
+      {
+        title: "Quiche/Pizza",
+        items: [
+          { rowKey: "quiche", label: "Quiche" },
+          { rowKey: "pizza", label: "Pizza" },
+        ],
+      },
+      {
+        title: "Plat de pâtes",
+        items: [
+          { rowKey: "spaghetti_bolognaise", label: "Spaghetti bolognaise" },
+          { rowKey: "lasagnes", label: "Lasagnes" },
+          { rowKey: "tagliatelles_carbonara", label: "Tagliatelles carbonara" },
+        ],
+      },
+      {
+        title: "Salade composée",
+        items: [
+          { rowKey: "salade_pommes_de_terre", label: "Salade de pommes de terre" },
+          { rowKey: "salade_nicoise", label: "Salade niçoise" },
+          { rowKey: "salade_thon_crudites", label: "Salade Thon crudités" },
+          { rowKey: "salade_riz", label: "Salade de riz" },
+          { rowKey: "salade_pates", label: "Salade de pâtes" },
+        ],
+      },
+    ],
+  },
+  {
+    title: "Protéines",
+    groups: [
+      {
+        title: "Viande rouge",
+        items: [
+          { rowKey: "boeuf", label: "Bœuf", aliases: ["Boeuf"] },
+          { rowKey: "agneau", label: "Agneau" },
+        ],
+      },
+      {
+        title: "Viande blanche",
+        items: [
+          { rowKey: "porc", label: "Porc" },
+          { rowKey: "poulet", label: "Volaille", aliases: ["Poulet"] },
+        ],
+      },
+      {
+        title: "Poisson",
+        items: [{ rowKey: "poisson", label: "Poisson" }],
+      },
+      {
+        title: "Œufs",
+        items: [{ rowKey: "oeufs_omelette", label: "Œufs (omelette)", aliases: ["Oeufs (omelette)"] }],
+      },
+    ],
+  },
+  {
+    title: "Accompagnements",
+    groups: [
+      {
+        title: "Accompagnement",
+        items: [
+          { rowKey: "legumes", label: "Légumes" },
+          { rowKey: "salade", label: "Salade" },
+          { rowKey: "pates", label: "Pâtes" },
+          { rowKey: "riz", label: "Riz" },
+        ],
+      },
+      {
+        title: "Frites / chips",
+        items: [{ rowKey: "frites_chips", label: "Frites / chips" }],
+      },
+    ],
+  },
+  {
+    title: "Desserts et fruits",
+    groups: [
+      {
+        title: "Fruit local",
+        items: [
+          { rowKey: "pomme", label: "Pomme" },
+          { rowKey: "raisin", label: "Raisin" },
+          { rowKey: "poire", label: "Poire" },
+        ],
+      },
+      {
+        title: "Fruit importé",
+        items: [
+          { rowKey: "banane", label: "Banane" },
+          { rowKey: "ananas", label: "Ananas" },
+          { rowKey: "mangue", label: "Mangue" },
+        ],
+      },
+      {
+        title: "Laitage",
+        items: [{ rowKey: "laitage", label: "Laitage" }],
+      },
+      {
+        title: "Dessert",
+        items: [
+          { rowKey: "glace", label: "Glace" },
+          { rowKey: "patisserie", label: "Pâtisserie" },
+        ],
+      },
+      {
+        title: "Boissons",
+        items: [
+          { rowKey: "eau_robinet", label: "Eau du robinet" },
+          { rowKey: "eau_bouteille", label: "Eau bouteille" },
+          { rowKey: "soda", label: "Soda" },
+          { rowKey: "cafe", label: "Café" },
+          { rowKey: "the", label: "Thé" },
+          { rowKey: "chocolat_lait_boisson", label: "Chocolat au lait (boisson)" },
+        ],
+      },
+    ],
+  },
+];
+
+function normalizeDejeunerLookupValue(value: string | null | undefined) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/œ/g, "oe")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 type CarbonBarRow = {
@@ -4008,152 +4173,29 @@ setAutresMessage("Questionnaire autres consommations enregistré.");
 
 
 function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyText: string) {
-  const normalizeLabel = (value: string | null | undefined) =>
-    String(value ?? "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/œ/g, "oe")
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
-
   const quantityByLabel = rows.reduce<Record<string, number>>((acc, row) => {
-    const label = normalizeLabel(row.label);
+    const label = normalizeDejeunerLookupValue(row.label);
     if (!label) return acc;
 
     acc[label] = (acc[label] ?? 0) + Number(row.quantity ?? 0);
     return acc;
   }, {});
 
-  const getQuantity = (label: string, aliases: string[] = []) => {
-    const keys = [label, ...aliases].map(normalizeLabel);
-    return keys.reduce((sum, key) => sum + Number(quantityByLabel[key] ?? 0), 0);
-  };
+  const quantityByKey = rows.reduce<Record<string, number>>((acc, row) => {
+    const rowKey = normalizeDejeunerLookupValue(String((row as { row_key?: string | null }).row_key ?? ""));
+    if (!rowKey) return acc;
 
-  const dejeunerStructure: Array<{
-    title: string;
-    groups: Array<{
-      title: string;
-      items: Array<{
-        label: string;
-        aliases?: string[];
-      }>;
-    }>;
-  }> = [
-    {
-      title: "Plat principal",
-      groups: [
-        {
-          title: "Sandwich",
-          items: [
-            { label: "Kebab" },
-            { label: "Hamburger" },
-            { label: "Sandwich Jambon-beurre" },
-            { label: "Sandwich Fromage" },
-            {
-              label: "Sandwich poisson crudités",
-              aliases: ["Sandwich Poisson crudités", "Sandwich Thon crudités"],
-            },
-            { label: "Sandwich Crudités" },
-            { label: "Panini" },
-          ],
-        },
-        {
-          title: "Quiche/Pizza",
-          items: [{ label: "Quiche" }, { label: "Pizza" }],
-        },
-        {
-          title: "Plat de pâtes",
-          items: [
-            { label: "Spaghetti bolognaise" },
-            { label: "Lasagnes" },
-            { label: "Tagliatelles carbonara" },
-          ],
-        },
-        {
-          title: "Salade composée",
-          items: [
-            { label: "Salade de pommes de terre" },
-            { label: "Salade niçoise" },
-            { label: "Salade Thon crudités" },
-            { label: "Salade de riz" },
-            { label: "Salade de pâtes" },
-          ],
-        },
-      ],
-    },
-    {
-      title: "Protéines",
-      groups: [
-        {
-          title: "Viande rouge",
-          items: [{ label: "Bœuf", aliases: ["Boeuf"] }, { label: "Agneau" }],
-        },
-        {
-          title: "Viande blanche",
-          items: [{ label: "Porc" }, { label: "Volaille", aliases: ["Poulet"] }],
-        },
-        {
-          title: "Poisson",
-          items: [{ label: "Poisson" }],
-        },
-        {
-          title: "Œufs",
-          items: [{ label: "Œufs (omelette)", aliases: ["Oeufs (omelette)"] }],
-        },
-      ],
-    },
-    {
-      title: "Accompagnements",
-      groups: [
-        {
-          title: "Accompagnement",
-          items: [
-            { label: "Légumes" },
-            { label: "Salade" },
-            { label: "Pâtes" },
-            { label: "Riz" },
-          ],
-        },
-        {
-          title: "Frites / chips",
-          items: [{ label: "Frites / chips" }],
-        },
-      ],
-    },
-    {
-      title: "Desserts et fruits",
-      groups: [
-        {
-          title: "Fruit local",
-          items: [{ label: "Pomme" }, { label: "Raisin" }, { label: "Poire" }],
-        },
-        {
-          title: "Fruit importé",
-          items: [{ label: "Banane" }, { label: "Ananas" }, { label: "Mangue" }],
-        },
-        {
-          title: "Laitage",
-          items: [{ label: "Laitage" }],
-        },
-        {
-          title: "Dessert",
-          items: [{ label: "Glace" }, { label: "Pâtisserie" }],
-        },
-        {
-          title: "Boissons",
-          items: [
-            { label: "Eau du robinet" },
-            { label: "Eau bouteille" },
-            { label: "Soda" },
-            { label: "Café" },
-            { label: "Thé" },
-            { label: "Chocolat au lait (boisson)" },
-          ],
-        },
-      ],
-    },
-  ];
+    acc[rowKey] = (acc[rowKey] ?? 0) + Number(row.quantity ?? 0);
+    return acc;
+  }, {});
+
+  const getQuantity = (item: DejeunerStructureItem) => {
+    const labelKeys = [item.label, ...(item.aliases ?? [])].map(normalizeDejeunerLookupValue);
+    const keyQuantity = Number(quantityByKey[normalizeDejeunerLookupValue(item.rowKey)] ?? 0);
+    const labelQuantity = labelKeys.reduce((sum, key) => sum + Number(quantityByLabel[key] ?? 0), 0);
+
+    return keyQuantity || labelQuantity;
+  };
 
   return (
     <div style={styles.innerCardFull}>
@@ -4163,7 +4205,7 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
         <div style={styles.infoMessage}>{emptyText}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 22, marginTop: 18 }}>
-          {dejeunerStructure.map((section) => (
+          {DEJEUNER_REPORT_STRUCTURE.map((section) => (
             <div
               key={section.title}
               style={{
@@ -4192,74 +4234,41 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
                 <table style={{ ...styles.reportTable, marginTop: 0 }}>
                   <thead>
                     <tr>
-                      <th
-                        style={{
-                          ...styles.reportTh,
-                          textAlign: "left",
-                          color: "#5b3f73",
-                          fontWeight: 800,
-                          width: "30%",
-                        }}
-                      >
+                      <th style={{ ...styles.reportTh, textAlign: "left", width: "30%" }}>
                         Sous-catégorie
                       </th>
-                      <th
-                        style={{
-                          ...styles.reportTh,
-                          textAlign: "left",
-                          color: "#5b3f73",
-                          fontWeight: 800,
-                          width: "45%",
-                        }}
-                      >
+                      <th style={{ ...styles.reportTh, textAlign: "left", width: "45%" }}>
                         Élément
                       </th>
-                      <th
-                        style={{
-                          ...styles.reportTh,
-                          textAlign: "center",
-                          color: "#5b3f73",
-                          fontWeight: 800,
-                          width: "25%",
-                        }}
-                      >
+                      <th style={{ ...styles.reportTh, textAlign: "center", width: "25%" }}>
                         Nombre de répondants
                       </th>
                     </tr>
                   </thead>
-
                   <tbody>
                     {section.groups.flatMap((group) =>
                       group.items.map((item, itemIndex) => (
-                        <tr key={`${section.title}-${group.title}-${item.label}`}>
-                          <td
-                            style={{
-                              ...styles.reportTd,
-                              textAlign: "left",
-                              paddingLeft: 18,
-                              fontWeight: itemIndex === 0 ? 800 : 400,
-                              color: itemIndex === 0 ? "#123b64" : "transparent",
-                            }}
-                          >
-                            {group.title}
-                          </td>
-                          <td
-                            style={{
-                              ...styles.reportTd,
-                              textAlign: "left",
-                              paddingLeft: 18,
-                            }}
-                          >
+                        <tr key={`${section.title}-${group.title}-${item.rowKey}`}>
+                          {itemIndex === 0 && (
+                            <td
+                              rowSpan={group.items.length}
+                              style={{
+                                ...styles.reportTd,
+                                textAlign: "left",
+                                paddingLeft: 18,
+                                fontWeight: 800,
+                                color: "#123b64",
+                                verticalAlign: "top",
+                              }}
+                            >
+                              {group.title}
+                            </td>
+                          )}
+                          <td style={{ ...styles.reportTd, textAlign: "left", paddingLeft: 18 }}>
                             {item.label}
                           </td>
-                          <td
-                            style={{
-                              ...styles.reportTd,
-                              textAlign: "center",
-                              fontWeight: 700,
-                            }}
-                          >
-                            {getQuantity(item.label, item.aliases)}
+                          <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
+                            {getQuantity(item)}
                           </td>
                         </tr>
                       ))
@@ -4519,32 +4528,34 @@ function renderDejeunerAnalysisTable(params: {
 {
   const { rows, groupNumber, sessionId, updatedBy, onSave, readOnly = false } = params;
 
-const categoryOrder = [
-  "Sandwich",
-  "Pizza / Quiche",
-  "Plat de pâtes",
-  "Salade composée",
-  "Protéines",
-  "Accompagnements",
-  "Desserts",
-  "Fruits",
-  "Boissons",
-];
+  const rowsByKey = new Map(rows.map((row) => [row.rowKey, row]));
+  const orderedRows = DEJEUNER_REPORT_STRUCTURE.flatMap((section) =>
+    section.groups.flatMap((group) =>
+      group.items.map((item) => {
+        const existingRow = rowsByKey.get(item.rowKey);
 
-  const orderedRows = [...rows].sort((a, b) => {
-    const ia = categoryOrder.indexOf(a.category);
-    const ib = categoryOrder.indexOf(b.category);
-    if (ia === -1 && ib === -1) return a.label.localeCompare(b.label);
-    if (ia === -1) return 1;
-    if (ib === -1) return -1;
-    if (ia !== ib) return ia - ib;
-    return a.label.localeCompare(b.label);
-  });
+        return {
+          section: section.title,
+          subcategory: group.title,
+          row: {
+            rowKey: item.rowKey,
+            category: section.title,
+            label: item.label,
+            factor: Number(existingRow?.factor ?? 0),
+            quantity: Number(existingRow?.quantity ?? 0),
+          } as DejeunerAnalysisRow,
+        };
+      })
+    )
+  );
 
   const tableTotal = orderedRows.reduce(
-    (sum, row) => sum + Number(row.quantity || 0) * Number(row.factor || 0),
+    (sum, item) => sum + Number(item.row.quantity || 0) * Number(item.row.factor || 0),
     0
   );
+
+  let previousSection = "";
+  let previousSubcategory = "";
 
   return (
     <div style={styles.innerCardFull}>
@@ -4561,33 +4572,37 @@ const categoryOrder = [
           marginBottom: 12,
           padding: 12,
           borderRadius: 12,
-          background: "#eff6ff",
-          color: "#123b64",
-          fontWeight: 800,
-          textAlign: "right",
+          background: "#eef6ff",
+          border: "1px solid #bfdbfe",
+          color: "#1e3a8a",
+          fontWeight: 700,
         }}
       >
-        Total émissions : {formatDecimal(tableTotal)}
+        Total du tableau : {formatDecimal(tableTotal)} gCO2
       </div>
 
-      <div style={{ overflowX: "auto", marginTop: 14 }}>
+      <div style={{ overflowX: "auto" }}>
         <table style={styles.reportTable}>
           <thead>
             <tr>
-              <th style={{ ...styles.reportTh, textAlign: "left" }}>Déjeuner</th>
-              <th style={{ ...styles.reportTh, textAlign: "center" }}>Nombre de personnes</th>
-              <th style={{ ...styles.reportTh, textAlign: "center" }}>Facteur</th>
-              <th style={{ ...styles.reportTh, textAlign: "center" }}>Total émissions</th>
+              <th style={styles.reportTh}>Élément</th>
+              <th style={styles.reportTh}>Quantité</th>
+              <th style={styles.reportTh}>Facteur</th>
+              <th style={styles.reportTh}>Total</th>
             </tr>
           </thead>
           <tbody>
-            {orderedRows.map((row, index) => {
-              const showCategory = index === 0 || orderedRows[index - 1].category !== row.category;
+            {orderedRows.map(({ section, subcategory, row }) => {
+              const showSection = section !== previousSection;
+              const showSubcategory = showSection || subcategory !== previousSubcategory;
+              previousSection = section;
+              previousSubcategory = subcategory;
+
               const total = Number(row.quantity || 0) * Number(row.factor || 0);
 
               return (
                 <React.Fragment key={row.rowKey}>
-                  {showCategory && (
+                  {showSection && (
                     <tr>
                       <td
                         colSpan={4}
@@ -4595,18 +4610,35 @@ const categoryOrder = [
                           ...styles.reportTd,
                           background: "#dbe7f3",
                           color: "#123b64",
-                          fontWeight: 800,
+                          fontWeight: 900,
                           textAlign: "left",
                         }}
                       >
-                        {row.category}
+                        {section}
+                      </td>
+                    </tr>
+                  )}
+
+                  {showSubcategory && (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        style={{
+                          ...styles.reportTd,
+                          background: "#eef3f8",
+                          color: "#123b64",
+                          fontWeight: 800,
+                          textAlign: "left",
+                          paddingLeft: 28,
+                        }}
+                      >
+                        {subcategory}
                       </td>
                     </tr>
                   )}
 
                   <tr>
                     <td style={{ ...styles.reportTd, textAlign: "left" }}>{row.label}</td>
-
                     <td style={styles.reportTd}>
                       {readOnly ? (
                         <span>{row.quantity}</span>
@@ -4630,14 +4662,8 @@ const categoryOrder = [
                         />
                       )}
                     </td>
-
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                      {row.factor}
-                    </td>
-
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                      {formatDecimal(total)}
-                    </td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{row.factor}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatDecimal(total)}</td>
                   </tr>
                 </React.Fragment>
               );
