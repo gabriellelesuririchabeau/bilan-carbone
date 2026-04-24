@@ -599,7 +599,21 @@ function formatDecimal(value: number | string | null | undefined, digits = 2) {
 }
 
 function formatReportNumber(value: number | string | null | undefined, digits = 2) {
-  return formatDecimal(value, digits);
+  const numericValue =
+    typeof value === "string"
+      ? Number(value.replace(",", "."))
+      : Number(value ?? 0);
+
+  if (!Number.isFinite(numericValue)) {
+    return "0";
+  }
+
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits,
+  })
+    .format(numericValue)
+    .replace(/\./g, ",");
 }
 
 function formatSessionCode(value: string | null | undefined) {
