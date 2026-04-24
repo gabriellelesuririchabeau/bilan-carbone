@@ -4008,75 +4008,152 @@ setAutresMessage("Questionnaire autres consommations enregistré.");
 
 
 function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyText: string) {
-  const categorySet = new Set(DEJEUNER_ANALYSIS_ROWS.map((row) => row.category));
-  const labelToCategory = new Map(DEJEUNER_ANALYSIS_ROWS.map((row) => [row.label, row.category]));
-  const rowKeyToLabel = new Map(DEJEUNER_ANALYSIS_ROWS.map((row) => [row.rowKey, row.label]));
-  const rowKeyToCategory = new Map(DEJEUNER_ANALYSIS_ROWS.map((row) => [row.rowKey, row.category]));
+  const normalizeLabel = (value: string | null | undefined) =>
+    String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/œ/g, "oe")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
 
-  const resolveCategory = (row: DejeunerReportableRowRpc) => {
-    const rowKey = String((row as { row_key?: string | null }).row_key ?? "");
-    const rawCategory = String(row.category ?? "").trim();
-    const rawLabel = String(row.label ?? "").trim();
+  const quantityByLabel = rows.reduce<Record<string, number>>((acc, row) => {
+    const label = normalizeLabel(row.label);
+    if (!label) return acc;
 
-    if (categorySet.has(rawCategory)) return rawCategory;
-    if (categorySet.has(rawLabel)) return rawLabel;
-    if (rowKeyToCategory.has(rowKey)) return String(rowKeyToCategory.get(rowKey));
-    if (labelToCategory.has(rawLabel)) return String(labelToCategory.get(rawLabel));
-    if (labelToCategory.has(rawCategory)) return String(labelToCategory.get(rawCategory));
-
-    if (rawCategory === "Plat principal") return "Sandwich";
-    if (rawCategory === "Desserts et fruits") return "Desserts";
-    if (rawLabel === "Plat principal") return "Sandwich";
-    if (rawLabel === "Desserts et fruits") return "Desserts";
-
-    return rawCategory || rawLabel || "Autres";
-  };
-
-  const resolveLabel = (row: DejeunerReportableRowRpc) => {
-    const rowKey = String((row as { row_key?: string | null }).row_key ?? "");
-    const rawCategory = String(row.category ?? "").trim();
-    const rawLabel = String(row.label ?? "").trim();
-
-    if (rowKeyToLabel.has(rowKey)) return String(rowKeyToLabel.get(rowKey));
-    if (rawLabel && !categorySet.has(rawLabel) && rawLabel !== "Plat principal" && rawLabel !== "Desserts et fruits") {
-      return rawLabel;
-    }
-    if (rawCategory && !categorySet.has(rawCategory) && rawCategory !== "Plat principal" && rawCategory !== "Desserts et fruits") {
-      return rawCategory;
-    }
-
-    return rawLabel || rawCategory || "—";
-  };
-
-  const groupedRows = rows.reduce<Record<string, Array<DejeunerReportableRowRpc & { label: string }>>>((acc, row) => {
-    const category = resolveCategory(row);
-    if (!acc[category]) acc[category] = [];
-    acc[category].push({
-      ...row,
-      label: resolveLabel(row),
-    });
+    acc[label] = (acc[label] ?? 0) + Number(row.quantity ?? 0);
     return acc;
   }, {});
 
-  const categoryOrder = [
-    "Sandwich",
-    "Plat de pâtes",
-    "Salade composée",
-    "Protéines",
-    "Accompagnements",
-    "Boissons",
-    "Desserts",
-    "Fruits",
-  ];
+  const getQuantity = (label: string, aliases: string[] = []) => {
+    const keys = [label, ...aliases].map(normalizeLabel);
+    return keys.reduce((sum, key) => sum + Number(quantityByLabel[key] ?? 0), 0);
+  };
 
-  const orderedCategories = Object.keys(groupedRows).sort((a, b) => {
-    const ia = categoryOrder.indexOf(a);
-    const ib = categoryOrder.indexOf(b);
-    if (ia === -1 && ib === -1) return a.localeCompare(b);
-    if (ia === -1) return 1;
-    if (ib === -1) return -1;
-    return ia - ib;
-  });
+  const dejeunerStructure: Array<{
+    title: string;
+    groups: Array<{
+      title: string;
+      items: Array<{
+        label: string;
+        aliases?: string[];
+      }>;
+    }>;
+  }> = [
+    {
+      title: "Plat principal",
+      groups: [
+        {
+          title: "Sandwich",
+          items: [
+            { label: "Kebab" },
+            { label: "Hamburger" },
+            { label: "Sandwich Jambon-beurre" },
+            { label: "Sandwich Fromage" },
+            {
+              label: "Sandwich poisson crudités",
+              aliases: ["Sandwich Poisson crudités", "Sandwich Thon crudités"],
+            },
+            { label: "Sandwich Crudités" },
+            { label: "Panini" },
+          ],
+        },
+        {
+          title: "Quiche/Pizza",
+          items: [{ label: "Quiche" }, { label: "Pizza" }],
+        },
+        {
+          title: "Plat de pâtes",
+          items: [
+            { label: "Spaghetti bolognaise" },
+            { label: "Lasagnes" },
+            { label: "Tagliatelles carbonara" },
+          ],
+        },
+        {
+          title: "Salade composée",
+          items: [
+            { label: "Salade de pommes de terre" },
+            { label: "Salade niçoise" },
+            { label: "Salade Thon crudités" },
+            { label: "Salade de riz" },
+            { label: "Salade de pâtes" },
+          ],
+        },
+      ],
+    },
+    {
+      title: "Protéines",
+      groups: [
+        {
+          title: "Viande rouge",
+          items: [{ label: "Bœuf", aliases: ["Boeuf"] }, { label: "Agneau" }],
+        },
+        {
+          title: "Viande blanche",
+          items: [{ label: "Porc" }, { label: "Volaille", aliases: ["Poulet"] }],
+        },
+        {
+          title: "Poisson",
+          items: [{ label: "Poisson" }],
+        },
+        {
+          title: "Œufs",
+          items: [{ label: "Œufs (omelette)", aliases: ["Oeufs (omelette)"] }],
+        },
+      ],
+    },
+    {
+      title: "Accompagnements",
+      groups: [
+        {
+          title: "Accompagnement",
+          items: [
+            { label: "Légumes" },
+            { label: "Salade" },
+            { label: "Pâtes" },
+            { label: "Riz" },
+          ],
+        },
+        {
+          title: "Frites / chips",
+          items: [{ label: "Frites / chips" }],
+        },
+      ],
+    },
+    {
+      title: "Desserts et fruits",
+      groups: [
+        {
+          title: "Fruit local",
+          items: [{ label: "Pomme" }, { label: "Raisin" }, { label: "Poire" }],
+        },
+        {
+          title: "Fruit importé",
+          items: [{ label: "Banane" }, { label: "Ananas" }, { label: "Mangue" }],
+        },
+        {
+          title: "Laitage",
+          items: [{ label: "Laitage" }],
+        },
+        {
+          title: "Dessert",
+          items: [{ label: "Glace" }, { label: "Pâtisserie" }],
+        },
+        {
+          title: "Boissons",
+          items: [
+            { label: "Eau du robinet" },
+            { label: "Eau bouteille" },
+            { label: "Soda" },
+            { label: "Café" },
+            { label: "Thé" },
+            { label: "Chocolat au lait (boisson)" },
+          ],
+        },
+      ],
+    },
+  ];
 
   return (
     <div style={styles.innerCardFull}>
@@ -4086,9 +4163,9 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
         <div style={styles.infoMessage}>{emptyText}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 22, marginTop: 18 }}>
-          {orderedCategories.map((category) => (
+          {dejeunerStructure.map((section) => (
             <div
-              key={category}
+              key={section.title}
               style={{
                 background: "#f8fafc",
                 borderRadius: 18,
@@ -4101,14 +4178,14 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
                 style={{
                   background: "#dbe7f3",
                   color: "#123b64",
-                  fontWeight: 800,
+                  fontWeight: 900,
                   fontSize: 18,
                   padding: "14px 18px",
                   borderBottom: "1px solid #c7d4e3",
                   textAlign: "left",
                 }}
               >
-                {category}
+                {section.title}
               </div>
 
               <div style={{ overflowX: "auto" }}>
@@ -4121,7 +4198,18 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
                           textAlign: "left",
                           color: "#5b3f73",
                           fontWeight: 800,
-                          width: "70%",
+                          width: "30%",
+                        }}
+                      >
+                        Sous-catégorie
+                      </th>
+                      <th
+                        style={{
+                          ...styles.reportTh,
+                          textAlign: "left",
+                          color: "#5b3f73",
+                          fontWeight: 800,
+                          width: "45%",
                         }}
                       >
                         Élément
@@ -4132,38 +4220,50 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
                           textAlign: "center",
                           color: "#5b3f73",
                           fontWeight: 800,
-                          width: "30%",
+                          width: "25%",
                         }}
                       >
                         Nombre de répondants
                       </th>
                     </tr>
                   </thead>
+
                   <tbody>
-                    {groupedRows[category]
-                      .sort((a, b) => String(a.label).localeCompare(String(b.label)))
-                      .map((row, index) => (
-                      <tr key={`${String(row.label ?? "")}-${index}`}>
-                        <td
-                          style={{
-                            ...styles.reportTd,
-                            textAlign: "left",
-                            paddingLeft: 18,
-                          }}
-                        >
-                          {String(row.label ?? "")}
-                        </td>
-                        <td
-                          style={{
-                            ...styles.reportTd,
-                            textAlign: "center",
-                            fontWeight: 700,
-                          }}
-                        >
-                          {Number(row.quantity ?? 0)}
-                        </td>
-                      </tr>
-                    ))}
+                    {section.groups.flatMap((group) =>
+                      group.items.map((item, itemIndex) => (
+                        <tr key={`${section.title}-${group.title}-${item.label}`}>
+                          <td
+                            style={{
+                              ...styles.reportTd,
+                              textAlign: "left",
+                              paddingLeft: 18,
+                              fontWeight: itemIndex === 0 ? 800 : 400,
+                              color: itemIndex === 0 ? "#123b64" : "transparent",
+                            }}
+                          >
+                            {group.title}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.reportTd,
+                              textAlign: "left",
+                              paddingLeft: 18,
+                            }}
+                          >
+                            {item.label}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.reportTd,
+                              textAlign: "center",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {getQuantity(item.label, item.aliases)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -4175,131 +4275,38 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
   );
 }
 
-
 function renderEquipementReportableBlock(rows: EquipementReportableRowRpc[], emptyText: string) {
   const equipmentLabelMap: Record<string, string> = {
-    laptop: "Ordinateur portable",
     ordinateur_portable: "Ordinateur portable",
-    desktop: "Ordinateur de bureau",
     desktop_computer: "Ordinateur de bureau",
     ordinateur_bureau: "Ordinateur de bureau",
-    laptop_desktop_tablet: "Ordinateur portable et ordinateur de bureau et/ou tablette",
-    ordinateur_portable_desktop_tablette: "Ordinateur portable et ordinateur de bureau et/ou tablette",
-    ordinateur_portable_et_ordinateur_de_bureau_et_ou_tablette: "Ordinateur portable et ordinateur de bureau et/ou tablette",
     ecran: "Écran",
-    tablet: "Tablette",
     tablette: "Tablette",
     smartphone: "Smartphone",
-    stationery: "Papeterie",
     papeterie: "Papeterie",
-    emails_without_attachment: "Nombre d'emails envoyés sans pièce jointe",
-    emails_with_attachment: "Nombre d'emails envoyés avec pièce jointe",
-    social_minutes: "Temps consacré aux réseaux sociaux",
-    social_prep_minutes: "Temps consacré aux réseaux sociaux",
-    social_during_class_minutes: "Temps consacré aux réseaux sociaux",
-    ai_minutes: "Temps consacré à l'IA",
-    ai_prep_minutes: "Temps consacré à l'IA",
-    ai_during_class_minutes: "Temps consacré à l'IA",
+    ordinateur_portable_desktop_tablette: "Ordinateur portable et ordinateur de bureau et/ou tablette",
+    ordinateur_portable_et_ordinateur_de_bureau_et_ou_tablette: "Ordinateur portable et ordinateur de bureau et/ou tablette",
+    emails_without_attachment: "Email sans PJ",
+    emails_with_attachment: "Email avec PJ",
+    social_minutes: "Réseaux sociaux",
+    social_prep_minutes: "Réseaux sociaux",
+    social_during_class_minutes: "Réseaux sociaux",
+    ai_minutes: "IA",
+    ai_prep_minutes: "IA",
+    ai_during_class_minutes: "IA",
   };
 
-  const materialKeys = new Set([
-    "laptop",
-    "ordinateur_portable",
-    "desktop",
-    "desktop_computer",
-    "ordinateur_bureau",
-    "laptop_desktop_tablet",
-    "ordinateur_portable_desktop_tablette",
-    "ordinateur_portable_et_ordinateur_de_bureau_et_ou_tablette",
-    "ecran",
-    "tablet",
-    "tablette",
-    "smartphone",
-    "stationery",
-    "papeterie",
-  ]);
-
-  const activityKeys = new Set([
-    "emails_without_attachment",
-    "emails_with_attachment",
-    "social_minutes",
-    "social_prep_minutes",
-    "social_during_class_minutes",
-    "ai_minutes",
-    "ai_prep_minutes",
-    "ai_during_class_minutes",
-  ]);
-
-  const categorySet = new Set(["Matériel", "Activité", "Équipements utilisés", "Emails", "Réseaux sociaux", "IA"]);
-
-  const resolveCategory = (row: EquipementReportableRowRpc) => {
-    const rowKey = String(row.row_key ?? "");
-    const rawCategory = String(row.category ?? "").trim();
-    const rawLabel = String(row.label ?? "").trim();
-
-    if (materialKeys.has(rowKey)) return "Matériel";
-    if (activityKeys.has(rowKey)) return "Activité";
-
-    if (rawCategory === "Équipements utilisés") return "Matériel";
-    if (rawCategory === "Emails" || rawCategory === "Réseaux sociaux" || rawCategory === "IA") return "Activité";
-    if (rawLabel === "Équipements utilisés") return "Matériel";
-    if (rawLabel === "Emails" || rawLabel === "Réseaux sociaux" || rawLabel === "IA") return "Activité";
-
-    if (rawCategory === "Matériel" || rawCategory === "Activité") return rawCategory;
-    if (rawLabel === "Matériel" || rawLabel === "Activité") return rawLabel;
-
-    return rawCategory || rawLabel || "Autres";
-  };
-
-  const resolveLabel = (row: EquipementReportableRowRpc) => {
-    const rowKey = String(row.row_key ?? "");
-    const rawCategory = String(row.category ?? "").trim();
-    const rawLabel = String(row.label ?? "").trim();
-
-    if (equipmentLabelMap[rowKey]) return equipmentLabelMap[rowKey];
-    if (rawLabel && !categorySet.has(rawLabel)) return rawLabel;
-    if (rawCategory && !categorySet.has(rawCategory)) return rawCategory;
-
-    return rawLabel || rawCategory || rowKey || "—";
-  };
-
-  const equipmentRowOrder: Record<string, number> = {
-    laptop: 0,
-    ordinateur_portable: 0,
-    desktop: 1,
-    desktop_computer: 1,
-    ordinateur_bureau: 1,
-    laptop_desktop_tablet: 2,
-    ordinateur_portable_desktop_tablette: 2,
-    ordinateur_portable_et_ordinateur_de_bureau_et_ou_tablette: 2,
-    ecran: 3,
-    tablet: 4,
-    tablette: 4,
-    smartphone: 5,
-    stationery: 6,
-    papeterie: 6,
-    emails_without_attachment: 7,
-    emails_with_attachment: 8,
-    social_minutes: 9,
-    social_prep_minutes: 9,
-    social_during_class_minutes: 9,
-    ai_minutes: 10,
-    ai_prep_minutes: 10,
-    ai_during_class_minutes: 10,
-  };
-
-  const groupedRows = rows.reduce<Record<string, Array<EquipementReportableRowRpc & { label: string; category: string }>>>((acc, row) => {
-    const category = resolveCategory(row);
+  const groupedRows = rows.reduce<Record<string, EquipementReportableRowRpc[]>>((acc, row) => {
+    const category = String(row.category ?? "Autres");
     if (!acc[category]) acc[category] = [];
     acc[category].push({
       ...row,
-      category,
-      label: resolveLabel(row),
+      label: equipmentLabelMap[String(row.row_key ?? "")] || String(row.label ?? row.row_key ?? ""),
     });
     return acc;
   }, {});
 
-  const categoryOrder = ["Matériel", "Activité"];
+  const categoryOrder = ["Matériel", "Équipements utilisés", "Activité", "Emails", "Réseaux sociaux", "IA"];
 
   const orderedCategories = Object.keys(groupedRows).sort((a, b) => {
     const ia = categoryOrder.indexOf(a);
@@ -4340,26 +4347,19 @@ function renderEquipementReportableBlock(rows: EquipementReportableRowRpc[], emp
                   textAlign: "left",
                 }}
               >
-                {category}
+                {category === "Équipements utilisés" ? "Matériel" : category}
               </div>
 
               <div style={{ overflowX: "auto" }}>
                 <table style={{ ...styles.reportTable, marginTop: 0 }}>
                   <thead>
                     <tr>
-                      <th style={{ ...styles.reportTh, textAlign: "left", width: "70%" }}>Élément</th>
+                      <th style={{ ...styles.reportTh, textAlign: "left", width: "70%" }}>Équipement</th>
                       <th style={{ ...styles.reportTh, textAlign: "center", width: "30%" }}>Quantité</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {[...groupedRows[category]]
-                      .sort((a, b) => {
-                        const ka = equipmentRowOrder[String(a.row_key ?? "")] ?? 999;
-                        const kb = equipmentRowOrder[String(b.row_key ?? "")] ?? 999;
-                        if (ka !== kb) return ka - kb;
-                        return String(a.label ?? "").localeCompare(String(b.label ?? ""));
-                      })
-                      .map((row, index) => (
+                    {[...groupedRows[category]].sort(compareAutresReportableRows).map((row, index) => (
                       <tr key={`${String(row.row_key ?? "")}-${index}`}>
                         <td style={{ ...styles.reportTd, textAlign: "left", paddingLeft: 18 }}>
                           {String(row.label ?? "")}
@@ -4651,9 +4651,6 @@ const categoryOrder = [
 
 function renderAutresReportableBlock(rows: AutresReportableRowRpc[], emptyText: string) {
   const labels: Record<string, string> = {
-    eau_robinet: "Eau du robinet",
-    eau_bouteille: "Eau bouteille",
-    soda: "Soda",
     biscuits: "Biscuits",
     chips: "Chips",
     chocolat: "Chocolat",
@@ -4662,16 +4659,12 @@ function renderAutresReportableBlock(rows: AutresReportableRowRpc[], emptyText: 
     bonbons: "Bonbons",
     viennoiserie: "Viennoiserie",
     pomme: "Pomme",
-    apple: "Pomme",
     poire: "Poire",
-    pear: "Poire",
     raisin: "Raisin",
-    grapes: "Raisin",
     banana: "Banane",
     banane: "Banane",
     mango: "Mangue",
     mangue: "Mangue",
-    pineapple: "Ananas",
     ananas: "Ananas",
     cafe: "Café",
     coffee: "Café",
@@ -4682,37 +4675,12 @@ function renderAutresReportableBlock(rows: AutresReportableRowRpc[], emptyText: 
     hot_chocolate: "Chocolat chaud",
   };
 
-  const categorySet = new Set(AUTRES_CATEGORY_ORDER);
-
-  const resolveCategory = (row: AutresReportableRowRpc) => {
-    const rawCategory = String(row.category ?? "").trim();
-    const rawLabel = String(row.label ?? "").trim();
-
-    if (categorySet.has(rawCategory)) return rawCategory;
-    if (categorySet.has(rawLabel)) return rawLabel;
-
-    return rawCategory || rawLabel || "Autres";
-  };
-
-  const resolveLabel = (row: AutresReportableRowRpc) => {
-    const rawCategory = String(row.category ?? "").trim();
-    const rawLabel = String(row.label ?? "").trim();
-    const mapped = labels[String(row.row_key ?? "")];
-
-    if (mapped) return mapped;
-    if (rawLabel && !categorySet.has(rawLabel)) return rawLabel;
-    if (rawCategory && !categorySet.has(rawCategory)) return rawCategory;
-
-    return rawLabel || rawCategory || String(row.row_key ?? "") || "—";
-  };
-
-  const groupedRows = rows.reduce<Record<string, Array<AutresReportableRowRpc & { label: string; category: string }>>>((acc, row) => {
-    const category = resolveCategory(row);
+  const groupedRows = rows.reduce<Record<string, AutresReportableRowRpc[]>>((acc, row) => {
+    const category = String(row.category ?? "Autres");
     if (!acc[category]) acc[category] = [];
     acc[category].push({
       ...row,
-      category,
-      label: resolveLabel(row),
+      label: labels[String(row.row_key ?? "")] || String(row.label ?? row.row_key ?? ""),
     });
     return acc;
   }, {});
