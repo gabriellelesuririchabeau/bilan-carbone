@@ -4210,8 +4210,8 @@ setAutresMessage("Questionnaire autres consommations enregistré.");
                 {rows.map((row) => (
                   <tr key={row.rowKey}>
                     <td style={styles.reportTd}>{row.label}</td>
-                    <td style={styles.reportTd}>{row.persons}</td>
-                    <td style={styles.reportTd}>{row.quantity}</td>
+                    <td style={styles.reportTd}>{formatReportNumber(row.persons)}</td>
+                    <td style={styles.reportTd}>{formatReportNumber(row.quantity)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -4425,7 +4425,7 @@ function renderEquipementReportableBlock(rows: EquipementReportableRowRpc[], emp
                           {String(row.label ?? "")}
                         </td>
                         <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                          {Number(row.quantity ?? 0)}
+                          {formatReportNumber(row.quantity)}
                         </td>
                       </tr>
                     ))}
@@ -4815,7 +4815,7 @@ function renderAutresReportableBlock(rows: AutresReportableRowRpc[], emptyText: 
                           {String(row.label ?? "")}
                         </td>
                         <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                          {Number(row.quantity ?? 0)}
+                          {formatReportNumber(row.quantity)}
                         </td>
                       </tr>
                     ))}
