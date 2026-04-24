@@ -602,6 +602,53 @@ function formatSessionCode(value: string | null | undefined) {
   return String(value ?? "").toUpperCase();
 }
 
+type DraftNumberInputProps = {
+  value: number | string | null | undefined;
+  style?: React.CSSProperties;
+  min?: number;
+  onCommit: (value: number) => Promise<void> | void;
+};
+
+function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
+  const [draftValue, setDraftValue] = useState(String(value ?? 0));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setDraftValue(String(value ?? 0));
+    }
+  }, [value, isFocused]);
+
+  async function commitValue() {
+    setIsFocused(false);
+
+    const numericValue = Math.max(min, Number(draftValue || 0));
+    await onCommit(numericValue);
+    setDraftValue(String(numericValue));
+  }
+
+  return (
+    <input
+      type="number"
+      min={min}
+      value={draftValue}
+      style={style}
+      onFocus={() => setIsFocused(true)}
+      onChange={(e) => {
+        setDraftValue(e.target.value);
+      }}
+      onBlur={() => {
+        void commitValue();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
 type DejeunerStructureItem = {
   rowKey: string;
   label: string;
@@ -4477,18 +4524,16 @@ function renderEquipementAnalysisTable(params: {
                       {readOnly ? (
                         <span>{row.quantity}</span>
                       ) : (
-                        <input
-                          type="number"
-                          min="0"
+                        <DraftNumberInput
                           value={row.quantity}
                           style={styles.input}
-                          onChange={async (e) => {
+                          onCommit={async (value) => {
                             await onSave?.({
                               sessionId,
                               groupNumber,
                               rowKey: row.rowKey,
                               label: row.label,
-                              quantity: Number(e.target.value || 0),
+                              quantity: value,
                               factor: row.factor,
                               updatedBy,
                             });
@@ -4643,18 +4688,16 @@ function renderDejeunerAnalysisTable(params: {
                       {readOnly ? (
                         <span>{row.quantity}</span>
                       ) : (
-                        <input
-                          type="number"
-                          min="0"
+                        <DraftNumberInput
                           value={row.quantity}
                           style={styles.input}
-                          onChange={async (e) => {
+                          onCommit={async (value) => {
                             await onSave?.({
                               sessionId,
                               groupNumber,
                               rowKey: row.rowKey,
                               label: row.label,
-                              quantity: Number(e.target.value || 0),
+                              quantity: value,
                               factor: row.factor,
                               updatedBy,
                             });
@@ -4874,18 +4917,16 @@ function renderAutresAnalysisTable(params: {
                       {readOnly ? (
                         <span>{row.quantity}</span>
                       ) : (
-                        <input
-                          type="number"
-                          min="0"
+                        <DraftNumberInput
                           value={row.quantity}
                           style={styles.input}
-                          onChange={async (e) => {
+                          onCommit={async (value) => {
                             await onSave?.({
                               sessionId,
                               groupNumber,
                               rowKey: row.rowKey,
                               label: row.label,
-                              quantity: Number(e.target.value || 0),
+                              quantity: value,
                               factor: row.factor,
                               updatedBy,
                             });
@@ -5000,18 +5041,16 @@ function renderTransportAnalysisTable(params: {
                     {readOnly ? (
                       <span>{row.persons}</span>
                     ) : (
-                      <input
-                        type="number"
-                        min="0"
+                      <DraftNumberInput
                         value={row.persons}
                         style={styles.input}
-                        onChange={async (e) => {
+                        onCommit={async (value) => {
                           await onSave?.({
                             sessionId,
                             groupNumber,
                             rowKey: row.rowKey,
                             label: row.label,
-                            persons: Math.max(0, Number(e.target.value || 0)),
+                            persons: value,
                             distanceTotalKm: row.distanceTotalKm,
                             factor: row.factor,
                             updatedBy,
@@ -5024,19 +5063,17 @@ function renderTransportAnalysisTable(params: {
                     {readOnly ? (
                       <span>{row.distanceTotalKm}</span>
                     ) : (
-                      <input
-                        type="number"
-                        min="0"
+                      <DraftNumberInput
                         value={row.distanceTotalKm}
                         style={styles.input}
-                        onChange={async (e) => {
+                        onCommit={async (value) => {
                           await onSave?.({
                             sessionId,
                             groupNumber,
                             rowKey: row.rowKey,
                             label: row.label,
                             persons: row.persons,
-                            distanceTotalKm: Math.max(0, Number(e.target.value || 0)),
+                            distanceTotalKm: value,
                             factor: row.factor,
                             updatedBy,
                           });
