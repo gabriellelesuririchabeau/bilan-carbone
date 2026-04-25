@@ -143,6 +143,7 @@ type TeacherVoteResult = {
 };
 
 type AssignmentMode = "emails" | "groups";
+type AssignmentMethod = "import" | "random";
 
 type StudentAssignmentDraft = {
   email: string;
@@ -1250,6 +1251,7 @@ const [quickSessionSuffix, setQuickSessionSuffix] = useState("");  const [teache
   const [userSearch, setUserSearch] = useState("");
 
 const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("emails");
+const [assignmentMethod, setAssignmentMethod] = useState<AssignmentMethod>("import");
 const [assignmentRawText, setAssignmentRawText] = useState("");
 
   const [transportTrips, setTransportTrips] = useState<TransportTrip[]>(emptyTrips());
@@ -3746,6 +3748,7 @@ async function handleCreateSessionQuick() {
     setSettingsAllowedEmailsText("");
   }
 
+  setAssignmentMethod("import");
   setAssignmentRawText("");
   setQuickSessionCampus("");
   setQuickSessionProgramme("");
@@ -3781,6 +3784,7 @@ async function handleOpenSession(session: SessionRow) {
 
 if (assignmentData && assignmentData.length > 0) {
   setAssignmentMode("groups");
+  setAssignmentMethod("import");
   setAssignmentRawText(
     assignmentData
       .map((student: any) =>
@@ -3795,6 +3799,7 @@ if (assignmentData && assignmentData.length > 0) {
   );
 } else {
   setAssignmentMode("emails");
+  setAssignmentMethod("import");
   setAssignmentRawText("");
 }
 
@@ -3834,6 +3839,7 @@ if (assignmentData && assignmentData.length > 0) {
       setSettingsTitle("");
       setSettingsCampus("");
 setAssignmentMode("emails");
+setAssignmentMethod("import");
 setAssignmentRawText("");
       setSettingsAllowedEmailsText("");
       setCounts(EMPTY_COUNTS);
@@ -3863,6 +3869,11 @@ setAssignmentRawText("");
       setMessage("Aucune session sélectionnée.");
       return;
     }
+
+if (assignmentMode === "groups" && assignmentMethod === "random") {
+  setMessage("L'assignation aléatoire sera activée à l'étape suivante. Pour l'instant, utilisez l'import / copier-coller d'une liste.");
+  return;
+}
 
 const allowedEmails =
   assignmentMode === "groups"
@@ -6680,49 +6691,98 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 </>
               ) : (
                 <>
-                  <label style={styles.label}>Liste avec assignation</label>
+                  <label style={styles.label}>Méthode d'assignation</label>
 
                   <div
                     style={{
                       display: "flex",
-                      justifyContent: "center",
-                      marginTop: 8,
-                      marginBottom: 18,
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 10,
+                      marginBottom: 22,
                     }}
                   >
-                    <button
-                      type="button"
-                      style={styles.primaryButton}
-                      onClick={downloadAssignmentTemplate}
-                    >
-                      Télécharger le modèle
-                    </button>
+                    <label>
+                      <input
+                        type="radio"
+                        checked={assignmentMethod === "import"}
+                        onChange={() => setAssignmentMethod("import")}
+                      />{" "}
+                      Import / copier-coller d'une liste déjà assignée
+                    </label>
+
+                    <label>
+                      <input
+                        type="radio"
+                        checked={assignmentMethod === "random"}
+                        onChange={() => setAssignmentMethod("random")}
+                      />{" "}
+                      Assignation aléatoire à partir d'une liste d'emails
+                    </label>
                   </div>
 
-                  <textarea
-                    style={{ ...styles.input, minHeight: 220 } as React.CSSProperties}
-                    value={assignmentRawText}
-                    onChange={(e) => setAssignmentRawText(e.target.value)}
-                    placeholder={"email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
-                  />
+                  {assignmentMethod === "import" ? (
+                    <>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          marginTop: 4,
+                          marginBottom: 20,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          style={styles.primaryButton}
+                          onClick={downloadAssignmentTemplate}
+                        >
+                          Télécharger le modèle
+                        </button>
+                      </div>
 
-                  <div style={{ ...styles.emptyText, marginTop: 10 }}>
-                    {parsedStudentAssignments.length} assignation(s) valide(s) détectée(s).
-                  </div>
+                      <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
+                        Liste avec assignation
+                      </label>
 
-                  {parsedStudentAssignments.length > 0 && (
-                    <div style={{ maxHeight: 180, overflowY: "auto", marginTop: 8 }}>
-                      {parsedStudentAssignments.slice(0, 8).map((student) => (
-                        <div key={`${student.email}-${student.group_number}`} style={styles.emptyText}>
-                          Groupe {student.group_number} — {student.first_name} {student.last_name} — {student.email}
-                        </div>
-                      ))}
-                      {parsedStudentAssignments.length > 8 && (
-                        <div style={styles.emptyText}>
-                          + {parsedStudentAssignments.length - 8} autre(s)
+                      <textarea
+                        style={{ ...styles.input, minHeight: 220 } as React.CSSProperties}
+                        value={assignmentRawText}
+                        onChange={(e) => setAssignmentRawText(e.target.value)}
+                        placeholder={"email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
+                      />
+
+                      <div style={{ ...styles.emptyText, marginTop: 10 }}>
+                        {parsedStudentAssignments.length} assignation(s) valide(s) détectée(s).
+                      </div>
+
+                      {parsedStudentAssignments.length > 0 && (
+                        <div style={{ maxHeight: 180, overflowY: "auto", marginTop: 8 }}>
+                          {parsedStudentAssignments.slice(0, 8).map((student) => (
+                            <div key={`${student.email}-${student.group_number}`} style={styles.emptyText}>
+                              Groupe {student.group_number} — {student.first_name} {student.last_name} — {student.email}
+                            </div>
+                          ))}
+                          {parsedStudentAssignments.length > 8 && (
+                            <div style={styles.emptyText}>
+                              + {parsedStudentAssignments.length - 8} autre(s)
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
+                    </>
+                  ) : (
+                    <>
+                      <label style={styles.label}>Emails à répartir aléatoirement</label>
+                      <textarea
+                        style={{ ...styles.input, minHeight: 220 } as React.CSSProperties}
+                        value={settingsAllowedEmailsText}
+                        onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
+                        placeholder="Un email par ligne"
+                      />
+                      <div style={{ ...styles.emptyText, marginTop: 10 }}>
+                        L'assignation aléatoire sera paramétrée à l'étape suivante. Cette zone prépare la liste d'emails à répartir.
+                      </div>
+                    </>
                   )}
                 </>
               )}
