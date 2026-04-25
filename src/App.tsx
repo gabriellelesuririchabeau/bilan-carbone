@@ -6680,29 +6680,24 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 </>
               ) : (
                 <>
-                  <label style={styles.label}>Méthode d'assignation</label>
+                  <label style={styles.label}>Liste avec assignation</label>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-                    <label>
-                      <input type="radio" defaultChecked /> Import / copier-coller d'une liste
-                    </label>
-
-                    <label>
-                      <input type="radio" disabled /> Assignation aléatoire à partir d'une liste d'emails — étape suivante
-                    </label>
-                  </div>
-
-                  <button
-                    type="button"
-                    style={styles.primaryButton}
-                    onClick={downloadAssignmentTemplate}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      marginTop: 8,
+                      marginBottom: 18,
+                    }}
                   >
-                    Télécharger le modèle
-                  </button>
-
-                  <label style={{ ...styles.label, marginTop: 16 }}>
-                    Liste avec assignation
-                  </label>
+                    <button
+                      type="button"
+                      style={styles.primaryButton}
+                      onClick={downloadAssignmentTemplate}
+                    >
+                      Télécharger le modèle
+                    </button>
+                  </div>
 
                   <textarea
                     style={{ ...styles.input, minHeight: 220 } as React.CSSProperties}
@@ -6711,7 +6706,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                     placeholder={"email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
                   />
 
-                  <div style={styles.emptyText}>
+                  <div style={{ ...styles.emptyText, marginTop: 10 }}>
                     {parsedStudentAssignments.length} assignation(s) valide(s) détectée(s).
                   </div>
 
