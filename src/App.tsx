@@ -6662,25 +6662,10 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               <input style={styles.input} value={settingsTitle} onChange={(e) => setSettingsTitle(e.target.value)} />
 
               <label style={styles.label}>Mode d'accès étudiant</label>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-                <label>
-                  <input
-                    type="radio"
-                    checked={assignmentMode === "emails"}
-                    onChange={() => setAssignmentMode("emails")}
-                  />{" "}
-                  Liste simple d'emails autorisés
-                </label>
-
-                <label>
-                  <input
-                    type="radio"
-                    checked={assignmentMode === "groups"}
-                    onChange={() => setAssignmentMode("groups")}
-                  />{" "}
-                  Assignation des étudiants à un groupe
-                </label>
+              <div style={{ ...styles.emptyText, marginBottom: 16 }}>
+                {assignmentMode === "groups"
+                  ? "Assignation des étudiants à un groupe"
+                  : "Liste simple d'emails autorisés"}
               </div>
 
               {assignmentMode === "emails" ? (
