@@ -3735,55 +3735,27 @@ async function handleCreateSessionQuick() {
     return;
   }
 
-const newSessionId = String(data);
+  setSelectedSessionId(String(data));
+  setSelectedSessionCode(normalizedCode);
+  setSettingsTitle(normalizedCode);
+  setSettingsCampus("");
 
-setSelectedSessionId(newSessionId);
-setSelectedSessionCode(normalizedCode);
-setSettingsTitle(normalizedCode);
-setSettingsCampus("");
-
-if (assignmentMode === "groups") {
-  setSettingsAllowedEmailsText(
-    parsedStudentAssignments.map((student) => student.email).join("\n")
-  );
-
-  if (parsedStudentAssignments.length === 0) {
-    setMessage("Aucune assignation valide détectée. Vérifiez le format : email;prenom;nom;groupe.");
-    return;
+  if (assignmentMode === "emails") {
+    setSettingsAllowedEmailsText(teacherUserEmail || "");
+  } else {
+    setSettingsAllowedEmailsText("");
   }
 
-  const { error: assignmentError } = await supabase
-    .from("session_student_assignments")
-    .insert(
-      parsedStudentAssignments.map((student) => ({
-        session_id: newSessionId,
-        email: student.email,
-        first_name: student.first_name,
-        last_name: student.last_name,
-        group_number: student.group_number,
-      }))
-    );
+  setAssignmentRawText("");
+  setQuickSessionCampus("");
+  setQuickSessionProgramme("");
+  setQuickSessionLevel("");
+  setQuickSessionSuffix("");
 
-  if (assignmentError) {
-    setMessage(`Session créée, mais erreur assignation groupes : ${assignmentError.message}`);
-    return;
-  }
-} else {
-  setSettingsAllowedEmailsText(teacherUserEmail || "");
+  await loadTeacherSessions(teacherUserId);
+  setScreen("teacher_session_settings");
+  setMessage(`Session créée : ${normalizedCode}`);
 }
-
-setQuickSessionCampus("");
-setQuickSessionProgramme("");
-setQuickSessionLevel("");
-setQuickSessionSuffix("");
-setAssignmentMode("emails");
-setAssignmentRawText("");
-
-await loadTeacherSessions(teacherUserId);
-setScreen("teacher_session_settings");
-setMessage(`Session créée : ${normalizedCode}`);
-}
-
 async function handleOpenSession(session: SessionRow) {
   setMessage("");
   setSelectedSessionId(session.id);
@@ -6689,61 +6661,91 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               <label style={styles.label}>Code de session</label>
               <input style={styles.input} value={settingsTitle} onChange={(e) => setSettingsTitle(e.target.value)} />
 
-              <label style={styles.label}>Emails autorisés (un par ligne)</label>
-              <div style={{ marginBottom: 16 }}>
-  <label style={styles.label}>Mode d'accès étudiant</label>
+              <label style={styles.label}>Mode d'accès étudiant</label>
 
-  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-    <label>
-      <input
-        type="radio"
-        checked={assignmentMode === "emails"}
-        onChange={() => setAssignmentMode("emails")}
-      />{" "}
-      Liste simple d'emails autorisés
-    </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                <label>
+                  <input
+                    type="radio"
+                    checked={assignmentMode === "emails"}
+                    onChange={() => setAssignmentMode("emails")}
+                  />{" "}
+                  Liste simple d'emails autorisés
+                </label>
 
-    <label>
-      <input
-        type="radio"
-        checked={assignmentMode === "groups"}
-        onChange={() => setAssignmentMode("groups")}
-      />{" "}
-      Assignation des étudiants à un groupe
-    </label>
-  </div>
-</div>
-{assignmentMode === "emails" ? (
-  <textarea
-    style={styles.textarea}
-    value={settingsAllowedEmailsText}
-    onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
-    placeholder="Un email par ligne"
-  />
-) : (
-  <>
-    <button
-      type="button"
-      style={styles.secondaryButton}
-      onClick={downloadAssignmentTemplate}
-    >
-      Télécharger le modèle
-    </button>
+                <label>
+                  <input
+                    type="radio"
+                    checked={assignmentMode === "groups"}
+                    onChange={() => setAssignmentMode("groups")}
+                  />{" "}
+                  Assignation des étudiants à un groupe
+                </label>
+              </div>
 
-    <textarea
-      style={{ ...styles.textarea, marginTop: 12 }}
-      value={assignmentRawText}
-      onChange={(e) => setAssignmentRawText(e.target.value)}
-      placeholder={
-        "email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"
-      }
-    />
+              {assignmentMode === "emails" ? (
+                <>
+                  <label style={styles.label}>Emails autorisés (un par ligne)</label>
+                  <textarea
+                    style={{ ...styles.input, minHeight: 180 } as React.CSSProperties}
+                    value={settingsAllowedEmailsText}
+                    onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
+                    placeholder="Un email par ligne"
+                  />
+                </>
+              ) : (
+                <>
+                  <label style={styles.label}>Méthode d'assignation</label>
 
-    <div style={styles.emptyText}>
-      {parsedStudentAssignments.length} assignation(s) valide(s)
-    </div>
-  </>
-)}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                    <label>
+                      <input type="radio" defaultChecked /> Import / copier-coller d'une liste
+                    </label>
+
+                    <label>
+                      <input type="radio" disabled /> Assignation aléatoire à partir d'une liste d'emails — étape suivante
+                    </label>
+                  </div>
+
+                  <button
+                    type="button"
+                    style={styles.primaryButton}
+                    onClick={downloadAssignmentTemplate}
+                  >
+                    Télécharger le modèle
+                  </button>
+
+                  <label style={{ ...styles.label, marginTop: 16 }}>
+                    Liste avec assignation
+                  </label>
+
+                  <textarea
+                    style={{ ...styles.input, minHeight: 220 } as React.CSSProperties}
+                    value={assignmentRawText}
+                    onChange={(e) => setAssignmentRawText(e.target.value)}
+                    placeholder={"email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
+                  />
+
+                  <div style={styles.emptyText}>
+                    {parsedStudentAssignments.length} assignation(s) valide(s) détectée(s).
+                  </div>
+
+                  {parsedStudentAssignments.length > 0 && (
+                    <div style={{ maxHeight: 180, overflowY: "auto", marginTop: 8 }}>
+                      {parsedStudentAssignments.slice(0, 8).map((student) => (
+                        <div key={`${student.email}-${student.group_number}`} style={styles.emptyText}>
+                          Groupe {student.group_number} — {student.first_name} {student.last_name} — {student.email}
+                        </div>
+                      ))}
+                      {parsedStudentAssignments.length > 8 && (
+                        <div style={styles.emptyText}>
+                          + {parsedStudentAssignments.length - 8} autre(s)
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
 
               <div style={styles.row}>
                 <button style={styles.primaryButton} onClick={handleSaveSessionSettings}>
@@ -7444,44 +7446,6 @@ if (screen === "student_vote") {
     </label>
   </div>
 </div>
-
-{assignmentMode === "groups" && (
-  <div style={{ marginTop: 16 }}>
-    <button
-      type="button"
-      style={styles.secondaryButton}
-      onClick={downloadAssignmentTemplate}
-    >
-      Télécharger le modèle
-    </button>
-
-    <textarea
-      style={{ ...styles.textarea, marginTop: 12 }}
-      placeholder={"Collez ici le contenu du fichier :\nemail;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
-      value={assignmentRawText}
-      onChange={(e) => setAssignmentRawText(e.target.value)}
-    />
-
-    <div style={styles.emptyText}>
-      {parsedStudentAssignments.length} assignation(s) valide(s) détectée(s).
-    </div>
-
-    {parsedStudentAssignments.length > 0 && (
-      <div style={{ maxHeight: 180, overflowY: "auto", marginTop: 8 }}>
-        {parsedStudentAssignments.slice(0, 8).map((student) => (
-          <div key={`${student.email}-${student.group_number}`} style={styles.emptyText}>
-            Groupe {student.group_number} — {student.first_name} {student.last_name} — {student.email}
-          </div>
-        ))}
-        {parsedStudentAssignments.length > 8 && (
-          <div style={styles.emptyText}>
-            + {parsedStudentAssignments.length - 8} autre(s)
-          </div>
-        )}
-      </div>
-    )}
-  </div>
-)}
 
 <button style={styles.primaryButton} onClick={handleCreateSessionQuick}>
   Créer la session
