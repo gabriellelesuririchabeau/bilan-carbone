@@ -670,18 +670,97 @@ function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
     });
 }
 
-function capitalizeFirst(value: string) {
+function capitalizeNamePart(value: string) {
   const cleanValue = String(value ?? "").trim().toLowerCase();
   if (!cleanValue) return "";
-  return cleanValue.charAt(0).toUpperCase() + cleanValue.slice(1);
+
+  return cleanValue
+    .split(/([\\s-]+)/)
+    .map((part) => {
+      if (/^[\\s-]+$/.test(part)) return part;
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join("");
+}
+
+function formatAssignmentLastName(student: StudentAssignmentDraft) {
+  return String(student.last_name ?? "").trim().toUpperCase();
+}
+
+function formatAssignmentFirstName(student: StudentAssignmentDraft) {
+  return String(student.first_name ?? "")
+    .trim()
+    .split(/\\s+/)
+    .map((word) =>
+      word
+        .split("-")
+        .map((part) => capitalizeNamePart(part))
+        .join("-")
+    )
+    .join(" ");
 }
 
 function formatAssignmentDisplayName(student: StudentAssignmentDraft) {
-  const lastName = String(student.last_name ?? "").trim().toUpperCase();
-  const firstName = capitalizeFirst(student.first_name ?? "");
+  const lastName = formatAssignmentLastName(student);
+  const firstName = formatAssignmentFirstName(student);
   const fullName = [lastName, firstName].filter(Boolean).join(" ");
   return fullName || student.email;
 }
+
+function renderAssignmentsTable(assignments: StudentAssignmentDraft[], searchText = "") {
+  const query = searchText.trim().toLowerCase();
+
+  const filteredAssignments = [...assignments]
+    .filter((student) => {
+      if (!query) return true;
+      return (
+        student.email.toLowerCase().includes(query) ||
+        formatAssignmentLastName(student).toLowerCase().includes(query) ||
+        formatAssignmentFirstName(student).toLowerCase().includes(query) ||
+        String(student.group_number).includes(query)
+      );
+    })
+    .sort((a, b) => {
+      if (a.group_number !== b.group_number) return a.group_number - b.group_number;
+      const lastNameCompare = formatAssignmentLastName(a).localeCompare(formatAssignmentLastName(b));
+      if (lastNameCompare !== 0) return lastNameCompare;
+      return formatAssignmentFirstName(a).localeCompare(formatAssignmentFirstName(b));
+    });
+
+  if (!filteredAssignments.length) {
+    return (
+      <div style={{ ...styles.emptyText, marginTop: 12 }}>
+        Aucun étudiant ne correspond à la recherche.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxHeight: 320, overflowY: "auto", overflowX: "auto", marginTop: 14 }}>
+      <table style={styles.reportTable}>
+        <thead>
+          <tr>
+            <th style={styles.reportTh}>Nom</th>
+            <th style={styles.reportTh}>Prénom</th>
+            <th style={styles.reportTh}>Groupe</th>
+            <th style={styles.reportTh}>Email</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredAssignments.map((student) => (
+            <tr key={`${student.email}-${student.group_number}`}>
+              <td style={styles.reportTd}>{formatAssignmentLastName(student)}</td>
+              <td style={styles.reportTd}>{formatAssignmentFirstName(student)}</td>
+              <td style={styles.reportTd}>{student.group_number}</td>
+              <td style={styles.reportTd}>{student.email}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 
 function generateRandomAssignments(rawText: string): StudentAssignmentDraft[] {
   const students = rawText
@@ -1315,6 +1394,7 @@ const [quickSessionSuffix, setQuickSessionSuffix] = useState("");  const [teache
   const [settingsCampus, setSettingsCampus] = useState("");
   const [settingsAllowedEmailsText, setSettingsAllowedEmailsText] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [assignmentSearch, setAssignmentSearch] = useState("");
 
 const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("emails");
 const [assignmentMethod, setAssignmentMethod] = useState<AssignmentMethod>("import");
@@ -1703,6 +1783,13 @@ const studentSyntheseData = useMemo(
       setOpenProposalGroup(null);
     }
   }, [studentAssignedGroup, studentGroupNumber]);
+
+  useEffect(() => {
+    if (!studentAssignedGroup) return;
+    if (openProposalGroup !== null && openProposalGroup !== studentAssignedGroup) {
+      setOpenProposalGroup(null);
+    }
+  }, [studentAssignedGroup, openProposalGroup]);
 
   useEffect(() => {
   if (screen === "student_analyses" && !studentAnalysisUnlocked) {
@@ -3995,9 +4082,14 @@ setAssignmentRawText("");
 
 
   function downloadAssignmentExport() {
-    const assignments = [...activeStudentAssignments].sort((a, b) => {
+    const sourceAssignments =
+      displayedStudentAssignments.length > 0 ? displayedStudentAssignments : activeStudentAssignments;
+
+    const assignments = [...sourceAssignments].sort((a, b) => {
       if (a.group_number !== b.group_number) return a.group_number - b.group_number;
-      return formatAssignmentDisplayName(a).localeCompare(formatAssignmentDisplayName(b));
+      const lastNameCompare = formatAssignmentLastName(a).localeCompare(formatAssignmentLastName(b));
+      if (lastNameCompare !== 0) return lastNameCompare;
+      return formatAssignmentFirstName(a).localeCompare(formatAssignmentFirstName(b));
     });
 
     if (!assignments.length) {
@@ -4006,15 +4098,18 @@ setAssignmentRawText("");
     }
 
     const content = [
-      "Groupe;Nom et prénom",
+      "Nom;Prénom;Groupe;Email",
       ...assignments.map((student) => [
+        formatAssignmentLastName(student),
+        formatAssignmentFirstName(student),
         String(student.group_number),
-        formatAssignmentDisplayName(student),
+        student.email,
       ].join(";")),
     ].join("\n");
 
     downloadTextFile(`assignation_groupes_${formatSessionCode(selectedSessionCode || "session")}.csv`, content);
   }
+
 
   async function handleSaveSessionSettings() {
     setMessage("");
@@ -4216,6 +4311,20 @@ if (normalizedAssignments.length > 0) {
   setStudentSelectedSessionCode(sessionRow?.session_code ?? normalizedSessionCode);
 
   await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode);
+
+  if (normalizedAssignments.length > 0) {
+    const assignment = normalizedAssignments.find(
+      (row) => row.email === normalizedStudentEmail
+    );
+
+    if (assignment) {
+      setStudentAssignedGroup(assignment.group_number);
+      setStudentAssignedFirstName(assignment.first_name);
+      setStudentAssignedLastName(assignment.last_name);
+      setStudentGroupNumber(assignment.group_number);
+      setOpenProposalGroup(null);
+    }
+  }
 
   await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
   await loadTransportReportRows(nextSessionId, setStudentTransportReportRowsDb);
@@ -6891,134 +7000,45 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 </>
               ) : (
                 <>
-                  <label style={styles.label}>Méthode d'assignation</label>
+                  <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
+                    Liste avec assignation
+                  </label>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 10,
-                      marginBottom: 22,
-                    }}
-                  >
-                    <label>
-                      <input
-                        type="radio"
-                        checked={assignmentMethod === "import"}
-                        onChange={() => setAssignmentMethod("import")}
-                      />{" "}
-                      Import / copier-coller d'une liste déjà assignée
-                    </label>
+                  <textarea
+                    style={{ ...styles.input, minHeight: 180 } as React.CSSProperties}
+                    value={assignmentRawText}
+                    onChange={(e) => setAssignmentRawText(e.target.value)}
+                    placeholder={"email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
+                  />
 
-                    <label>
-                      <input
-                        type="radio"
-                        checked={assignmentMethod === "random"}
-                        onChange={() => setAssignmentMethod("random")}
-                      />{" "}
-                      Assignation aléatoire à partir d'une liste d'emails
-                    </label>
+                  <div style={{ ...styles.emptyText, marginTop: 10 }}>
+                    {activeStudentAssignments.length} assignation(s) valide(s) détectée(s).
                   </div>
 
-                  {assignmentMethod === "import" ? (
-                    <>
-                      <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
-                        Liste avec assignation
-                      </label>
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                    <button
+                      type="button"
+                      style={styles.primaryButton}
+                      onClick={downloadAssignmentExport}
+                    >
+                      Exporter l'assignation
+                    </button>
+                  </div>
 
-                      <textarea
-                        style={{ ...styles.input, minHeight: 220 } as React.CSSProperties}
-                        value={assignmentRawText}
-                        onChange={(e) => setAssignmentRawText(e.target.value)}
-                        placeholder={"email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
-                      />
+                  <input
+                    type="text"
+                    placeholder="Rechercher par nom, prénom, groupe ou email..."
+                    value={assignmentSearch}
+                    onChange={(e) => setAssignmentSearch(e.target.value)}
+                    style={{ ...styles.input, marginTop: 14 }}
+                  />
 
-                      <div style={{ ...styles.emptyText, marginTop: 10 }}>
-                        {activeStudentAssignments.length} assignation(s) valide(s) détectée(s).
-                      </div>
-
-                      {activeStudentAssignments.length > 0 && (
-                        <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                          <button
-                            type="button"
-                            style={styles.secondaryButton}
-                            onClick={downloadAssignmentExport}
-                          >
-                            Exporter l'assignation
-                          </button>
-                        </div>
-                      )}
-
-                      {activeStudentAssignments.length > 0 && (
-                        <div style={{ maxHeight: 260, overflowY: "auto", marginTop: 14, overflowX: "auto" }}>
-                          <table style={styles.reportTable}>
-                            <thead>
-                              <tr>
-                                <th style={styles.reportTh}>Groupe</th>
-                                <th style={styles.reportTh}>Nom et prénom</th>
-                                <th style={styles.reportTh}>Email</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {[...activeStudentAssignments]
-                                .sort((a, b) => {
-                                  if (a.group_number !== b.group_number) return a.group_number - b.group_number;
-                                  return formatAssignmentDisplayName(a).localeCompare(formatAssignmentDisplayName(b));
-                                })
-                                .map((student) => (
-                                  <tr key={`${student.email}-${student.group_number}`}>
-                                    <td style={styles.reportTd}>{student.group_number}</td>
-                                    <td style={styles.reportTd}>{formatAssignmentDisplayName(student)}</td>
-                                    <td style={styles.reportTd}>{student.email}</td>
-                                  </tr>
-                                ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </>
+                  {activeStudentAssignments.length > 0 ? (
+                    renderAssignmentsTable(activeStudentAssignments, assignmentSearch)
                   ) : (
-                    <>
-                      <label style={styles.label}>Emails à répartir aléatoirement</label>
-                      <textarea
-                        style={{ ...styles.input, minHeight: 220 } as React.CSSProperties}
-                        value={settingsAllowedEmailsText}
-                        onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
-                        placeholder="Un email par ligne"
-                      />
-                      <div style={{ ...styles.emptyText, marginTop: 10 }}>
-                        Les étudiants seront répartis automatiquement dans les groupes au moment de l'enregistrement.
-                      </div>
-
-                      {activeStudentAssignments.length > 0 && (
-                        <div style={{ maxHeight: 260, overflowY: "auto", marginTop: 14, overflowX: "auto" }}>
-                          <table style={styles.reportTable}>
-                            <thead>
-                              <tr>
-                                <th style={styles.reportTh}>Groupe</th>
-                                <th style={styles.reportTh}>Nom et prénom</th>
-                                <th style={styles.reportTh}>Email</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {[...activeStudentAssignments]
-                                .sort((a, b) => {
-                                  if (a.group_number !== b.group_number) return a.group_number - b.group_number;
-                                  return formatAssignmentDisplayName(a).localeCompare(formatAssignmentDisplayName(b));
-                                })
-                                .map((student) => (
-                                  <tr key={`${student.email}-${student.group_number}`}>
-                                    <td style={styles.reportTd}>{student.group_number}</td>
-                                    <td style={styles.reportTd}>{formatAssignmentDisplayName(student)}</td>
-                                    <td style={styles.reportTd}>{student.email}</td>
-                                  </tr>
-                                ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </>
+                    <div style={{ ...styles.emptyText, marginTop: 12 }}>
+                      Aucune assignation valide détectée.
+                    </div>
                   )}
                 </>
               )}
@@ -7875,59 +7895,34 @@ if (screen === "student_vote") {
 
                   <input
                     type="text"
-                    placeholder="Rechercher un email, un nom ou un groupe..."
+                    placeholder="Rechercher par nom, prénom, groupe ou email..."
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
                     style={{ ...styles.input, marginTop: 10 }}
                   />
 
                   {displayedStudentAssignments.length > 0 ? (
-                      <div style={{ marginTop: 16, overflowX: "auto" }}>
-                        <table style={styles.reportTable}>
-                          <thead>
-                            <tr>
-                              <th style={styles.reportTh}>Groupe</th>
-                              <th style={styles.reportTh}>Nom et prénom</th>
-                              <th style={styles.reportTh}>Email</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[...displayedStudentAssignments]
-                              .filter((student) => {
-                                const q = userSearch.trim().toLowerCase();
-                                if (!q) return true;
-                                return (
-                                  student.email.toLowerCase().includes(q) ||
-                                  formatAssignmentDisplayName(student).toLowerCase().includes(q) ||
-                                  String(student.group_number).includes(q)
-                                );
-                              })
-                              .sort((a, b) => {
-                                if (a.group_number !== b.group_number) return a.group_number - b.group_number;
-                                return formatAssignmentDisplayName(a).localeCompare(formatAssignmentDisplayName(b));
-                              })
-                              .map((student) => (
-                                <tr key={`${student.email}-${student.group_number}`}>
-                                  <td style={styles.reportTd}>{student.group_number}</td>
-                                  <td style={styles.reportTd}>{formatAssignmentDisplayName(student)}</td>
-                                  <td style={styles.reportTd}>{student.email}</td>
-                                </tr>
-                              ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )
-                  : !sortedFilteredEmails.length ? (
+                    renderAssignmentsTable(displayedStudentAssignments, userSearch)
+                  ) : !sortedFilteredEmails.length ? (
                     <div style={{ ...styles.emptyText, marginTop: 12 }}>
                       Aucun email trouvé.
                     </div>
                   ) : (
-                    <div style={{ marginTop: 12 }}>
-                      {sortedFilteredEmails.map((email) => (
-                        <div key={email} style={styles.sessionItemMeta}>
-                          • {email}
-                        </div>
-                      ))}
+                    <div style={{ maxHeight: 320, overflowY: "auto", marginTop: 12 }}>
+                      <table style={styles.reportTable}>
+                        <thead>
+                          <tr>
+                            <th style={styles.reportTh}>Email</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedFilteredEmails.map((email) => (
+                            <tr key={email}>
+                              <td style={styles.reportTd}>{email}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
 
