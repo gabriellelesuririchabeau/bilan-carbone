@@ -1663,6 +1663,15 @@ const studentSyntheseData = useMemo(
     return assignmentMethod === "random" ? randomStudentAssignments : parsedStudentAssignments;
   }, [assignmentMode, assignmentMethod, parsedStudentAssignments, randomStudentAssignments]);
 
+  const displayedStudentAssignments = useMemo(() => {
+    if (activeStudentAssignments.length > 0) return activeStudentAssignments;
+
+    const parsedFromAllowedEmails = parseStudentAssignments(settingsAllowedEmailsText);
+    if (parsedFromAllowedEmails.length > 0) return parsedFromAllowedEmails;
+
+    return [];
+  }, [activeStudentAssignments, settingsAllowedEmailsText]);
+
   const filteredAdminTeachers = useMemo(() => {
     const q = teacherSearch.trim().toLowerCase();
     if (!q) return adminTeachers;
@@ -3208,7 +3217,8 @@ updatedBy: string | null;
       return;
     }
 
-    const { sessionId, groupNumber, rowKey, label, persons, distanceTotalKm, factor, updatedBy } = params;
+    const { sessionId, rowKey, label, persons, distanceTotalKm, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
     const safePersons = Math.max(0, Number(persons || 0));
     const safeDistanceTotalKm = Math.max(0, Number(distanceTotalKm || 0));
@@ -3256,7 +3266,8 @@ updatedBy: string | null;
       return;
     }
 
-    const { sessionId, groupNumber, rowKey, label, quantity, factor, updatedBy } = params;
+    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
     const safeQuantity = Math.max(0, Number(quantity || 0));
     const safeFactor = Math.max(0, Number(factor || 0));
@@ -3300,7 +3311,8 @@ async function saveEquipementReportRow(params: {
       return;
     }
 
-    const { sessionId, groupNumber, rowKey, label, quantity, factor, updatedBy } = params;
+    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3345,7 +3357,8 @@ async function saveAutresReportRow(params: {
       return;
     }
 
-    const { sessionId, groupNumber, rowKey, label, quantity, factor, updatedBy } = params;
+    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3441,7 +3454,8 @@ async function saveSalleReportRow(params: {
       return;
     }
 
-    const { sessionId, groupNumber, rowKey, label, quantity, factor, updatedBy } = params;
+    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3889,37 +3903,46 @@ async function handleOpenSession(session: SessionRow) {
     .from("session_allowed_emails")
     .select("email")
     .eq("session_id", session.id);
-  setSettingsAllowedEmailsText(
-    (emailData ?? []).map((row: { email: string }) => row.email).join("\n")
-  );
+
+  const allowedEmailText = (emailData ?? []).map((row: { email: string }) => row.email).join("\n");
+  setSettingsAllowedEmailsText(allowedEmailText);
 
   const { data: assignmentData } = await supabase
-  .from("session_student_assignments")
-  .select("email, first_name, last_name, group_number")
-  .eq("session_id", session.id)
-  .order("group_number", { ascending: true })
-  .order("last_name", { ascending: true });
+    .from("session_student_assignments")
+    .select("email, first_name, last_name, group_number")
+    .eq("session_id", session.id)
+    .order("group_number", { ascending: true })
+    .order("last_name", { ascending: true });
 
-if (assignmentData && assignmentData.length > 0) {
-  setAssignmentMode("groups");
-  setAssignmentMethod("import");
-  setAssignmentRawText(
-    assignmentData
-      .map((student: any) =>
-        [
-          student.email ?? "",
-          student.first_name ?? "",
-          student.last_name ?? "",
-          student.group_number ?? "",
-        ].join(";")
-      )
-      .join("\n")
-  );
-} else {
-  setAssignmentMode("emails");
-  setAssignmentMethod("import");
-  setAssignmentRawText("");
-}
+  if (assignmentData && assignmentData.length > 0) {
+    setAssignmentMode("groups");
+    setAssignmentMethod("import");
+    setAssignmentRawText(
+      assignmentData
+        .map((student: any) =>
+          [
+            student.email ?? "",
+            student.first_name ?? "",
+            student.last_name ?? "",
+            student.group_number ?? "",
+          ].join(";")
+        )
+        .join("\n")
+    );
+  } else {
+    const recoveredAssignments = parseStudentAssignments(allowedEmailText);
+
+    if (recoveredAssignments.length > 0) {
+      setAssignmentMode("groups");
+      setAssignmentMethod("import");
+      setAssignmentRawText(serializeStudentAssignments(recoveredAssignments));
+      setSettingsAllowedEmailsText(recoveredAssignments.map((student) => student.email).join("\n"));
+    } else {
+      setAssignmentMode("emails");
+      setAssignmentMethod("import");
+      setAssignmentRawText("");
+    }
+  }
 
 
   setTeacherMenu("session_open");
@@ -4066,8 +4089,10 @@ if (assignmentMode === "groups") {
     return;
   }
 
+  setAssignmentMode("groups");
   setAssignmentMethod("import");
   setAssignmentRawText(serializeStudentAssignments(assignmentsToSave));
+  setSettingsAllowedEmailsText(assignmentsToSave.map((student) => student.email).join("\n"));
 }
 
     await loadTeacherSessions(teacherUserId);
@@ -4161,12 +4186,19 @@ if (assignmentError) {
   return;
 }
 
-const normalizedAssignments = (assignmentRows ?? []).map((row: any) => ({
+const assignmentRowsFromTable = (assignmentRows ?? []).map((row: any) => ({
   email: normalizeEmail(String(row.email ?? "")),
   first_name: String(row.first_name ?? ""),
   last_name: String(row.last_name ?? ""),
   group_number: Number(row.group_number ?? 0),
 }));
+
+const assignmentRowsFromAllowedEmails = parseStudentAssignments(
+  (allowedRows ?? []).map((row: { email: string | null }) => String(row.email ?? "")).join("\n")
+);
+
+const normalizedAssignments =
+  assignmentRowsFromTable.length > 0 ? assignmentRowsFromTable : assignmentRowsFromAllowedEmails;
 
 if (normalizedAssignments.length > 0) {
   const assignment = normalizedAssignments.find(
@@ -6929,17 +6961,30 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                       )}
 
                       {activeStudentAssignments.length > 0 && (
-                        <div style={{ maxHeight: 180, overflowY: "auto", marginTop: 8 }}>
-                          {activeStudentAssignments.slice(0, 8).map((student) => (
-                            <div key={`${student.email}-${student.group_number}`} style={styles.emptyText}>
-                              Groupe {student.group_number} — {student.first_name} {student.last_name} — {student.email}
-                            </div>
-                          ))}
-                          {activeStudentAssignments.length > 8 && (
-                            <div style={styles.emptyText}>
-                              + {activeStudentAssignments.length - 8} autre(s)
-                            </div>
-                          )}
+                        <div style={{ maxHeight: 260, overflowY: "auto", marginTop: 14, overflowX: "auto" }}>
+                          <table style={styles.reportTable}>
+                            <thead>
+                              <tr>
+                                <th style={styles.reportTh}>Groupe</th>
+                                <th style={styles.reportTh}>Nom et prénom</th>
+                                <th style={styles.reportTh}>Email</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {[...activeStudentAssignments]
+                                .sort((a, b) => {
+                                  if (a.group_number !== b.group_number) return a.group_number - b.group_number;
+                                  return formatAssignmentDisplayName(a).localeCompare(formatAssignmentDisplayName(b));
+                                })
+                                .map((student) => (
+                                  <tr key={`${student.email}-${student.group_number}`}>
+                                    <td style={styles.reportTd}>{student.group_number}</td>
+                                    <td style={styles.reportTd}>{formatAssignmentDisplayName(student)}</td>
+                                    <td style={styles.reportTd}>{student.email}</td>
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </table>
                         </div>
                       )}
                     </>
@@ -6953,8 +6998,36 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                         placeholder="Un email par ligne"
                       />
                       <div style={{ ...styles.emptyText, marginTop: 10 }}>
-                        L'assignation aléatoire sera paramétrée à l'étape suivante. Cette zone prépare la liste d'emails à répartir.
+                        Les étudiants seront répartis automatiquement dans les groupes au moment de l'enregistrement.
                       </div>
+
+                      {activeStudentAssignments.length > 0 && (
+                        <div style={{ maxHeight: 260, overflowY: "auto", marginTop: 14, overflowX: "auto" }}>
+                          <table style={styles.reportTable}>
+                            <thead>
+                              <tr>
+                                <th style={styles.reportTh}>Groupe</th>
+                                <th style={styles.reportTh}>Nom et prénom</th>
+                                <th style={styles.reportTh}>Email</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {[...activeStudentAssignments]
+                                .sort((a, b) => {
+                                  if (a.group_number !== b.group_number) return a.group_number - b.group_number;
+                                  return formatAssignmentDisplayName(a).localeCompare(formatAssignmentDisplayName(b));
+                                })
+                                .map((student) => (
+                                  <tr key={`${student.email}-${student.group_number}`}>
+                                    <td style={styles.reportTd}>{student.group_number}</td>
+                                    <td style={styles.reportTd}>{formatAssignmentDisplayName(student)}</td>
+                                    <td style={styles.reportTd}>{student.email}</td>
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </>
                   )}
                 </>
@@ -7818,12 +7891,7 @@ if (screen === "student_vote") {
                     style={{ ...styles.input, marginTop: 10 }}
                   />
 
-                  {assignmentMode === "groups" ? (
-                    activeStudentAssignments.length === 0 ? (
-                      <div style={{ ...styles.emptyText, marginTop: 12 }}>
-                        Aucun étudiant assigné trouvé.
-                      </div>
-                    ) : (
+                  {displayedStudentAssignments.length > 0 ? (
                       <div style={{ marginTop: 16, overflowX: "auto" }}>
                         <table style={styles.reportTable}>
                           <thead>
@@ -7834,7 +7902,7 @@ if (screen === "student_vote") {
                             </tr>
                           </thead>
                           <tbody>
-                            {[...activeStudentAssignments]
+                            {[...displayedStudentAssignments]
                               .filter((student) => {
                                 const q = userSearch.trim().toLowerCase();
                                 if (!q) return true;
@@ -7859,7 +7927,7 @@ if (screen === "student_vote") {
                         </table>
                       </div>
                     )
-                  ) : !sortedFilteredEmails.length ? (
+                  : !sortedFilteredEmails.length ? (
                     <div style={{ ...styles.emptyText, marginTop: 12 }}>
                       Aucun email trouvé.
                     </div>
@@ -7874,7 +7942,7 @@ if (screen === "student_vote") {
                   )}
 
                   <div style={{ ...styles.row, marginTop: 16 }}>
-                    {assignmentMode === "groups" && (
+                    {displayedStudentAssignments.length > 0 && (
                       <button
                         style={styles.primaryButton}
                         onClick={downloadAssignmentExport}
