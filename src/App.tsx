@@ -1851,50 +1851,6 @@ const studentSyntheseData = useMemo(
     }, 0);
   }
 
-
-  async function saveGroupReportRowSafely(
-    payload: {
-      session_id: string;
-      group_number: number;
-      theme: string;
-      row_key: string;
-      label: string;
-      persons?: number | null;
-      quantity?: number | null;
-      distance_total_km?: number | null;
-      factor?: number | null;
-      updated_by?: string | null;
-    }
-  ) {
-    // Étudiant = pas de Supabase Auth, updated_by null, session étudiante courante.
-    // Prof = Supabase Auth, updated_by renseigné, conserve le fonctionnement direct existant.
-    const normalizedStudentEmail = normalizeEmail(studentEmail);
-    const isStudentWrite =
-      payload.updated_by == null &&
-      Boolean(normalizedStudentEmail) &&
-      Boolean(studentSelectedSessionId) &&
-      payload.session_id === studentSelectedSessionId;
-
-    if (isStudentWrite) {
-      return supabase.rpc("save_group_report_student", {
-        p_session_id: payload.session_id,
-        p_student_email: normalizedStudentEmail,
-        p_group_number: payload.group_number,
-        p_theme: payload.theme,
-        p_row_key: payload.row_key,
-        p_label: payload.label,
-        p_persons: payload.persons ?? null,
-        p_quantity: payload.quantity ?? null,
-        p_distance_total_km: payload.distance_total_km ?? null,
-        p_factor: payload.factor ?? 0,
-      });
-    }
-
-    return supabase.from("group_reports").upsert(payload, {
-      onConflict: "session_id,group_number,theme,row_key",
-    });
-  }
-
   const saveStudentDraft = useCallback((nextScreen?: StudentDraft["screen"]) => {
     if (!studentEmail.trim() || !studentCodeSession.trim()) return;
 
@@ -3354,6 +3310,43 @@ async function toggleStudentAnalysisAccess() {
     await loadSessionVoteAccess(selectedSessionId);
   }
 
+
+  async function saveGroupReportRowStudentRpc(payload: {
+    session_id: string;
+    group_number: number;
+    theme: string;
+    row_key: string;
+    label: string;
+    persons?: number | null;
+    quantity?: number | null;
+    distance_total_km?: number | null;
+    factor?: number | null;
+  }) {
+    const normalizedStudentEmail = normalizeEmail(studentEmail);
+
+    if (!payload.session_id || !normalizedStudentEmail) {
+      return {
+        data: null,
+        error: {
+          message: "Session ou email étudiant manquant pour la sauvegarde sécurisée.",
+        },
+      } as { data: null; error: { message: string } };
+    }
+
+    return supabase.rpc("save_group_report_student", {
+      p_session_id: payload.session_id,
+      p_student_email: normalizedStudentEmail,
+      p_group_number: payload.group_number,
+      p_theme: payload.theme,
+      p_row_key: payload.row_key,
+      p_label: payload.label,
+      p_persons: payload.persons ?? null,
+      p_quantity: payload.quantity ?? null,
+      p_distance_total_km: payload.distance_total_km ?? null,
+      p_factor: payload.factor ?? 0,
+    });
+  }
+
   async function saveTransportReportRow(params: {
     sessionId: string;
     groupNumber: number;
@@ -3423,7 +3416,7 @@ updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null
       applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
     );
 
-    const { error } = await saveGroupReportRowSafely(payload);
+    const { error } = await saveGroupReportRowStudentRpc(payload);
 console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
@@ -3502,7 +3495,7 @@ updatedBy: string | null;
       applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
     );
 
-    const { error } = await saveGroupReportRowSafely(payload);
+    const { error } = await saveGroupReportRowStudentRpc(payload);
 console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report déjeuner : ${error.message}`);
@@ -3581,7 +3574,7 @@ async function saveEquipementReportRow(params: {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await saveGroupReportRowSafely(payload);
+  const { error } = await saveGroupReportRowStudentRpc(payload);
 
   if (error) {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
@@ -3667,7 +3660,7 @@ console.log("SAVE AUTRES →", {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await saveGroupReportRowSafely(optimisticRow);
+  const { error } = await saveGroupReportRowStudentRpc(optimisticRow);
 
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
@@ -3755,7 +3748,7 @@ async function saveSalleReportRow(params: {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await saveGroupReportRowSafely(optimisticRow);
+  const { error } = await saveGroupReportRowStudentRpc(optimisticRow);
 
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
