@@ -7164,9 +7164,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   : "Liste simple d'emails autorisés"}
               </div>
 
-              {assignmentMode === "groups" && (
-                <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
-                  <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
+              <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
+                <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
 
                 <label style={styles.label}>Email</label>
                 <input
@@ -7222,13 +7221,12 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   </>
                 )}
 
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                    <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
-                      Ajouter l'étudiant
-                    </button>
-                  </div>
+                <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                  <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
+                    Ajouter l'étudiant
+                  </button>
                 </div>
-              )}
+              </div>
 
               {assignmentMode === "emails" ? (
                 <>
@@ -8080,19 +8078,20 @@ if (screen === "student_vote") {
 
               <div style={styles.innerCardFull}>
                 <div style={styles.row}>
-<button
-  style={teacherSessionTab === "users" ? styles.tabActive : styles.tab}
-  onClick={() => setTeacherSessionTab("users")}
->
-  Utilisateurs
-</button>
+                  <button
+                    style={teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
+                    onClick={() => setTeacherSessionTab("counts")}
+                  >
+                    Utilisateurs
+                  </button>
 
-<button
-  style={teacherSessionTab === "counts" ? styles.tabActive : styles.tab}
-  onClick={() => setTeacherSessionTab("counts")}
->
-  Compteur de réponses
-</button>
+                  <button
+                    style={teacherSessionTab === "users" ? styles.sidebarButtonActive : styles.sidebarButton}
+                    onClick={() => setTeacherSessionTab("users")}
+                  >
+                    Compteur de réponses
+                  </button>
+
                   <button
                     style={teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
                     onClick={() => setTeacherSessionTab("analyses")}
