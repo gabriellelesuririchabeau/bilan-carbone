@@ -811,7 +811,8 @@ function serializeStudentAssignments(assignments: StudentAssignmentDraft[]) {
 }
 
 function downloadTextFile(filename: string, content: string) {
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  // BOM UTF-8 pour que Microsoft Excel reconnaisse correctement les accents.
+  const blob = new Blob(["\ufeff", content], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
 
   const link = document.createElement("a");
@@ -1383,6 +1384,10 @@ const [studentAssignedLastName, setStudentAssignedLastName] = useState("");
 
 const effectiveStudentGroupNumber = studentAssignedGroup ?? studentGroupNumber;
 
+  function isStudentAccessAllowed(groupNumber: number) {
+    return !studentAssignedGroup || groupNumber === studentAssignedGroup;
+  }
+
 const [quickSessionCampus, setQuickSessionCampus] = useState("");
 const [quickSessionProgramme, setQuickSessionProgramme] = useState("");
 const [quickSessionLevel, setQuickSessionLevel] = useState("");
@@ -1708,8 +1713,13 @@ const teacherSyntheseData = useMemo(
 );
 
 const studentSyntheseData = useMemo(
-  () => computeSynthese(studentSyntheseSourceRows),
-  [studentSyntheseSourceRows]
+  () =>
+    computeSynthese(
+      studentSyntheseSourceRows.filter((row) =>
+        !studentAssignedGroup || Number(row.group_number) === studentAssignedGroup
+      )
+    ),
+  [studentSyntheseSourceRows, studentAssignedGroup]
 );
 
   const sortedFilteredEmails = useMemo(() => {
@@ -1793,6 +1803,18 @@ const studentSyntheseData = useMemo(
       setOpenProposalGroup(null);
     }
   }, [studentAssignedGroup, openProposalGroup]);
+
+  useEffect(() => {
+    if (!studentAssignedGroup) return;
+
+    if (
+      screen === "student_analyses" ||
+      screen === "student_synthese" ||
+      screen === "student_vote"
+    ) {
+      setStudentGroupNumber(studentAssignedGroup);
+    }
+  }, [screen, studentAssignedGroup]);
 
   useEffect(() => {
   if (screen === "student_analyses" && !studentAnalysisUnlocked) {
@@ -3293,8 +3315,7 @@ async function toggleStudentAnalysisAccess() {
 updatedBy: string | null;
   }) {
     if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
+      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
     }
 
     const { sessionId, rowKey, label, persons, distanceTotalKm, factor, updatedBy } = params;
@@ -3342,8 +3363,7 @@ console.log("SAVE REPORT ERROR", error);
 updatedBy: string | null;
   }) {
     if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
+      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
     }
 
     const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
@@ -7110,12 +7130,19 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <section style={styles.bigPanel}>
             <h2 style={styles.panelTitle}>Analyses</h2>
 
+            {studentAssignedGroup && studentGroupNumber !== studentAssignedGroup && (
+              <div style={styles.infoMessage}>
+                Accès limité au groupe {studentAssignedGroup}. Redirection automatique vers votre groupe.
+              </div>
+            )}
+
             <div style={styles.innerCardFull}>
 <div style={styles.groupTabsRow}>
   {(studentAssignedGroup ? [studentAssignedGroup] : studentGroups).map((groupNumber) => (
     <button
       key={groupNumber}
       type="button"
+      disabled={Boolean(studentAssignedGroup && groupNumber !== studentAssignedGroup)}
       style={effectiveStudentGroupNumber === groupNumber ? styles.groupTabButtonActive : styles.groupTabButton}
       onClick={() => {
         if (studentAssignedGroup) {
@@ -7131,7 +7158,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
       Groupe {groupNumber}
     </button>
   ))}
-</div>
+</div></div>
             </div>
 {studentAssignedGroup && (
   <div style={styles.innerCardFull}>
