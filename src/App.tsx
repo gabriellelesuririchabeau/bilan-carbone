@@ -654,8 +654,8 @@ function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
 
       return {
         email: normalizeEmail(parts[0] ?? ""),
-        first_name: parts[1] ?? "",
-        last_name: parts[2] ?? "",
+        first_name: cleanAssignmentFirstName(parts[1] ?? ""),
+        last_name: cleanAssignmentLastName(parts[2] ?? ""),
         group_number: groupIndex >= 0 ? Number(parts[groupIndex]) : Number(parts[3] ?? 0),
       };
     })
@@ -670,27 +670,30 @@ function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
     });
 }
 
+function normalizeNameWhitespace(value: string) {
+  return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
 function capitalizeNamePart(value: string) {
-  const cleanValue = String(value ?? "").trim().toLowerCase();
+  const cleanValue = normalizeNameWhitespace(value).toLowerCase();
   if (!cleanValue) return "";
 
   return cleanValue
-    .split(/([\\s-]+)/)
+    .split(/([\s-]+)/)
     .map((part) => {
-      if (/^[\\s-]+$/.test(part)) return part;
+      if (/^[\s-]+$/.test(part)) return part;
       return part.charAt(0).toUpperCase() + part.slice(1);
     })
     .join("");
 }
 
-function formatAssignmentLastName(student: StudentAssignmentDraft) {
-  return String(student.last_name ?? "").trim().toUpperCase();
+function cleanAssignmentLastName(value: string | null | undefined) {
+  return normalizeNameWhitespace(String(value ?? "")).toUpperCase();
 }
 
-function formatAssignmentFirstName(student: StudentAssignmentDraft) {
-  return String(student.first_name ?? "")
-    .trim()
-    .split(/\\s+/)
+function cleanAssignmentFirstName(value: string | null | undefined) {
+  return normalizeNameWhitespace(String(value ?? ""))
+    .split(/\s+/)
     .map((word) =>
       word
         .split("-")
@@ -698,6 +701,14 @@ function formatAssignmentFirstName(student: StudentAssignmentDraft) {
         .join("-")
     )
     .join(" ");
+}
+
+function formatAssignmentLastName(student: StudentAssignmentDraft) {
+  return cleanAssignmentLastName(student.last_name);
+}
+
+function formatAssignmentFirstName(student: StudentAssignmentDraft) {
+  return cleanAssignmentFirstName(student.first_name);
 }
 
 function renderAssignmentsTable(assignments: StudentAssignmentDraft[], searchText = "") {
@@ -780,8 +791,8 @@ function generateRandomAssignments(rawText: string): StudentAssignmentDraft[] {
 
       return {
         email: normalizeEmail(parts[0] ?? ""),
-        first_name: parts[1] ?? "",
-        last_name: parts[2] ?? "",
+        first_name: cleanAssignmentFirstName(parts[1] ?? ""),
+        last_name: cleanAssignmentLastName(parts[2] ?? ""),
       };
     })
     .filter((student) => student.email && student.email.includes("@"));
@@ -802,8 +813,8 @@ function serializeStudentAssignments(assignments: StudentAssignmentDraft[]) {
     .map((student) =>
       [
         student.email,
-        student.first_name,
-        student.last_name,
+        cleanAssignmentFirstName(student.first_name),
+        cleanAssignmentLastName(student.last_name),
         student.group_number,
       ].join(";")
     )
@@ -4275,8 +4286,8 @@ setAssignmentRawText("");
       return;
     }
 
-    const firstName = newStudentFirstName.trim();
-    const lastName = newStudentLastName.trim();
+    const firstName = cleanAssignmentFirstName(newStudentFirstName);
+    const lastName = cleanAssignmentLastName(newStudentLastName);
 
     if (!firstName || !lastName) {
       setMessage("Ajout impossible : prénom et nom sont obligatoires pour une session avec assignation.");
@@ -4399,8 +4410,8 @@ if (assignmentMode === "groups") {
       assignmentsToSave.map((student) => ({
         session_id: selectedSessionId,
         email: student.email,
-        first_name: student.first_name,
-        last_name: student.last_name,
+        first_name: cleanAssignmentFirstName(student.first_name),
+        last_name: cleanAssignmentLastName(student.last_name),
         group_number: student.group_number,
       }))
     );
