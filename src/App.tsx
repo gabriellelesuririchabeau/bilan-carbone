@@ -3330,9 +3330,45 @@ updatedBy: string | null;
       label,
       persons: safePersons > 0 ? safePersons : null,
       quantity: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
+      distance_total_km: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
       factor: safeFactor,
 updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
     };
+
+    const applyOptimisticUpdate = (
+      rows: GroupReportRow[],
+      targetSessionId: string,
+      targetGroupNumber: number
+    ) => {
+      if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+
+      const nextRows = [...rows];
+      const existingIndex = nextRows.findIndex(
+        (row) =>
+          row.session_id === sessionId &&
+          row.group_number === groupNumber &&
+          row.theme === "transport" &&
+          String(row.row_key) === rowKey
+      );
+
+      if (existingIndex >= 0) {
+        nextRows[existingIndex] = {
+          ...nextRows[existingIndex],
+          ...payload,
+        } as GroupReportRow;
+        return nextRows;
+      }
+
+      nextRows.push(payload as unknown as GroupReportRow);
+      return nextRows;
+    };
+
+    setStudentTransportReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
+    );
+    setTeacherTransportReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
+    );
 
     const { error } = await supabase.from("group_reports").upsert(
       payload,
@@ -3369,18 +3405,55 @@ updatedBy: string | null;
     const safeQuantity = Math.max(0, Number(quantity || 0));
     const safeFactor = Math.max(0, Number(factor || 0));
 
+    const payload = {
+      session_id: sessionId,
+      group_number: groupNumber,
+      theme: "dejeuner",
+      row_key: rowKey,
+      label,
+      persons: safeQuantity > 0 ? safeQuantity : null,
+      quantity: safeQuantity > 0 ? safeQuantity : null,
+      factor: safeFactor,
+      updated_by: updatedBy,
+    };
+
+    const applyOptimisticUpdate = (
+      rows: GroupReportRow[],
+      targetSessionId: string,
+      targetGroupNumber: number
+    ) => {
+      if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+
+      const nextRows = [...rows];
+      const existingIndex = nextRows.findIndex(
+        (row) =>
+          row.session_id === sessionId &&
+          row.group_number === groupNumber &&
+          row.theme === "dejeuner" &&
+          String(row.row_key) === rowKey
+      );
+
+      if (existingIndex >= 0) {
+        nextRows[existingIndex] = {
+          ...nextRows[existingIndex],
+          ...payload,
+        } as GroupReportRow;
+        return nextRows;
+      }
+
+      nextRows.push(payload as unknown as GroupReportRow);
+      return nextRows;
+    };
+
+    setStudentDejeunerReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
+    );
+    setTeacherDejeunerReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
+    );
+
     const { error } = await supabase.from("group_reports").upsert(
-      {
-        session_id: sessionId,
-        group_number: groupNumber,
-        theme: "dejeuner",
-        row_key: rowKey,
-        label,
-        persons: safeQuantity > 0 ? safeQuantity : null,
-        quantity: safeQuantity > 0 ? safeQuantity : null,
-        factor: safeFactor,
-        updated_by: updatedBy,
-      },
+      payload,
       { onConflict: "session_id,group_number,theme,row_key" }
     );
 console.log("SAVE REPORT ERROR", error);
@@ -3414,18 +3487,55 @@ async function saveEquipementReportRow(params: {
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
 
+  const payload = {
+    session_id: sessionId,
+    group_number: groupNumber,
+    theme: "equipement",
+    row_key: rowKey,
+    label,
+    persons: safeQuantity > 0 ? safeQuantity : null,
+    quantity: safeQuantity > 0 ? safeQuantity : null,
+    factor: safeFactor,
+    updated_by: updatedBy,
+  };
+
+  const applyOptimisticUpdate = (
+    rows: GroupReportRow[],
+    targetSessionId: string,
+    targetGroupNumber: number
+  ) => {
+    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+
+    const nextRows = [...rows];
+    const existingIndex = nextRows.findIndex(
+      (row) =>
+        row.session_id === sessionId &&
+        row.group_number === groupNumber &&
+        row.theme === "equipement" &&
+        String(row.row_key) === rowKey
+    );
+
+    if (existingIndex >= 0) {
+      nextRows[existingIndex] = {
+        ...nextRows[existingIndex],
+        ...payload,
+      } as GroupReportRow;
+      return nextRows;
+    }
+
+    nextRows.push(payload as unknown as GroupReportRow);
+    return nextRows;
+  };
+
+  setStudentEquipementReportRowsDb((prev) =>
+    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
+  );
+  setTeacherEquipementReportRowsDb((prev) =>
+    applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
+  );
+
   const { error } = await supabase.from("group_reports").upsert(
-    {
-      session_id: sessionId,
-      group_number: groupNumber,
-      theme: "equipement",
-      row_key: rowKey,
-      label,
-      persons: safeQuantity > 0 ? safeQuantity : null,
-      quantity: safeQuantity > 0 ? safeQuantity : null,
-      factor: safeFactor,
-      updated_by: updatedBy,
-    },
+    payload,
     { onConflict: "session_id,group_number,theme,row_key" }
   );
 
@@ -3502,12 +3612,12 @@ console.log("SAVE AUTRES →", {
       return nextRows;
     }
 
-    nextRows.push(optimisticRow as GroupReportRow);
+    nextRows.push(optimisticRow as unknown as GroupReportRow);
     return nextRows;
   };
 
   setStudentAutresReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, studentGroupNumber)
+    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
   );
   setTeacherAutresReportRowsDb((prev) =>
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
@@ -3593,12 +3703,12 @@ async function saveSalleReportRow(params: {
       return nextRows;
     }
 
-    nextRows.push(optimisticRow as GroupReportRow);
+    nextRows.push(optimisticRow as unknown as GroupReportRow);
     return nextRows;
   };
 
   setStudentSalleReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, studentGroupNumber)
+    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
   );
   setTeacherSalleReportRowsDb((prev) =>
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
