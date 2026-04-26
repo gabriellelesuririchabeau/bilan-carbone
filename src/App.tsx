@@ -1866,29 +1866,32 @@ const studentSyntheseData = useMemo(
       updated_by?: string | null;
     }
   ) {
+    // Étudiant = pas de Supabase Auth, updated_by null, session étudiante courante.
+    // Prof = Supabase Auth, updated_by renseigné, conserve le fonctionnement direct existant.
     const normalizedStudentEmail = normalizeEmail(studentEmail);
     const isStudentWrite =
+      payload.updated_by == null &&
       Boolean(normalizedStudentEmail) &&
       Boolean(studentSelectedSessionId) &&
       payload.session_id === studentSelectedSessionId;
 
-    if (!isStudentWrite) {
-      return supabase.from("group_reports").upsert(payload, {
-        onConflict: "session_id,group_number,theme,row_key",
+    if (isStudentWrite) {
+      return supabase.rpc("save_group_report_student", {
+        p_session_id: payload.session_id,
+        p_student_email: normalizedStudentEmail,
+        p_group_number: payload.group_number,
+        p_theme: payload.theme,
+        p_row_key: payload.row_key,
+        p_label: payload.label,
+        p_persons: payload.persons ?? null,
+        p_quantity: payload.quantity ?? null,
+        p_distance_total_km: payload.distance_total_km ?? null,
+        p_factor: payload.factor ?? 0,
       });
     }
 
-    return supabase.rpc("save_group_report_student", {
-      p_session_id: payload.session_id,
-      p_student_email: normalizedStudentEmail,
-      p_group_number: payload.group_number,
-      p_theme: payload.theme,
-      p_row_key: payload.row_key,
-      p_label: payload.label,
-      p_persons: payload.persons ?? null,
-      p_quantity: payload.quantity ?? null,
-      p_distance_total_km: payload.distance_total_km ?? null,
-      p_factor: payload.factor ?? 0,
+    return supabase.from("group_reports").upsert(payload, {
+      onConflict: "session_id,group_number,theme,row_key",
     });
   }
 
