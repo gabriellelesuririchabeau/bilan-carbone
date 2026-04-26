@@ -1851,6 +1851,47 @@ const studentSyntheseData = useMemo(
     }, 0);
   }
 
+
+  async function saveGroupReportRowSafely(
+    payload: {
+      session_id: string;
+      group_number: number;
+      theme: string;
+      row_key: string;
+      label: string;
+      persons?: number | null;
+      quantity?: number | null;
+      distance_total_km?: number | null;
+      factor?: number | null;
+      updated_by?: string | null;
+    }
+  ) {
+    const normalizedStudentEmail = normalizeEmail(studentEmail);
+    const isStudentWrite =
+      Boolean(normalizedStudentEmail) &&
+      Boolean(studentSelectedSessionId) &&
+      payload.session_id === studentSelectedSessionId;
+
+    if (!isStudentWrite) {
+      return supabase.from("group_reports").upsert(payload, {
+        onConflict: "session_id,group_number,theme,row_key",
+      });
+    }
+
+    return supabase.rpc("save_group_report_student", {
+      p_session_id: payload.session_id,
+      p_student_email: normalizedStudentEmail,
+      p_group_number: payload.group_number,
+      p_theme: payload.theme,
+      p_row_key: payload.row_key,
+      p_label: payload.label,
+      p_persons: payload.persons ?? null,
+      p_quantity: payload.quantity ?? null,
+      p_distance_total_km: payload.distance_total_km ?? null,
+      p_factor: payload.factor ?? 0,
+    });
+  }
+
   const saveStudentDraft = useCallback((nextScreen?: StudentDraft["screen"]) => {
     if (!studentEmail.trim() || !studentCodeSession.trim()) return;
 
@@ -3379,10 +3420,7 @@ updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null
       applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
     );
 
-    const { error } = await supabase.from("group_reports").upsert(
-      payload,
-      { onConflict: "session_id,group_number,theme,row_key" }
-    );
+    const { error } = await saveGroupReportRowSafely(payload);
 console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
@@ -3461,10 +3499,7 @@ updatedBy: string | null;
       applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
     );
 
-    const { error } = await supabase.from("group_reports").upsert(
-      payload,
-      { onConflict: "session_id,group_number,theme,row_key" }
-    );
+    const { error } = await saveGroupReportRowSafely(payload);
 console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report déjeuner : ${error.message}`);
@@ -3543,10 +3578,7 @@ async function saveEquipementReportRow(params: {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await supabase.from("group_reports").upsert(
-    payload,
-    { onConflict: "session_id,group_number,theme,row_key" }
-  );
+  const { error } = await saveGroupReportRowSafely(payload);
 
   if (error) {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
@@ -3632,10 +3664,7 @@ console.log("SAVE AUTRES →", {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await supabase.from("group_reports").upsert(
-    optimisticRow,
-    { onConflict: "session_id,group_number,theme,row_key" }
-  );
+  const { error } = await saveGroupReportRowSafely(optimisticRow);
 
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
@@ -3723,10 +3752,7 @@ async function saveSalleReportRow(params: {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await supabase.from("group_reports").upsert(
-    optimisticRow,
-    { onConflict: "session_id,group_number,theme,row_key" }
-  );
+  const { error } = await saveGroupReportRowSafely(optimisticRow);
 
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
