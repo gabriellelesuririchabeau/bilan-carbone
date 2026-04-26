@@ -1851,102 +1851,6 @@ const studentSyntheseData = useMemo(
     }, 0);
   }
 
-
-  function isStudentReportContext(sessionId: string) {
-    return Boolean(
-      studentSelectedSessionId &&
-      sessionId === studentSelectedSessionId &&
-      normalizeEmail(studentEmail)
-    );
-  }
-
-  async function saveGroupReportRowSecurely(row: Partial<GroupReportRow> & {
-    session_id: string;
-    group_number: number;
-    theme: string;
-    row_key: string;
-    label?: string | null;
-    persons?: number | string | null;
-    quantity?: number | string | null;
-    distance_total_km?: number | string | null;
-    factor?: number | string | null;
-    updated_by?: string | null;
-  }) {
-    if (isStudentReportContext(row.session_id)) {
-      const { error } = await supabase.rpc("save_group_report_student", {
-        p_session_id: row.session_id,
-        p_student_email: normalizeEmail(studentEmail),
-        p_group_number: Number(row.group_number),
-        p_theme: String(row.theme),
-        p_row_key: String(row.row_key),
-        p_label: String(row.label ?? ""),
-        p_persons: row.persons === undefined ? null : row.persons,
-        p_quantity: row.quantity === undefined ? null : row.quantity,
-        p_distance_total_km: row.distance_total_km === undefined ? null : row.distance_total_km,
-        p_factor: row.factor === undefined ? 0 : row.factor,
-      });
-
-      return { error };
-    }
-
-    return supabase.from("group_reports").upsert(
-      row,
-      { onConflict: "session_id,group_number,theme,row_key" }
-    );
-  }
-
-  async function loadGroupReportRowsSecurely(
-    sessionId: string,
-    theme: string,
-    setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>,
-    errorLabel: string
-  ) {
-    if (!sessionId) {
-      setRows([]);
-      return;
-    }
-
-    const isStudentSetter =
-      setRows === setStudentTransportReportRowsDb ||
-      setRows === setStudentDejeunerReportRowsDb ||
-      setRows === setStudentEquipementReportRowsDb ||
-      setRows === setStudentAutresReportRowsDb ||
-      setRows === setStudentSalleReportRowsDb;
-
-    if (isStudentSetter && isStudentReportContext(sessionId)) {
-      const { data, error } = await supabase.rpc("get_group_reports_student", {
-        p_session_id: sessionId,
-        p_student_email: normalizeEmail(studentEmail),
-        p_theme: theme,
-      });
-
-      if (error) {
-        setMessage(`Erreur chargement report ${errorLabel} : ${error.message}`);
-        setRows([]);
-        return;
-      }
-
-      setRows((data ?? []) as GroupReportRow[]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("group_reports")
-      .select("*")
-      .eq("session_id", sessionId)
-      .eq("theme", theme)
-      .order("group_number", { ascending: true })
-      .order("row_key", { ascending: true });
-
-    if (error) {
-      setMessage(`Erreur chargement report ${errorLabel} : ${error.message}`);
-      setRows([]);
-      return;
-    }
-
-    setRows((data ?? []) as GroupReportRow[]);
-  }
-
   const saveStudentDraft = useCallback((nextScreen?: StudentDraft["screen"]) => {
     if (!studentEmail.trim() || !studentCodeSession.trim()) return;
 
@@ -3045,20 +2949,77 @@ async function handleCreateTeacher(name: string, email: string, password: string
     sessionId: string,
     setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
   ) {
-    await loadGroupReportRowsSecurely(sessionId, "transport", setRows, "transport");
+    if (!sessionId) {
+      setRows([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("group_reports")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("theme", "transport")
+      .order("group_number", { ascending: true })
+      .order("row_key", { ascending: true });
+
+    if (error) {
+      setMessage(`Erreur chargement report transport : ${error.message}`);
+      setRows([]);
+      return;
+    }
+
+    setRows((data ?? []) as GroupReportRow[]);
   }
 
   async function loadDejeunerReportRows(
     sessionId: string,
     setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
   ) {
-    await loadGroupReportRowsSecurely(sessionId, "dejeuner", setRows, "déjeuner");
+    if (!sessionId) {
+      setRows([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("group_reports")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("theme", "dejeuner")
+      .order("group_number", { ascending: true })
+      .order("row_key", { ascending: true });
+
+    if (error) {
+      setMessage(`Erreur chargement report déjeuner : ${error.message}`);
+      setRows([]);
+      return;
+    }
+
+    setRows((data ?? []) as GroupReportRow[]);
   }
 async function loadEquipementReportRows(
   sessionId: string,
   setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
 ) {
-  await loadGroupReportRowsSecurely(sessionId, "equipement", setRows, "équipement");
+  if (!sessionId) {
+    setRows([]);
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("group_reports")
+    .select("*")
+    .eq("session_id", sessionId)
+    .eq("theme", "equipement")
+    .order("group_number", { ascending: true })
+    .order("row_key", { ascending: true });
+
+  if (error) {
+    setMessage(`Erreur chargement report équipement : ${error.message}`);
+    setRows([]);
+    return;
+  }
+
+  setRows((data ?? []) as GroupReportRow[]);
 }
 
 async function loadTransportReportableRows(
@@ -3153,13 +3114,51 @@ async function loadAutresReportRows(
   sessionId: string,
   setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
 ) {
-  await loadGroupReportRowsSecurely(sessionId, "autres_consommations", setRows, "autres consommations");
+  if (!sessionId) {
+    setRows([]);
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("group_reports")
+    .select("*")
+    .eq("session_id", sessionId)
+    .eq("theme", "autres_consommations")
+    .order("group_number", { ascending: true })
+    .order("row_key", { ascending: true });
+
+  if (error) {
+    setMessage(`Erreur chargement report autres consommations : ${error.message}`);
+    setRows([]);
+    return;
+  }
+
+  setRows((data ?? []) as GroupReportRow[]);
 }
 async function loadSalleReportRows(
   sessionId: string,
   setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
 ) {
-  await loadGroupReportRowsSecurely(sessionId, "salle", setRows, "salle");
+  if (!sessionId) {
+    setRows([]);
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("group_reports")
+    .select("*")
+    .eq("session_id", sessionId)
+    .eq("theme", "salle")
+    .order("group_number", { ascending: true })
+    .order("row_key", { ascending: true });
+
+  if (error) {
+    setMessage(`Erreur chargement report salle : ${error.message}`);
+    setRows([]);
+    return;
+  }
+
+  setRows((data ?? []) as GroupReportRow[]);
 }
 
 async function loadAutresReportableRowsWithSetter(
@@ -3380,7 +3379,10 @@ updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null
       applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
     );
 
-    const { error } = await saveGroupReportRowSecurely(payload);
+    const { error } = await supabase.from("group_reports").upsert(
+      payload,
+      { onConflict: "session_id,group_number,theme,row_key" }
+    );
 console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
@@ -3459,7 +3461,10 @@ updatedBy: string | null;
       applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
     );
 
-    const { error } = await saveGroupReportRowSecurely(payload);
+    const { error } = await supabase.from("group_reports").upsert(
+      payload,
+      { onConflict: "session_id,group_number,theme,row_key" }
+    );
 console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report déjeuner : ${error.message}`);
@@ -3538,7 +3543,10 @@ async function saveEquipementReportRow(params: {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await saveGroupReportRowSecurely(payload);
+  const { error } = await supabase.from("group_reports").upsert(
+    payload,
+    { onConflict: "session_id,group_number,theme,row_key" }
+  );
 
   if (error) {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
@@ -3624,7 +3632,10 @@ console.log("SAVE AUTRES →", {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await saveGroupReportRowSecurely(optimisticRow);
+  const { error } = await supabase.from("group_reports").upsert(
+    optimisticRow,
+    { onConflict: "session_id,group_number,theme,row_key" }
+  );
 
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
@@ -3712,7 +3723,10 @@ async function saveSalleReportRow(params: {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await saveGroupReportRowSecurely(optimisticRow);
+  const { error } = await supabase.from("group_reports").upsert(
+    optimisticRow,
+    { onConflict: "session_id,group_number,theme,row_key" }
+  );
 
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
@@ -4330,128 +4344,68 @@ async function handleStudentEnter() {
   const normalizedStudentEmail = normalizeEmail(studentEmail);
   const normalizedSessionCode = studentCodeSession.trim().toLowerCase();
 
-const { data, error } = await supabase.rpc("get_open_session_by_code_for_student", {
-  p_session_code: normalizedSessionCode,
-  p_email: normalizedStudentEmail,
-});
-
-  let resolvedSessionData = data;
-
-  if ((!resolvedSessionData || !resolvedSessionData.length) && !error) {
-    const { data: fallbackSession, error: fallbackError } = await supabase
-      .from("sessions")
-      .select("id,session_code")
-      .eq("session_code", normalizedSessionCode)
-      .limit(1);
-
-    if (!fallbackError && fallbackSession?.length) {
-      resolvedSessionData = fallbackSession;
+  // Sécurité groupe étudiant : cette fonction SQL SECURITY DEFINER est la source de vérité.
+  // Elle renvoie une ligne uniquement si :
+  // - la session existe ;
+  // - l'email est autorisé ;
+  // - et, si la session a des assignations, l'email appartient bien à un groupe.
+  // On ne lit plus directement session_student_assignments côté étudiant, car une policy/RLS
+  // ou un fallback peut faire croire à tort qu'il n'y a pas d'assignation.
+  const { data: accessRows, error: accessError } = await supabase.rpc(
+    "get_student_session_access",
+    {
+      p_session_code: normalizedSessionCode,
+      p_email: normalizedStudentEmail,
     }
-  }
-
-  if ((!resolvedSessionData || !resolvedSessionData.length) && teacherSessions.length) {
-    const localSession = teacherSessions.find(
-      (session) => (session.session_code ?? "").trim().toLowerCase() === normalizedSessionCode
-    );
-
-    if (localSession) {
-      resolvedSessionData = [localSession];
-    }
-  }
-
-if (error || !resolvedSessionData || !resolvedSessionData.length) {
-  setMessage("Code session invalide ou email non autorisé.");
-  return;
-}
-
-  const sessionRow = Array.isArray(resolvedSessionData)
-    ? resolvedSessionData[0]
-    : resolvedSessionData;
-
-  const nextSessionId = String(sessionRow?.id ?? "");
-
-  const { data: allowedRows, error: allowedError } = await supabase
-    .from("session_allowed_emails")
-    .select("email")
-    .eq("session_id", nextSessionId);
-
-  if (allowedError) {
-    setMessage(`Erreur vérification email autorisé : ${allowedError.message}`);
-    return;
-  }
-
-  const allowedEmails = (allowedRows ?? []).map((row: { email: string | null }) =>
-    normalizeEmail(String(row.email ?? ""))
   );
 
-  if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedStudentEmail)) {
-    setMessage("Email non autorisé");
+  if (accessError) {
+    setMessage(`Erreur vérification accès étudiant : ${accessError.message}`);
     return;
   }
 
-  const { data: assignmentRows, error: assignmentError } = await supabase
-  .from("session_student_assignments")
-  .select("email, first_name, last_name, group_number")
-  .eq("session_id", nextSessionId);
+  const accessRow = Array.isArray(accessRows) ? accessRows[0] : accessRows;
 
-if (assignmentError) {
-  setMessage(`Erreur vérification assignation : ${assignmentError.message}`);
-  return;
-}
-
-const assignmentRowsFromTable = (assignmentRows ?? []).map((row: any) => ({
-  email: normalizeEmail(String(row.email ?? "")),
-  first_name: String(row.first_name ?? ""),
-  last_name: String(row.last_name ?? ""),
-  group_number: Number(row.group_number ?? 0),
-}));
-
-const assignmentRowsFromAllowedEmails = parseStudentAssignments(
-  (allowedRows ?? []).map((row: { email: string | null }) => String(row.email ?? "")).join("\n")
-);
-
-const normalizedAssignments =
-  assignmentRowsFromTable.length > 0 ? assignmentRowsFromTable : assignmentRowsFromAllowedEmails;
-
-if (normalizedAssignments.length > 0) {
-  const assignment = normalizedAssignments.find(
-    (row) => row.email === normalizedStudentEmail
-  );
-
-  if (!assignment) {
-    setMessage("Email non assigné à un groupe pour cette session.");
+  if (!accessRow?.session_id) {
+    setMessage("Code session invalide, email non autorisé ou email non assigné à un groupe pour cette session.");
     return;
   }
 
-  setStudentAssignedGroup(assignment.group_number);
-  setStudentAssignedFirstName(assignment.first_name);
-  setStudentAssignedLastName(assignment.last_name);
-  setStudentGroupNumber(assignment.group_number);
-} else {
-  setStudentAssignedGroup(null);
-  setStudentAssignedFirstName("");
-  setStudentAssignedLastName("");
-}
+  const nextSessionId = String(accessRow.session_id);
+  const nextSessionCode = String(accessRow.session_code ?? normalizedSessionCode);
+  const assignedGroupNumber = Number(accessRow.assigned_group_number ?? 0);
+  const hasAssignments = Boolean(accessRow.has_assignments);
+
+  if (hasAssignments) {
+    if (!Number.isInteger(assignedGroupNumber) || assignedGroupNumber < 1 || assignedGroupNumber > 10) {
+      setMessage("Email non assigné à un groupe pour cette session.");
+      return;
+    }
+
+    setStudentAssignedGroup(assignedGroupNumber);
+    setStudentAssignedFirstName(String(accessRow.first_name ?? ""));
+    setStudentAssignedLastName(String(accessRow.last_name ?? ""));
+    setStudentGroupNumber(assignedGroupNumber);
+    setOpenProposalGroup(null);
+  } else {
+    setStudentAssignedGroup(null);
+    setStudentAssignedFirstName("");
+    setStudentAssignedLastName("");
+  }
 
   setStudentEmail(normalizedStudentEmail);
   setStudentCodeSession(normalizedSessionCode);
   setStudentSelectedSessionId(nextSessionId);
-  setStudentSelectedSessionCode(sessionRow?.session_code ?? normalizedSessionCode);
+  setStudentSelectedSessionCode(nextSessionCode);
 
   await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode);
 
-  if (normalizedAssignments.length > 0) {
-    const assignment = normalizedAssignments.find(
-      (row) => row.email === normalizedStudentEmail
-    );
-
-    if (assignment) {
-      setStudentAssignedGroup(assignment.group_number);
-      setStudentAssignedFirstName(assignment.first_name);
-      setStudentAssignedLastName(assignment.last_name);
-      setStudentGroupNumber(assignment.group_number);
-      setOpenProposalGroup(null);
-    }
+  // Après restauration d'un brouillon, on force à nouveau le groupe assigné.
+  // Cela évite qu'un brouillon local réactive un ancien studentGroupNumber.
+  if (hasAssignments) {
+    setStudentAssignedGroup(assignedGroupNumber);
+    setStudentGroupNumber(assignedGroupNumber);
+    setOpenProposalGroup(null);
   }
 
   await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
