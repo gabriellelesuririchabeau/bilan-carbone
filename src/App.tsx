@@ -729,14 +729,24 @@ function renderAssignmentsTable(assignments: StudentAssignmentDraft[], searchTex
   }
 
   return (
-    <div style={{ maxHeight: 320, overflowY: "auto", overflowX: "auto", marginTop: 14 }}>
-      <table style={styles.reportTable}>
+    <div
+      style={{
+        maxHeight: 360,
+        overflowY: "auto",
+        overflowX: "auto",
+        marginTop: 14,
+        border: "1px solid #d8e0ec",
+        borderRadius: 14,
+        background: "#fff",
+      }}
+    >
+      <table style={{ ...styles.reportTable, marginTop: 0 }}>
         <thead>
           <tr>
-            <th style={styles.reportTh}>Nom</th>
-            <th style={styles.reportTh}>Prénom</th>
-            <th style={styles.reportTh}>Groupe</th>
-            <th style={styles.reportTh}>Email</th>
+            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Nom</th>
+            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Prénom</th>
+            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Groupe</th>
+            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Email</th>
           </tr>
         </thead>
         <tbody>
@@ -3985,19 +3995,22 @@ async function handleOpenSession(session: SessionRow) {
     .order("last_name", { ascending: true });
 
   if (assignmentData && assignmentData.length > 0) {
+    const loadedAssignmentsText = assignmentData
+      .map((student: any) =>
+        [
+          student.email ?? "",
+          student.first_name ?? "",
+          student.last_name ?? "",
+          student.group_number ?? "",
+        ].join(";")
+      )
+      .join("\n");
+
     setAssignmentMode("groups");
     setAssignmentMethod("import");
-    setAssignmentRawText(
-      assignmentData
-        .map((student: any) =>
-          [
-            student.email ?? "",
-            student.first_name ?? "",
-            student.last_name ?? "",
-            student.group_number ?? "",
-          ].join(";")
-        )
-        .join("\n")
+    setAssignmentRawText(loadedAssignmentsText);
+    setSettingsAllowedEmailsText(
+      assignmentData.map((student: any) => normalizeEmail(String(student.email ?? ""))).join("\n")
     );
   } else {
     const recoveredAssignments = parseStudentAssignments(allowedEmailText);
@@ -6990,6 +7003,15 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                     onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
                     placeholder="Un email par ligne"
                   />
+
+                  <div style={{ ...styles.emptyText, marginTop: 10 }}>
+                    {
+                      settingsAllowedEmailsText
+                        .split("\n")
+                        .map((value) => normalizeEmail(value))
+                        .filter(Boolean).length
+                    } email(s) autorisé(s).
+                  </div>
                 </>
               ) : (
                 <>
@@ -6998,7 +7020,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   </label>
 
                   <textarea
-                    style={{ ...styles.input, minHeight: 180 } as React.CSSProperties}
+                    style={{ ...styles.input, minHeight: 170 } as React.CSSProperties}
                     value={assignmentRawText}
                     onChange={(e) => setAssignmentRawText(e.target.value)}
                     placeholder={"email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
@@ -7090,26 +7112,25 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
             <div style={styles.innerCardFull}>
 <div style={styles.groupTabsRow}>
-  {studentGroups
-    .filter((groupNumber) => !studentAssignedGroup || groupNumber === studentAssignedGroup)
-    .map((groupNumber) => (
-      <button
-        key={groupNumber}
-        type="button"
-        style={effectiveStudentGroupNumber === groupNumber ? styles.groupTabButtonActive : styles.groupTabButton}
-        onClick={() => {
-          if (studentAssignedGroup && groupNumber !== studentAssignedGroup) {
-            setMessage("Accès non autorisé à ce groupe.");
-            return;
-          }
-
-          setStudentGroupNumber(groupNumber);
+  {(studentAssignedGroup ? [studentAssignedGroup] : studentGroups).map((groupNumber) => (
+    <button
+      key={groupNumber}
+      type="button"
+      style={effectiveStudentGroupNumber === groupNumber ? styles.groupTabButtonActive : styles.groupTabButton}
+      onClick={() => {
+        if (studentAssignedGroup) {
+          setStudentGroupNumber(studentAssignedGroup);
           setOpenProposalGroup(null);
-        }}
-      >
-        Groupe {groupNumber}
-      </button>
-    ))}
+          return;
+        }
+
+        setStudentGroupNumber(groupNumber);
+        setOpenProposalGroup(null);
+      }}
+    >
+      Groupe {groupNumber}
+    </button>
+  ))}
 </div>
             </div>
 {studentAssignedGroup && (
@@ -7901,11 +7922,21 @@ if (screen === "student_vote") {
                       Aucun email trouvé.
                     </div>
                   ) : (
-                    <div style={{ maxHeight: 320, overflowY: "auto", marginTop: 12 }}>
-                      <table style={styles.reportTable}>
+                    <div
+                      style={{
+                        maxHeight: 360,
+                        overflowY: "auto",
+                        overflowX: "auto",
+                        marginTop: 12,
+                        border: "1px solid #d8e0ec",
+                        borderRadius: 14,
+                        background: "#fff",
+                      }}
+                    >
+                      <table style={{ ...styles.reportTable, marginTop: 0 }}>
                         <thead>
                           <tr>
-                            <th style={styles.reportTh}>Email</th>
+                            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Email</th>
                           </tr>
                         </thead>
                         <tbody>
