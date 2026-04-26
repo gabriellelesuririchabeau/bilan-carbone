@@ -630,23 +630,6 @@ function formatSessionCode(value: string | null | undefined) {
   return String(value ?? "").toUpperCase();
 }
 
-function formatStudentDisplayFirstName(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLocaleLowerCase("fr-FR")
-    .split(/([\s-]+)/)
-    .map((part) => {
-      if (/^[\s-]+$/.test(part)) return part;
-      if (!part) return "";
-      return part.charAt(0).toLocaleUpperCase("fr-FR") + part.slice(1);
-    })
-    .join("");
-}
-
-function formatStudentDisplayLastName(value: string | null | undefined) {
-  return String(value ?? "").trim().toLocaleUpperCase("fr-FR");
-}
-
 function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
   return rawText
     .split("\n")
@@ -1430,6 +1413,11 @@ const [quickSessionSuffix, setQuickSessionSuffix] = useState("");  const [teache
 const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("emails");
 const [assignmentMethod, setAssignmentMethod] = useState<AssignmentMethod>("import");
 const [assignmentRawText, setAssignmentRawText] = useState("");
+const [newStudentEmail, setNewStudentEmail] = useState("");
+const [newStudentFirstName, setNewStudentFirstName] = useState("");
+const [newStudentLastName, setNewStudentLastName] = useState("");
+const [newStudentGroupNumber, setNewStudentGroupNumber] = useState(1);
+const [autoAssignNewStudentGroup, setAutoAssignNewStudentGroup] = useState(true);
 
   const [transportTrips, setTransportTrips] = useState<TransportTrip[]>(emptyTrips());
   const [transportMessage, setTransportMessage] = useState("");
@@ -4239,6 +4227,95 @@ setAssignmentRawText("");
     setMessage(`Session supprimée : ${formatSessionCode(session.session_code)}`);
   }
 
+
+  function getNextAutoGroupNumber(assignments: StudentAssignmentDraft[]) {
+    const countsByGroup = Array.from({ length: 10 }, (_, index) => ({
+      groupNumber: index + 1,
+      count: assignments.filter((student) => student.group_number === index + 1).length,
+    }));
+
+    countsByGroup.sort((a, b) => {
+      if (a.count !== b.count) return a.count - b.count;
+      return a.groupNumber - b.groupNumber;
+    });
+
+    return countsByGroup[0]?.groupNumber ?? 1;
+  }
+
+  function resetNewStudentForm() {
+    setNewStudentEmail("");
+    setNewStudentFirstName("");
+    setNewStudentLastName("");
+    setNewStudentGroupNumber(1);
+    setAutoAssignNewStudentGroup(true);
+  }
+
+  function handleAddStudentToSessionDraft() {
+    const normalizedNewEmail = normalizeEmail(newStudentEmail);
+
+    if (!normalizedNewEmail || !normalizedNewEmail.includes("@")) {
+      setMessage("Ajout impossible : l'email de l'étudiant est obligatoire.");
+      return;
+    }
+
+    if (assignmentMode === "emails") {
+      const emails = settingsAllowedEmailsText
+        .split("\n")
+        .map((value) => normalizeEmail(value))
+        .filter(Boolean);
+
+      if (emails.includes(normalizedNewEmail)) {
+        setMessage("Cet étudiant est déjà présent dans la liste des emails autorisés.");
+        return;
+      }
+
+      setSettingsAllowedEmailsText([...emails, normalizedNewEmail].join("\n"));
+      resetNewStudentForm();
+      setMessage("Étudiant ajouté à la liste. Pensez à enregistrer les paramètres.");
+      return;
+    }
+
+    const firstName = newStudentFirstName.trim();
+    const lastName = newStudentLastName.trim();
+
+    if (!firstName || !lastName) {
+      setMessage("Ajout impossible : prénom et nom sont obligatoires pour une session avec assignation.");
+      return;
+    }
+
+    const currentAssignments = activeStudentAssignments;
+
+    if (currentAssignments.some((student) => student.email === normalizedNewEmail)) {
+      setMessage("Cet étudiant est déjà présent dans l'assignation.");
+      return;
+    }
+
+    const groupNumber = autoAssignNewStudentGroup
+      ? getNextAutoGroupNumber(currentAssignments)
+      : Number(newStudentGroupNumber);
+
+    if (!Number.isInteger(groupNumber) || groupNumber < 1 || groupNumber > 10) {
+      setMessage("Ajout impossible : le groupe doit être compris entre 1 et 10.");
+      return;
+    }
+
+    const nextAssignments = [
+      ...currentAssignments,
+      {
+        email: normalizedNewEmail,
+        first_name: firstName,
+        last_name: lastName,
+        group_number: groupNumber,
+      },
+    ];
+
+    setAssignmentMode("groups");
+    setAssignmentMethod("import");
+    setAssignmentRawText(serializeStudentAssignments(nextAssignments));
+    setSettingsAllowedEmailsText(nextAssignments.map((student) => student.email).join("\n"));
+    resetNewStudentForm();
+    setMessage(`Étudiant ajouté au groupe ${groupNumber}. Pensez à enregistrer les paramètres.`);
+  }
 
   function downloadAssignmentExport() {
     const sourceAssignments =
@@ -7087,6 +7164,70 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   : "Liste simple d'emails autorisés"}
               </div>
 
+              <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
+                <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
+
+                <label style={styles.label}>Email</label>
+                <input
+                  style={styles.input}
+                  value={newStudentEmail}
+                  onChange={(e) => setNewStudentEmail(e.target.value)}
+                  placeholder="email@exemple.com"
+                />
+
+                {assignmentMode === "groups" && (
+                  <>
+                    <label style={styles.label}>Nom</label>
+                    <input
+                      style={styles.input}
+                      value={newStudentLastName}
+                      onChange={(e) => setNewStudentLastName(e.target.value)}
+                      placeholder="Nom"
+                    />
+
+                    <label style={styles.label}>Prénom</label>
+                    <input
+                      style={styles.input}
+                      value={newStudentFirstName}
+                      onChange={(e) => setNewStudentFirstName(e.target.value)}
+                      placeholder="Prénom"
+                    />
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={autoAssignNewStudentGroup}
+                        onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
+                      />
+                      <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
+                    </div>
+
+                    {!autoAssignNewStudentGroup && (
+                      <>
+                        <label style={styles.label}>Groupe</label>
+                        <select
+                          style={styles.input}
+                          value={newStudentGroupNumber}
+                          onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
+                        >
+                          {studentGroups.map((group) => (
+                            <option key={group} value={group}>
+                              Groupe {group}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </>
+                )}
+
+                <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                  <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
+                    Ajouter l'étudiant
+                  </button>
+                </div>
+              </div>
+
               {assignmentMode === "emails" ? (
                 <>
                   <label style={styles.label}>Emails autorisés (un par ligne)</label>
@@ -7238,14 +7379,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     <div style={styles.emptyText}>
       Étudiant :{" "}
       <strong>
-        {studentAssignedFirstName || studentAssignedLastName
-          ? [
-              formatStudentDisplayLastName(studentAssignedLastName),
-              formatStudentDisplayFirstName(studentAssignedFirstName),
-            ]
-              .filter(Boolean)
-              .join(" ")
-          : studentEmail}
+        {[studentAssignedFirstName, studentAssignedLastName].filter(Boolean).join(" ") ||
+          studentEmail}
       </strong>{" "}
       — Groupe assigné : <strong>{studentAssignedGroup}</strong>
     </div>
@@ -7901,11 +8036,19 @@ if (screen === "student_vote") {
                             </div>
                           </div>
 
-                          <div style={styles.row}>
-                            <button style={styles.secondaryButton} onClick={() => handleOpenSession(session)}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 10,
+                              alignItems: "stretch",
+                              minWidth: 112,
+                            }}
+                          >
+                            <button style={{ ...styles.secondaryButton, width: "100%" }} onClick={() => handleOpenSession(session)}>
                               Ouvrir
                             </button>
-                            <button style={styles.deleteButton} onClick={() => handleDeleteSession(session)}>
+                            <button style={{ ...styles.deleteButton, width: "100%" }} onClick={() => handleDeleteSession(session)}>
                               Supprimer
                             </button>
                           </div>
@@ -8884,7 +9027,7 @@ panelTitle: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 12,
+    gap: 16,
     border: "1px solid #e2e8f0",
   },
   sessionItemTitle: {
