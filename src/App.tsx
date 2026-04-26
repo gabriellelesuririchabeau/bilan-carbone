@@ -742,16 +742,6 @@ function downloadTextFile(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
-function downloadAssignmentTemplate() {
-  const content = [
-    "email;prenom;nom;groupe",
-    "etudiant1@exemple.com;Marie;Durand;1",
-    "etudiant2@exemple.com;Lucas;Martin;2",
-  ].join("\n");
-
-  downloadTextFile("template_assignation_groupes.txt", content);
-}
-
 type DraftNumberInputProps = {
   value: number | string | null | undefined;
   style?: React.CSSProperties;
