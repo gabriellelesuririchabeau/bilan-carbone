@@ -1384,9 +1384,6 @@ const [studentAssignedLastName, setStudentAssignedLastName] = useState("");
 
 const effectiveStudentGroupNumber = studentAssignedGroup ?? studentGroupNumber;
 
-  function isStudentAccessAllowed(groupNumber: number) {
-    return !studentAssignedGroup || groupNumber === studentAssignedGroup;
-  }
 
 const [quickSessionCampus, setQuickSessionCampus] = useState("");
 const [quickSessionProgramme, setQuickSessionProgramme] = useState("");
@@ -7158,7 +7155,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
       Groupe {groupNumber}
     </button>
   ))}
-</div></div>
+</div>
             </div>
 {studentAssignedGroup && (
   <div style={styles.innerCardFull}>
