@@ -835,6 +835,7 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
+  const commitTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isFocused) {
@@ -842,10 +843,39 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     }
   }, [value, isFocused]);
 
+  useEffect(() => {
+    return () => {
+      if (commitTimerRef.current !== null) {
+        window.clearTimeout(commitTimerRef.current);
+      }
+    };
+  }, []);
+
+  function parseDraft(nextValue: string) {
+    const numericValue = Number(String(nextValue || "0").replace(",", "."));
+    if (!Number.isFinite(numericValue)) return min;
+    return Math.max(min, numericValue);
+  }
+
+  function scheduleCommit(nextValue: string) {
+    if (commitTimerRef.current !== null) {
+      window.clearTimeout(commitTimerRef.current);
+    }
+
+    commitTimerRef.current = window.setTimeout(() => {
+      void onCommit(parseDraft(nextValue));
+    }, 250);
+  }
+
   async function commitValue() {
     setIsFocused(false);
 
-    const numericValue = Math.max(min, Number(draftValue || 0));
+    if (commitTimerRef.current !== null) {
+      window.clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
+    }
+
+    const numericValue = parseDraft(draftValue);
     await onCommit(numericValue);
     setDraftValue(String(numericValue));
   }
@@ -858,7 +888,9 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       style={style}
       onFocus={() => setIsFocused(true)}
       onChange={(e) => {
-        setDraftValue(e.target.value);
+        const nextValue = e.target.value;
+        setDraftValue(nextValue);
+        scheduleCommit(nextValue);
       }}
       onBlur={() => {
         void commitValue();
