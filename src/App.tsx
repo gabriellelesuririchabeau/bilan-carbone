@@ -3301,6 +3301,34 @@ async function toggleStudentAnalysisAccess() {
     await loadSessionVoteAccess(selectedSessionId);
   }
 
+
+  async function saveGroupReportStudentSecure(params: {
+    sessionId: string;
+    groupNumber: number;
+    theme: string;
+    rowKey: string;
+    label: string;
+    persons: number | null;
+    quantity: number | null;
+    distanceTotalKm: number | null;
+    factor: number;
+  }) {
+    const { error } = await supabase.rpc("save_group_report_student_secure", {
+      p_session_id: params.sessionId,
+      p_student_email: studentEmail,
+      p_group_number: params.groupNumber,
+      p_theme: params.theme,
+      p_row_key: params.rowKey,
+      p_label: params.label,
+      p_persons: params.persons,
+      p_quantity: params.quantity,
+      p_distance_total_km: params.distanceTotalKm,
+      p_factor: params.factor,
+    });
+
+    return error;
+  }
+
   async function saveTransportReportRow(params: {
     sessionId: string;
     groupNumber: number;
@@ -3330,14 +3358,29 @@ updatedBy: string | null;
       label,
       persons: safePersons > 0 ? safePersons : null,
       quantity: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
+      distance_total_km: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
       factor: safeFactor,
 updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
     };
 
-    const { error } = await supabase.from("group_reports").upsert(
-      payload,
-      { onConflict: "session_id,group_number,theme,row_key" }
-    );
+    const error =
+      sessionId === studentSelectedSessionId
+        ? await saveGroupReportStudentSecure({
+            sessionId,
+            groupNumber,
+            theme: "transport",
+            rowKey,
+            label,
+            persons: safePersons > 0 ? safePersons : null,
+            quantity: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
+            distanceTotalKm: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
+            factor: safeFactor,
+          })
+        : (
+            await supabase.from("group_reports").upsert(payload, {
+              onConflict: "session_id,group_number,theme,row_key",
+            })
+          ).error;
 console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
@@ -3369,20 +3412,37 @@ updatedBy: string | null;
     const safeQuantity = Math.max(0, Number(quantity || 0));
     const safeFactor = Math.max(0, Number(factor || 0));
 
-    const { error } = await supabase.from("group_reports").upsert(
-      {
-        session_id: sessionId,
-        group_number: groupNumber,
-        theme: "dejeuner",
-        row_key: rowKey,
-        label,
-        persons: safeQuantity > 0 ? safeQuantity : null,
-        quantity: safeQuantity > 0 ? safeQuantity : null,
-        factor: safeFactor,
-        updated_by: updatedBy,
-      },
-      { onConflict: "session_id,group_number,theme,row_key" }
-    );
+    const payload = {
+      session_id: sessionId,
+      group_number: groupNumber,
+      theme: "dejeuner",
+      row_key: rowKey,
+      label,
+      persons: safeQuantity > 0 ? safeQuantity : null,
+      quantity: safeQuantity > 0 ? safeQuantity : null,
+      distance_total_km: null,
+      factor: safeFactor,
+      updated_by: updatedBy,
+    };
+
+    const error =
+      sessionId === studentSelectedSessionId
+        ? await saveGroupReportStudentSecure({
+            sessionId,
+            groupNumber,
+            theme: "dejeuner",
+            rowKey,
+            label,
+            persons: safeQuantity > 0 ? safeQuantity : null,
+            quantity: safeQuantity > 0 ? safeQuantity : null,
+            distanceTotalKm: null,
+            factor: safeFactor,
+          })
+        : (
+            await supabase.from("group_reports").upsert(payload, {
+              onConflict: "session_id,group_number,theme,row_key",
+            })
+          ).error;
 console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report déjeuner : ${error.message}`);
@@ -3414,20 +3474,37 @@ async function saveEquipementReportRow(params: {
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
 
-  const { error } = await supabase.from("group_reports").upsert(
-    {
-      session_id: sessionId,
-      group_number: groupNumber,
-      theme: "equipement",
-      row_key: rowKey,
-      label,
-      persons: safeQuantity > 0 ? safeQuantity : null,
-      quantity: safeQuantity > 0 ? safeQuantity : null,
-      factor: safeFactor,
-      updated_by: updatedBy,
-    },
-    { onConflict: "session_id,group_number,theme,row_key" }
-  );
+  const payload = {
+    session_id: sessionId,
+    group_number: groupNumber,
+    theme: "equipement",
+    row_key: rowKey,
+    label,
+    persons: safeQuantity > 0 ? safeQuantity : null,
+    quantity: safeQuantity > 0 ? safeQuantity : null,
+    distance_total_km: null,
+    factor: safeFactor,
+    updated_by: updatedBy,
+  };
+
+  const error =
+    sessionId === studentSelectedSessionId
+      ? await saveGroupReportStudentSecure({
+          sessionId,
+          groupNumber,
+          theme: "equipement",
+          rowKey,
+          label,
+          persons: safeQuantity > 0 ? safeQuantity : null,
+          quantity: safeQuantity > 0 ? safeQuantity : null,
+          distanceTotalKm: null,
+          factor: safeFactor,
+        })
+      : (
+          await supabase.from("group_reports").upsert(payload, {
+            onConflict: "session_id,group_number,theme,row_key",
+          })
+        ).error;
 
   if (error) {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
@@ -3513,10 +3590,24 @@ console.log("SAVE AUTRES →", {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await supabase.from("group_reports").upsert(
-    optimisticRow,
-    { onConflict: "session_id,group_number,theme,row_key" }
-  );
+  const error =
+    sessionId === studentSelectedSessionId
+      ? await saveGroupReportStudentSecure({
+          sessionId,
+          groupNumber,
+          theme: "autres_consommations",
+          rowKey,
+          label,
+          persons: safeQuantity > 0 ? safeQuantity : null,
+          quantity: safeQuantity > 0 ? safeQuantity : null,
+          distanceTotalKm: null,
+          factor: safeFactor,
+        })
+      : (
+          await supabase.from("group_reports").upsert(optimisticRow, {
+            onConflict: "session_id,group_number,theme,row_key",
+          })
+        ).error;
 
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
@@ -3604,10 +3695,24 @@ async function saveSalleReportRow(params: {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await supabase.from("group_reports").upsert(
-    optimisticRow,
-    { onConflict: "session_id,group_number,theme,row_key" }
-  );
+  const error =
+    sessionId === studentSelectedSessionId
+      ? await saveGroupReportStudentSecure({
+          sessionId,
+          groupNumber,
+          theme: "salle",
+          rowKey,
+          label,
+          persons: safeQuantity > 0 ? safeQuantity : null,
+          quantity: safeQuantity > 0 ? safeQuantity : null,
+          distanceTotalKm: null,
+          factor: safeFactor,
+        })
+      : (
+          await supabase.from("group_reports").upsert(optimisticRow, {
+            onConflict: "session_id,group_number,theme,row_key",
+          })
+        ).error;
 
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
