@@ -642,13 +642,21 @@ function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
     .map((line) => {
       const separator = line.includes(";") ? ";" : "\t";
       const parts = line.split(separator).map((part) => part.trim());
-      const groupPart = [...parts].reverse().find((part) => /^\d+$/.test(part));
+
+      let groupIndex = -1;
+      for (let i = parts.length - 1; i >= 0; i -= 1) {
+        const numericValue = Number(parts[i]);
+        if (Number.isInteger(numericValue) && numericValue >= 1 && numericValue <= 10) {
+          groupIndex = i;
+          break;
+        }
+      }
 
       return {
         email: normalizeEmail(parts[0] ?? ""),
         first_name: parts[1] ?? "",
         last_name: parts[2] ?? "",
-        group_number: Number(groupPart ?? 0),
+        group_number: groupIndex >= 0 ? Number(parts[groupIndex]) : Number(parts[3] ?? 0),
       };
     })
     .filter((student) => {
@@ -662,6 +670,78 @@ function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
     });
 }
 
+function capitalizeFirst(value: string) {
+  const cleanValue = String(value ?? "").trim().toLowerCase();
+  if (!cleanValue) return "";
+  return cleanValue.charAt(0).toUpperCase() + cleanValue.slice(1);
+}
+
+function formatAssignmentDisplayName(student: StudentAssignmentDraft) {
+  const lastName = String(student.last_name ?? "").trim().toUpperCase();
+  const firstName = capitalizeFirst(student.first_name ?? "");
+  const fullName = [lastName, firstName].filter(Boolean).join(" ");
+  return fullName || student.email;
+}
+
+function generateRandomAssignments(rawText: string): StudentAssignmentDraft[] {
+  const students = rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line, index) => {
+      if (index !== 0) return true;
+      return !line.toLowerCase().includes("email");
+    })
+    .map((line) => {
+      const separator = line.includes(";") ? ";" : "\t";
+      const parts = line.split(separator).map((part) => part.trim());
+
+      return {
+        email: normalizeEmail(parts[0] ?? ""),
+        first_name: parts[1] ?? "",
+        last_name: parts[2] ?? "",
+      };
+    })
+    .filter((student) => student.email && student.email.includes("@"));
+
+  return students
+    .map((student) => ({ ...student, sortKey: Math.random() }))
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .map((student, index) => ({
+      email: student.email,
+      first_name: student.first_name,
+      last_name: student.last_name,
+      group_number: (index % 10) + 1,
+    }));
+}
+
+function serializeStudentAssignments(assignments: StudentAssignmentDraft[]) {
+  return assignments
+    .map((student) =>
+      [
+        student.email,
+        student.first_name,
+        student.last_name,
+        student.group_number,
+      ].join(";")
+    )
+    .join("\n");
+}
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
 function downloadAssignmentTemplate() {
   const content = [
     "email;prenom;nom;groupe",
@@ -669,52 +749,7 @@ function downloadAssignmentTemplate() {
     "etudiant2@exemple.com;Lucas;Martin;2",
   ].join("\n");
 
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "template_assignation_groupes.txt";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  URL.revokeObjectURL(url);
-}
-
-function formatAssignmentLastName(value: string | null | undefined) {
-  return String(value ?? "").trim().toLocaleUpperCase("fr-FR");
-}
-
-function formatAssignmentFirstName(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLocaleLowerCase("fr-FR")
-    .replace(/(^|[\s-])([\p{L}])/gu, (_match, separator: string, letter: string) =>
-      `${separator}${letter.toLocaleUpperCase("fr-FR")}`
-    );
-}
-
-function formatAssignmentStudentName(student: StudentAssignmentDraft) {
-  return [
-    formatAssignmentLastName(student.last_name),
-    formatAssignmentFirstName(student.first_name),
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function downloadCsvFile(fileName: string, content: string) {
-  const blob = new Blob([`\ufeff${content}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadTextFile("template_assignation_groupes.txt", content);
 }
 
 type DraftNumberInputProps = {
@@ -1274,6 +1309,8 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
 const [studentAssignedFirstName, setStudentAssignedFirstName] = useState("");
 const [studentAssignedLastName, setStudentAssignedLastName] = useState("");
 
+const effectiveStudentGroupNumber = studentAssignedGroup ?? studentGroupNumber;
+
 const [quickSessionCampus, setQuickSessionCampus] = useState("");
 const [quickSessionProgramme, setQuickSessionProgramme] = useState("");
 const [quickSessionLevel, setQuickSessionLevel] = useState("");
@@ -1408,8 +1445,6 @@ const teacherVoteResults = useMemo<TeacherVoteResult[]>(() => {
     () => buildTransportRowsForGroup(teacherTransportReportRowsDb, teacherGroupNumber),
     [teacherTransportReportRowsDb, teacherGroupNumber]
   );
-
-  const effectiveStudentGroupNumber = studentAssignedGroup ?? studentGroupNumber;
 
   const studentTransportRows = useMemo(
     () => buildTransportRowsForGroup(studentTransportReportRowsDb, effectiveStudentGroupNumber),
@@ -1618,30 +1653,15 @@ const studentSyntheseData = useMemo(
   return parseStudentAssignments(assignmentRawText);
 }, [assignmentMode, assignmentRawText]);
 
-function exportStudentAssignmentsTable() {
-  if (!parsedStudentAssignments.length) {
-    setMessage("Aucune assignation valide à exporter.");
-    return;
-  }
+  const randomStudentAssignments = useMemo(() => {
+    if (assignmentMode !== "groups" || assignmentMethod !== "random") return [];
+    return generateRandomAssignments(settingsAllowedEmailsText);
+  }, [assignmentMode, assignmentMethod, settingsAllowedEmailsText]);
 
-  const sortedAssignments = [...parsedStudentAssignments].sort((a, b) => {
-    if (a.group_number !== b.group_number) return a.group_number - b.group_number;
-    const nameA = formatAssignmentStudentName(a);
-    const nameB = formatAssignmentStudentName(b);
-    return nameA.localeCompare(nameB, "fr-FR");
-  });
-
-  const lines = [
-    "Groupe;Nom et prénom",
-    ...sortedAssignments.map((student) =>
-      [student.group_number, formatAssignmentStudentName(student)].join(";")
-    ),
-  ];
-
-  const safeCode = sanitizeFilenamePart(formatSessionCode(selectedSessionCode) || "session");
-  downloadCsvFile(`assignation_groupes_${safeCode}.csv`, lines.join("\n"));
-  setMessage("Export de l'assignation généré.");
-}
+  const activeStudentAssignments = useMemo(() => {
+    if (assignmentMode !== "groups") return [];
+    return assignmentMethod === "random" ? randomStudentAssignments : parsedStudentAssignments;
+  }, [assignmentMode, assignmentMethod, parsedStudentAssignments, randomStudentAssignments]);
 
   const filteredAdminTeachers = useMemo(() => {
     const q = teacherSearch.trim().toLowerCase();
@@ -1677,6 +1697,13 @@ function exportStudentAssignmentsTable() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [openTeacherActionsId]);
+
+  useEffect(() => {
+    if (studentAssignedGroup && studentGroupNumber !== studentAssignedGroup) {
+      setStudentGroupNumber(studentAssignedGroup);
+      setOpenProposalGroup(null);
+    }
+  }, [studentAssignedGroup, studentGroupNumber]);
 
   useEffect(() => {
   if (screen === "student_analyses" && !studentAnalysisUnlocked) {
@@ -3370,7 +3397,7 @@ console.log("SAVE AUTRES →", {
   };
 
   setStudentAutresReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
+    applyOptimisticUpdate(prev, studentSelectedSessionId, studentGroupNumber)
   );
   setTeacherAutresReportRowsDb((prev) =>
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
@@ -3460,7 +3487,7 @@ async function saveSalleReportRow(params: {
   };
 
   setStudentSalleReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
+    applyOptimisticUpdate(prev, studentSelectedSessionId, studentGroupNumber)
   );
   setTeacherSalleReportRowsDb((prev) =>
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
@@ -3906,7 +3933,7 @@ if (assignmentData && assignmentData.length > 0) {
   await loadSessionSyntheseAccess(session.id);
   await loadTeacherGroupProposals(session.id);
   await loadConsolidatedProposals(session.id);
-  setMessage(`Session ouverte : ${session.session_code}`);
+  setMessage(`Session ouverte : ${formatSessionCode(session.session_code)}`);
 }
 
   async function handleDeleteSession(session: SessionRow) {
@@ -3953,6 +3980,29 @@ setAssignmentRawText("");
     setMessage(`Session supprimée : ${formatSessionCode(session.session_code)}`);
   }
 
+
+  function downloadAssignmentExport() {
+    const assignments = [...activeStudentAssignments].sort((a, b) => {
+      if (a.group_number !== b.group_number) return a.group_number - b.group_number;
+      return formatAssignmentDisplayName(a).localeCompare(formatAssignmentDisplayName(b));
+    });
+
+    if (!assignments.length) {
+      setMessage("Aucune assignation à exporter.");
+      return;
+    }
+
+    const content = [
+      "Groupe;Nom et prénom",
+      ...assignments.map((student) => [
+        String(student.group_number),
+        formatAssignmentDisplayName(student),
+      ].join(";")),
+    ].join("\n");
+
+    downloadTextFile(`assignation_groupes_${formatSessionCode(selectedSessionCode || "session")}.csv`, content);
+  }
+
   async function handleSaveSessionSettings() {
     setMessage("");
 
@@ -3961,14 +4011,11 @@ setAssignmentRawText("");
       return;
     }
 
-if (assignmentMode === "groups" && assignmentMethod === "random") {
-  setMessage("L'assignation aléatoire sera activée à l'étape suivante. Pour l'instant, utilisez l'import / copier-coller d'une liste.");
-  return;
-}
+const assignmentsToSave = assignmentMode === "groups" ? activeStudentAssignments : [];
 
 const allowedEmails =
   assignmentMode === "groups"
-    ? parsedStudentAssignments.map((student) => student.email)
+    ? assignmentsToSave.map((student) => student.email)
     : settingsAllowedEmailsText
         .split("\n")
         .map((v) => normalizeEmail(v))
@@ -3997,7 +4044,7 @@ if (deleteAssignmentsError) {
 }
 
 if (assignmentMode === "groups") {
-  if (parsedStudentAssignments.length === 0) {
+  if (assignmentsToSave.length === 0) {
     setMessage("Aucune assignation valide détectée. Vérifiez le format : email;prenom;nom;groupe.");
     return;
   }
@@ -4005,7 +4052,7 @@ if (assignmentMode === "groups") {
   const { error: insertAssignmentsError } = await supabase
     .from("session_student_assignments")
     .insert(
-      parsedStudentAssignments.map((student) => ({
+      assignmentsToSave.map((student) => ({
         session_id: selectedSessionId,
         email: student.email,
         first_name: student.first_name,
@@ -4018,6 +4065,9 @@ if (assignmentMode === "groups") {
     setMessage(`Paramètres emails enregistrés, mais erreur assignations : ${insertAssignmentsError.message}`);
     return;
   }
+
+  setAssignmentMethod("import");
+  setAssignmentRawText(serializeStudentAssignments(assignmentsToSave));
 }
 
     await loadTeacherSessions(teacherUserId);
@@ -4144,15 +4194,6 @@ if (normalizedAssignments.length > 0) {
   setStudentSelectedSessionCode(sessionRow?.session_code ?? normalizedSessionCode);
 
   await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode);
-
-  if (normalizedAssignments.length > 0) {
-    const assignment = normalizedAssignments.find(
-      (row) => row.email === normalizedStudentEmail
-    );
-    if (assignment) {
-      setStudentGroupNumber(assignment.group_number);
-    }
-  }
 
   await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
   await loadTransportReportRows(nextSessionId, setStudentTransportReportRowsDb);
@@ -6860,23 +6901,6 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
                   {assignmentMethod === "import" ? (
                     <>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          marginTop: 4,
-                          marginBottom: 20,
-                        }}
-                      >
-                        <button
-                          type="button"
-                          style={styles.primaryButton}
-                          onClick={downloadAssignmentTemplate}
-                        >
-                          Télécharger le modèle
-                        </button>
-                      </div>
-
                       <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
                         Liste avec assignation
                       </label>
@@ -6889,31 +6913,31 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                       />
 
                       <div style={{ ...styles.emptyText, marginTop: 10 }}>
-                        {parsedStudentAssignments.length} assignation(s) valide(s) détectée(s).
+                        {activeStudentAssignments.length} assignation(s) valide(s) détectée(s).
                       </div>
 
-                      {parsedStudentAssignments.length > 0 && (
-                        <div style={{ display: "flex", justifyContent: "center", marginTop: 12, marginBottom: 12 }}>
+                      {activeStudentAssignments.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
                           <button
                             type="button"
                             style={styles.secondaryButton}
-                            onClick={exportStudentAssignmentsTable}
+                            onClick={downloadAssignmentExport}
                           >
                             Exporter l'assignation
                           </button>
                         </div>
                       )}
 
-                      {parsedStudentAssignments.length > 0 && (
+                      {activeStudentAssignments.length > 0 && (
                         <div style={{ maxHeight: 180, overflowY: "auto", marginTop: 8 }}>
-                          {parsedStudentAssignments.slice(0, 8).map((student) => (
+                          {activeStudentAssignments.slice(0, 8).map((student) => (
                             <div key={`${student.email}-${student.group_number}`} style={styles.emptyText}>
                               Groupe {student.group_number} — {student.first_name} {student.last_name} — {student.email}
                             </div>
                           ))}
-                          {parsedStudentAssignments.length > 8 && (
+                          {activeStudentAssignments.length > 8 && (
                             <div style={styles.emptyText}>
-                              + {parsedStudentAssignments.length - 8} autre(s)
+                              + {activeStudentAssignments.length - 8} autre(s)
                             </div>
                           )}
                         </div>
@@ -7783,18 +7807,59 @@ if (screen === "student_vote") {
                   <h3 style={styles.innerTitle}>Utilisateurs autorisés</h3>
 
                   <div style={styles.sessionItemMeta}>
-                    Session : <strong>{selectedSessionCode || "—"}</strong>
+                    Session : <strong>{formatSessionCode(selectedSessionCode) || "—"}</strong>
                   </div>
 
                   <input
                     type="text"
-                    placeholder="Rechercher un email..."
+                    placeholder="Rechercher un email, un nom ou un groupe..."
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
                     style={{ ...styles.input, marginTop: 10 }}
                   />
 
-                  {!sortedFilteredEmails.length ? (
+                  {assignmentMode === "groups" ? (
+                    activeStudentAssignments.length === 0 ? (
+                      <div style={{ ...styles.emptyText, marginTop: 12 }}>
+                        Aucun étudiant assigné trouvé.
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: 16, overflowX: "auto" }}>
+                        <table style={styles.reportTable}>
+                          <thead>
+                            <tr>
+                              <th style={styles.reportTh}>Groupe</th>
+                              <th style={styles.reportTh}>Nom et prénom</th>
+                              <th style={styles.reportTh}>Email</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[...activeStudentAssignments]
+                              .filter((student) => {
+                                const q = userSearch.trim().toLowerCase();
+                                if (!q) return true;
+                                return (
+                                  student.email.toLowerCase().includes(q) ||
+                                  formatAssignmentDisplayName(student).toLowerCase().includes(q) ||
+                                  String(student.group_number).includes(q)
+                                );
+                              })
+                              .sort((a, b) => {
+                                if (a.group_number !== b.group_number) return a.group_number - b.group_number;
+                                return formatAssignmentDisplayName(a).localeCompare(formatAssignmentDisplayName(b));
+                              })
+                              .map((student) => (
+                                <tr key={`${student.email}-${student.group_number}`}>
+                                  <td style={styles.reportTd}>{student.group_number}</td>
+                                  <td style={styles.reportTd}>{formatAssignmentDisplayName(student)}</td>
+                                  <td style={styles.reportTd}>{student.email}</td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )
+                  ) : !sortedFilteredEmails.length ? (
                     <div style={{ ...styles.emptyText, marginTop: 12 }}>
                       Aucun email trouvé.
                     </div>
@@ -7809,6 +7874,15 @@ if (screen === "student_vote") {
                   )}
 
                   <div style={{ ...styles.row, marginTop: 16 }}>
+                    {assignmentMode === "groups" && (
+                      <button
+                        style={styles.primaryButton}
+                        onClick={downloadAssignmentExport}
+                      >
+                        Exporter l'assignation
+                      </button>
+                    )}
+
                     <button
                       style={styles.secondaryButton}
                       onClick={() => setScreen("teacher_session_settings")}
