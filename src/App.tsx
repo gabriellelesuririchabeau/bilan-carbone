@@ -3161,6 +3161,70 @@ async function loadSalleReportRows(
   setRows((data ?? []) as GroupReportRow[]);
 }
 
+async function loadStudentGroupReportRows(
+  sessionId: string,
+  theme: string,
+  setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
+) {
+  if (!sessionId) {
+    setRows([]);
+    return;
+  }
+
+  const { data, error } = await supabase.rpc("get_group_reports_student", {
+    p_session_id: sessionId,
+    p_student_email: normalizeEmail(studentEmail),
+    p_theme: theme,
+  });
+
+  if (error) {
+    setRows([]);
+    setMessage(`Erreur chargement report étudiant : ${error.message}`);
+    return;
+  }
+
+  setRows((data ?? []) as GroupReportRow[]);
+}
+
+async function saveGroupReportPayload(
+  payload: {
+    session_id: string;
+    group_number: number;
+    theme: string;
+    row_key: string;
+    label: string;
+    persons?: number | null;
+    quantity?: number | null;
+    distance_total_km?: number | null;
+    factor?: number | null;
+    updated_by?: string | null;
+  }
+) {
+  const isStudentWrite =
+    Boolean(studentSelectedSessionId) &&
+    payload.session_id === studentSelectedSessionId &&
+    !payload.updated_by;
+
+  if (isStudentWrite) {
+    return supabase.rpc("save_group_report_student", {
+      p_session_id: payload.session_id,
+      p_student_email: normalizeEmail(studentEmail),
+      p_group_number: payload.group_number,
+      p_theme: payload.theme,
+      p_row_key: payload.row_key,
+      p_label: payload.label,
+      p_persons: payload.persons ?? null,
+      p_quantity: payload.quantity ?? null,
+      p_distance_total_km: payload.distance_total_km ?? null,
+      p_factor: payload.factor ?? 0,
+    });
+  }
+
+  return supabase.from("group_reports").upsert(payload, {
+    onConflict: "session_id,group_number,theme,row_key",
+  });
+}
+
 async function loadAutresReportableRowsWithSetter(
   sessionId: string,
   setRows: React.Dispatch<React.SetStateAction<AutresReportableRowRpc[]>>
@@ -3310,45 +3374,6 @@ async function toggleStudentAnalysisAccess() {
     await loadSessionVoteAccess(selectedSessionId);
   }
 
-  async function saveGroupReportRowSafely(
-    row: {
-      session_id: string;
-      group_number: number;
-      theme: string;
-      row_key: string;
-      label: string;
-      persons?: number | null;
-      quantity?: number | null;
-      distance_total_km?: number | null;
-      factor?: number | null;
-      updated_by?: string | null;
-    }
-  ) {
-    const isStudentWrite =
-      Boolean(studentSelectedSessionId) &&
-      row.session_id === studentSelectedSessionId &&
-      !row.updated_by;
-
-    if (isStudentWrite) {
-      return await supabase.rpc("save_group_report_student", {
-        p_session_id: row.session_id,
-        p_student_email: normalizeEmail(studentEmail),
-        p_group_number: row.group_number,
-        p_theme: row.theme,
-        p_row_key: row.row_key,
-        p_label: row.label,
-        p_persons: row.persons ?? null,
-        p_quantity: row.quantity ?? null,
-        p_distance_total_km: row.distance_total_km ?? null,
-        p_factor: row.factor ?? 0,
-      });
-    }
-
-    return await supabase.from("group_reports").upsert(row, {
-      onConflict: "session_id,group_number,theme,row_key",
-    });
-  }
-
   async function saveTransportReportRow(params: {
     sessionId: string;
     groupNumber: number;
@@ -3360,12 +3385,11 @@ async function toggleStudentAnalysisAccess() {
 updatedBy: string | null;
   }) {
     if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage(`Accès non autorisé : vous êtes assigné au groupe ${studentAssignedGroup}.`);
-      return;
+      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
     }
 
     const { sessionId, rowKey, label, persons, distanceTotalKm, factor, updatedBy } = params;
-    const groupNumber = params.groupNumber;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
     const safePersons = Math.max(0, Number(persons || 0));
     const safeDistanceTotalKm = Math.max(0, Number(distanceTotalKm || 0));
@@ -3419,7 +3443,7 @@ updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null
       applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
     );
 
-    const { error } = await saveGroupReportRowSafely(payload);
+    const { error } = await saveGroupReportPayload(payload);
 console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
@@ -3427,7 +3451,7 @@ console.log("SAVE REPORT ERROR", error);
     }
 
     if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-      await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
+      await loadStudentGroupReportRows(sessionId, "transport", setStudentTransportReportRowsDb);
       await loadTransportReportableRows(sessionId, setStudentTransportReportableRows);
     }
   }
@@ -3442,12 +3466,11 @@ console.log("SAVE REPORT ERROR", error);
 updatedBy: string | null;
   }) {
     if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage(`Accès non autorisé : vous êtes assigné au groupe ${studentAssignedGroup}.`);
-      return;
+      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
     }
 
     const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = params.groupNumber;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
     const safeQuantity = Math.max(0, Number(quantity || 0));
     const safeFactor = Math.max(0, Number(factor || 0));
@@ -3499,7 +3522,7 @@ updatedBy: string | null;
       applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
     );
 
-    const { error } = await saveGroupReportRowSafely(payload);
+    const { error } = await saveGroupReportPayload(payload);
 console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report déjeuner : ${error.message}`);
@@ -3507,7 +3530,7 @@ console.log("SAVE REPORT ERROR", error);
     }
 
     if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-      await loadDejeunerReportRows(sessionId, setStudentDejeunerReportRowsDb);
+      await loadStudentGroupReportRows(sessionId, "dejeuner", setStudentDejeunerReportRowsDb);
       await loadDejeunerReportableRows(sessionId);
     }
   }
@@ -3526,7 +3549,7 @@ async function saveEquipementReportRow(params: {
     }
 
     const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = params.groupNumber;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3578,7 +3601,7 @@ async function saveEquipementReportRow(params: {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await saveGroupReportRowSafely(payload);
+  const { error } = await saveGroupReportPayload(payload);
 
   if (error) {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
@@ -3586,7 +3609,7 @@ async function saveEquipementReportRow(params: {
   }
 
   if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-    await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
+    await loadStudentGroupReportRows(sessionId, "equipement", setStudentEquipementReportRowsDb);
     await loadEquipementReportableRows(sessionId);
   }
 }
@@ -3606,7 +3629,7 @@ async function saveAutresReportRow(params: {
     }
 
     const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = params.groupNumber;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3664,18 +3687,18 @@ console.log("SAVE AUTRES →", {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await saveGroupReportRowSafely(optimisticRow);
+  const { error } = await saveGroupReportPayload(optimisticRow);
 
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
-    await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
+    await loadStudentGroupReportRows(sessionId, "autres_consommations", setStudentAutresReportRowsDb);
+    await loadStudentGroupReportRows(sessionId, "salle", setStudentSalleReportRowsDb);
     await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
     return;
   }
 
   if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-    await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
+    await loadStudentGroupReportRows(sessionId, "autres_consommations", setStudentAutresReportRowsDb);
     await loadAutresReportableRows(sessionId);
   }
 
@@ -3700,7 +3723,7 @@ async function saveSalleReportRow(params: {
     }
 
     const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = params.groupNumber;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3752,17 +3775,17 @@ async function saveSalleReportRow(params: {
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
   );
 
-  const { error } = await saveGroupReportRowSafely(optimisticRow);
+  const { error } = await saveGroupReportPayload(optimisticRow);
 
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
+    await loadStudentGroupReportRows(sessionId, "salle", setStudentSalleReportRowsDb);
     await loadSalleReportRows(sessionId, setTeacherSalleReportRowsDb);
     return;
   }
 
   if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
+    await loadStudentGroupReportRows(sessionId, "salle", setStudentSalleReportRowsDb);
   }
 
   if (selectedSessionId && sessionId === selectedSessionId) {
@@ -3802,14 +3825,14 @@ async function saveSalleReportRow(params: {
   useEffect(() => {
     if (!studentSelectedSessionId) return;
     void loadTransportReportableRows(studentSelectedSessionId, setStudentTransportReportableRows);
-    void loadTransportReportRows(studentSelectedSessionId, setStudentTransportReportRowsDb);
+    void loadStudentGroupReportRows(studentSelectedSessionId, "transport", setStudentTransportReportRowsDb);
     void loadDejeunerReportableRows(studentSelectedSessionId);
-    void loadDejeunerReportRows(studentSelectedSessionId, setStudentDejeunerReportRowsDb);
+    void loadStudentGroupReportRows(studentSelectedSessionId, "dejeuner", setStudentDejeunerReportRowsDb);
     void loadEquipementReportableRows(studentSelectedSessionId);
-    void loadEquipementReportRows(studentSelectedSessionId, setStudentEquipementReportRowsDb);
+    void loadStudentGroupReportRows(studentSelectedSessionId, "equipement", setStudentEquipementReportRowsDb);
     void loadAutresReportableRows(studentSelectedSessionId);
-    void loadAutresReportRows(studentSelectedSessionId, setStudentAutresReportRowsDb);
-    void loadSalleReportRows(studentSelectedSessionId, setStudentSalleReportRowsDb);
+    void loadStudentGroupReportRows(studentSelectedSessionId, "autres_consommations", setStudentAutresReportRowsDb);
+    void loadStudentGroupReportRows(studentSelectedSessionId, "salle", setStudentSalleReportRowsDb);
     void loadSessionAnalysisAccess(studentSelectedSessionId);
     void loadSessionSyntheseAccess(studentSelectedSessionId);
     void loadSessionVoteAccess(studentSelectedSessionId);
@@ -3890,14 +3913,14 @@ async function saveSalleReportRow(params: {
 
     const timeoutId = window.setTimeout(() => {
       void loadTransportReportableRows(studentSelectedSessionId, setStudentTransportReportableRows);
-      void loadTransportReportRows(studentSelectedSessionId, setStudentTransportReportRowsDb);
+      void loadStudentGroupReportRows(studentSelectedSessionId, "transport", setStudentTransportReportRowsDb);
       void loadDejeunerReportableRows(studentSelectedSessionId);
-      void loadDejeunerReportRows(studentSelectedSessionId, setStudentDejeunerReportRowsDb);
+      void loadStudentGroupReportRows(studentSelectedSessionId, "dejeuner", setStudentDejeunerReportRowsDb);
       void loadEquipementReportableRows(studentSelectedSessionId);
-      void loadEquipementReportRows(studentSelectedSessionId, setStudentEquipementReportRowsDb);
+      void loadStudentGroupReportRows(studentSelectedSessionId, "equipement", setStudentEquipementReportRowsDb);
       void loadAutresReportableRows(studentSelectedSessionId);
-      void loadAutresReportRows(studentSelectedSessionId, setStudentAutresReportRowsDb);
-      void loadSalleReportRows(studentSelectedSessionId, setStudentSalleReportRowsDb);
+      void loadStudentGroupReportRows(studentSelectedSessionId, "autres_consommations", setStudentAutresReportRowsDb);
+      void loadStudentGroupReportRows(studentSelectedSessionId, "salle", setStudentSalleReportRowsDb);
       void loadSessionAnalysisAccess(studentSelectedSessionId);
       void loadSessionSyntheseAccess(studentSelectedSessionId);
       void loadSessionVoteAccess(studentSelectedSessionId);
@@ -4495,14 +4518,14 @@ if (normalizedAssignments.length > 0) {
   }
 
   await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
-  await loadTransportReportRows(nextSessionId, setStudentTransportReportRowsDb);
+  await loadStudentGroupReportRows(nextSessionId, "transport", setStudentTransportReportRowsDb);
   await loadDejeunerReportableRows(nextSessionId);
-  await loadDejeunerReportRows(nextSessionId, setStudentDejeunerReportRowsDb);
+  await loadStudentGroupReportRows(nextSessionId, "dejeuner", setStudentDejeunerReportRowsDb);
   await loadEquipementReportableRows(nextSessionId);
-  await loadEquipementReportRows(nextSessionId, setStudentEquipementReportRowsDb);
+  await loadStudentGroupReportRows(nextSessionId, "equipement", setStudentEquipementReportRowsDb);
   await loadAutresReportableRows(nextSessionId);
-  await loadAutresReportRows(nextSessionId, setStudentAutresReportRowsDb);
-  await loadSalleReportRows(nextSessionId, setStudentSalleReportRowsDb);
+  await loadStudentGroupReportRows(nextSessionId, "autres_consommations", setStudentAutresReportRowsDb);
+  await loadStudentGroupReportRows(nextSessionId, "salle", setStudentSalleReportRowsDb);
   await loadSessionAnalysisAccess(nextSessionId);
   await loadSessionSyntheseAccess(nextSessionId);
   await loadSessionVoteAccess(nextSessionId);
@@ -4536,13 +4559,13 @@ function removeTrip(index: number) {
   async function refreshStudentTransportData(sessionId: string) {
     if (!sessionId) return;
     await loadTransportReportableRows(sessionId, setStudentTransportReportableRows);
-    await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
+    await loadStudentGroupReportRows(sessionId, "transport", setStudentTransportReportRowsDb);
     await loadDejeunerReportableRows(sessionId);
-    await loadDejeunerReportRows(sessionId, setStudentDejeunerReportRowsDb);
+    await loadStudentGroupReportRows(sessionId, "dejeuner", setStudentDejeunerReportRowsDb);
     await loadEquipementReportableRows(sessionId);
-    await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
+    await loadStudentGroupReportRows(sessionId, "equipement", setStudentEquipementReportRowsDb);
     await loadAutresReportableRows(sessionId);
-    await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
+    await loadStudentGroupReportRows(sessionId, "autres_consommations", setStudentAutresReportRowsDb);
   }
 
 async function refreshStudentAnalysisData() {
@@ -4675,7 +4698,7 @@ setTransportMessage("Questionnaire transport enregistré.");
 
     if (studentSelectedSessionId) {
       await loadDejeunerReportableRows(studentSelectedSessionId);
-      await loadDejeunerReportRows(studentSelectedSessionId, setStudentDejeunerReportRowsDb);
+      await loadStudentGroupReportRows(studentSelectedSessionId, "dejeuner", setStudentDejeunerReportRowsDb);
     }
 
 const nextCompletion = { ...studentCompletion, dejeuner: true };
@@ -4730,7 +4753,7 @@ setDejeunerMessage("Questionnaire déjeuner enregistré.");
 
     if (studentSelectedSessionId) {
       await loadEquipementReportableRows(studentSelectedSessionId);
-      await loadEquipementReportRows(studentSelectedSessionId, setStudentEquipementReportRowsDb);
+      await loadStudentGroupReportRows(studentSelectedSessionId, "equipement", setStudentEquipementReportRowsDb);
     }
 
 const nextCompletion = { ...studentCompletion, equipement: true };
@@ -4775,7 +4798,7 @@ setEquipementMessage("Questionnaire équipement enregistré.");
 
     if (studentSelectedSessionId) {
       await loadAutresReportableRows(studentSelectedSessionId);
-      await loadAutresReportRows(studentSelectedSessionId, setStudentAutresReportRowsDb);
+      await loadStudentGroupReportRows(studentSelectedSessionId, "autres_consommations", setStudentAutresReportRowsDb);
     }
 
 const nextCompletion = { ...studentCompletion, autres: true };
