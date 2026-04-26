@@ -654,8 +654,8 @@ function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
 
       return {
         email: normalizeEmail(parts[0] ?? ""),
-        first_name: cleanAssignmentFirstName(parts[1] ?? ""),
-        last_name: cleanAssignmentLastName(parts[2] ?? ""),
+        first_name: parts[1] ?? "",
+        last_name: parts[2] ?? "",
         group_number: groupIndex >= 0 ? Number(parts[groupIndex]) : Number(parts[3] ?? 0),
       };
     })
@@ -670,30 +670,27 @@ function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
     });
 }
 
-function normalizeNameWhitespace(value: string) {
-  return String(value ?? "").trim().replace(/\s+/g, " ");
-}
-
 function capitalizeNamePart(value: string) {
-  const cleanValue = normalizeNameWhitespace(value).toLowerCase();
+  const cleanValue = String(value ?? "").trim().toLowerCase();
   if (!cleanValue) return "";
 
   return cleanValue
-    .split(/([\s-]+)/)
+    .split(/([\\s-]+)/)
     .map((part) => {
-      if (/^[\s-]+$/.test(part)) return part;
+      if (/^[\\s-]+$/.test(part)) return part;
       return part.charAt(0).toUpperCase() + part.slice(1);
     })
     .join("");
 }
 
-function cleanAssignmentLastName(value: string | null | undefined) {
-  return normalizeNameWhitespace(String(value ?? "")).toUpperCase();
+function formatAssignmentLastName(student: StudentAssignmentDraft) {
+  return String(student.last_name ?? "").trim().toUpperCase();
 }
 
-function cleanAssignmentFirstName(value: string | null | undefined) {
-  return normalizeNameWhitespace(String(value ?? ""))
-    .split(/\s+/)
+function formatAssignmentFirstName(student: StudentAssignmentDraft) {
+  return String(student.first_name ?? "")
+    .trim()
+    .split(/\\s+/)
     .map((word) =>
       word
         .split("-")
@@ -701,14 +698,6 @@ function cleanAssignmentFirstName(value: string | null | undefined) {
         .join("-")
     )
     .join(" ");
-}
-
-function formatAssignmentLastName(student: StudentAssignmentDraft) {
-  return cleanAssignmentLastName(student.last_name);
-}
-
-function formatAssignmentFirstName(student: StudentAssignmentDraft) {
-  return cleanAssignmentFirstName(student.first_name);
 }
 
 function renderAssignmentsTable(assignments: StudentAssignmentDraft[], searchText = "") {
@@ -791,8 +780,8 @@ function generateRandomAssignments(rawText: string): StudentAssignmentDraft[] {
 
       return {
         email: normalizeEmail(parts[0] ?? ""),
-        first_name: cleanAssignmentFirstName(parts[1] ?? ""),
-        last_name: cleanAssignmentLastName(parts[2] ?? ""),
+        first_name: parts[1] ?? "",
+        last_name: parts[2] ?? "",
       };
     })
     .filter((student) => student.email && student.email.includes("@"));
@@ -813,8 +802,8 @@ function serializeStudentAssignments(assignments: StudentAssignmentDraft[]) {
     .map((student) =>
       [
         student.email,
-        cleanAssignmentFirstName(student.first_name),
-        cleanAssignmentLastName(student.last_name),
+        student.first_name,
+        student.last_name,
         student.group_number,
       ].join(";")
     )
@@ -4286,8 +4275,8 @@ setAssignmentRawText("");
       return;
     }
 
-    const firstName = cleanAssignmentFirstName(newStudentFirstName);
-    const lastName = cleanAssignmentLastName(newStudentLastName);
+    const firstName = newStudentFirstName.trim();
+    const lastName = newStudentLastName.trim();
 
     if (!firstName || !lastName) {
       setMessage("Ajout impossible : prénom et nom sont obligatoires pour une session avec assignation.");
@@ -4410,8 +4399,8 @@ if (assignmentMode === "groups") {
       assignmentsToSave.map((student) => ({
         session_id: selectedSessionId,
         email: student.email,
-        first_name: cleanAssignmentFirstName(student.first_name),
-        last_name: cleanAssignmentLastName(student.last_name),
+        first_name: student.first_name,
+        last_name: student.last_name,
         group_number: student.group_number,
       }))
     );
@@ -7179,55 +7168,59 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
                   <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
 
-                  <label style={styles.label}>Email</label>
-                  <input
-                    style={styles.input}
-                    value={newStudentEmail}
-                    onChange={(e) => setNewStudentEmail(e.target.value)}
-                    placeholder="email@exemple.com"
-                  />
+                <label style={styles.label}>Email</label>
+                <input
+                  style={styles.input}
+                  value={newStudentEmail}
+                  onChange={(e) => setNewStudentEmail(e.target.value)}
+                  placeholder="email@exemple.com"
+                />
 
-                  <label style={styles.label}>Nom</label>
-                  <input
-                    style={styles.input}
-                    value={newStudentLastName}
-                    onChange={(e) => setNewStudentLastName(e.target.value)}
-                    placeholder="Nom"
-                  />
-
-                  <label style={styles.label}>Prénom</label>
-                  <input
-                    style={styles.input}
-                    value={newStudentFirstName}
-                    onChange={(e) => setNewStudentFirstName(e.target.value)}
-                    placeholder="Prénom"
-                  />
-
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
+                {assignmentMode === "groups" && (
+                  <>
+                    <label style={styles.label}>Nom</label>
                     <input
-                      type="checkbox"
-                      checked={autoAssignNewStudentGroup}
-                      onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
+                      style={styles.input}
+                      value={newStudentLastName}
+                      onChange={(e) => setNewStudentLastName(e.target.value)}
+                      placeholder="Nom"
                     />
-                    <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
-                  </div>
 
-                  {!autoAssignNewStudentGroup && (
-                    <>
-                      <label style={styles.label}>Groupe</label>
-                      <select
-                        style={styles.input}
-                        value={newStudentGroupNumber}
-                        onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
-                      >
-                        {studentGroups.map((group) => (
-                          <option key={group} value={group}>
-                            Groupe {group}
-                          </option>
-                        ))}
-                      </select>
-                    </>
-                  )}
+                    <label style={styles.label}>Prénom</label>
+                    <input
+                      style={styles.input}
+                      value={newStudentFirstName}
+                      onChange={(e) => setNewStudentFirstName(e.target.value)}
+                      placeholder="Prénom"
+                    />
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={autoAssignNewStudentGroup}
+                        onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
+                      />
+                      <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
+                    </div>
+
+                    {!autoAssignNewStudentGroup && (
+                      <>
+                        <label style={styles.label}>Groupe</label>
+                        <select
+                          style={styles.input}
+                          value={newStudentGroupNumber}
+                          onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
+                        >
+                          {studentGroups.map((group) => (
+                            <option key={group} value={group}>
+                              Groupe {group}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </>
+                )}
 
                   <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
                     <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
