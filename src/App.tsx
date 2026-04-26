@@ -7164,8 +7164,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   : "Liste simple d'emails autorisés"}
               </div>
 
-              <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
-                <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
+              {assignmentMode === "groups" && (
+                <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
+                  <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
 
                 <label style={styles.label}>Email</label>
                 <input
@@ -7221,12 +7222,13 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   </>
                 )}
 
-                <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                  <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
-                    Ajouter l'étudiant
-                  </button>
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                    <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
+                      Ajouter l'étudiant
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {assignmentMode === "emails" ? (
                 <>
@@ -8082,14 +8084,14 @@ if (screen === "student_vote") {
                     style={teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
                     onClick={() => setTeacherSessionTab("counts")}
                   >
-                    Utilisateurs
+                    Compteur de réponses
                   </button>
 
                   <button
                     style={teacherSessionTab === "users" ? styles.sidebarButtonActive : styles.sidebarButton}
                     onClick={() => setTeacherSessionTab("users")}
                   >
-                    Compteur de réponses
+                    Utilisateurs
                   </button>
 
                   <button
