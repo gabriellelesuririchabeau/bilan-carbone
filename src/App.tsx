@@ -8080,20 +8080,19 @@ if (screen === "student_vote") {
 
               <div style={styles.innerCardFull}>
                 <div style={styles.row}>
-                  <button
-                    style={teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
-                    onClick={() => setTeacherSessionTab("counts")}
-                  >
-                    Compteur de réponses
-                  </button>
+<button
+  style={teacherSessionTab === "users" ? styles.tabActive : styles.tab}
+  onClick={() => setTeacherSessionTab("users")}
+>
+  Utilisateurs
+</button>
 
-                  <button
-                    style={teacherSessionTab === "users" ? styles.sidebarButtonActive : styles.sidebarButton}
-                    onClick={() => setTeacherSessionTab("users")}
-                  >
-                    Utilisateurs
-                  </button>
-
+<button
+  style={teacherSessionTab === "counts" ? styles.tabActive : styles.tab}
+  onClick={() => setTeacherSessionTab("counts")}
+>
+  Compteur de réponses
+</button>
                   <button
                     style={teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
                     onClick={() => setTeacherSessionTab("analyses")}
