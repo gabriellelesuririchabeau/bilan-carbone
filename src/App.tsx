@@ -700,6 +700,21 @@ function formatAssignmentFirstName(student: StudentAssignmentDraft) {
     .join(" ");
 }
 
+function formatStudentDisplayName(firstName: string, lastName: string, fallbackEmail: string) {
+  const student: StudentAssignmentDraft = {
+    email: fallbackEmail,
+    first_name: firstName,
+    last_name: lastName,
+    group_number: 0,
+  };
+
+  const lastNameFormatted = formatAssignmentLastName(student);
+  const firstNameFormatted = formatAssignmentFirstName(student);
+  const fullName = [lastNameFormatted, firstNameFormatted].filter(Boolean).join(" ").trim();
+
+  return fullName || fallbackEmail;
+}
+
 function renderAssignmentsTable(assignments: StudentAssignmentDraft[], searchText = "") {
   const query = searchText.trim().toLowerCase();
 
@@ -7221,8 +7236,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     <div style={styles.emptyText}>
       Étudiant :{" "}
       <strong>
-        {[studentAssignedFirstName, studentAssignedLastName].filter(Boolean).join(" ") ||
-          studentEmail}
+        {formatStudentDisplayName(
+          studentAssignedFirstName,
+          studentAssignedLastName,
+          studentEmail
+        )}
       </strong>{" "}
       — Groupe assigné : <strong>{studentAssignedGroup}</strong>
     </div>
