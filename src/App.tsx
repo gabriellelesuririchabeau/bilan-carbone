@@ -700,13 +700,6 @@ function formatAssignmentFirstName(student: StudentAssignmentDraft) {
     .join(" ");
 }
 
-function formatAssignmentDisplayName(student: StudentAssignmentDraft) {
-  const lastName = formatAssignmentLastName(student);
-  const firstName = formatAssignmentFirstName(student);
-  const fullName = [lastName, firstName].filter(Boolean).join(" ");
-  return fullName || student.email;
-}
-
 function renderAssignmentsTable(assignments: StudentAssignmentDraft[], searchText = "") {
   const query = searchText.trim().toLowerCase();
 
