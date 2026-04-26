@@ -835,7 +835,6 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
-  const commitTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isFocused) {
@@ -843,39 +842,14 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     }
   }, [value, isFocused]);
 
-  useEffect(() => {
-    return () => {
-      if (commitTimerRef.current !== null) {
-        window.clearTimeout(commitTimerRef.current);
-      }
-    };
-  }, []);
-
   function parseDraft(nextValue: string) {
     const numericValue = Number(String(nextValue || "0").replace(",", "."));
     if (!Number.isFinite(numericValue)) return min;
     return Math.max(min, numericValue);
   }
 
-  function scheduleCommit(nextValue: string) {
-    if (commitTimerRef.current !== null) {
-      window.clearTimeout(commitTimerRef.current);
-    }
-
-    commitTimerRef.current = window.setTimeout(() => {
-      void onCommit(parseDraft(nextValue));
-    }, 250);
-  }
-
-  async function commitValue() {
-    setIsFocused(false);
-
-    if (commitTimerRef.current !== null) {
-      window.clearTimeout(commitTimerRef.current);
-      commitTimerRef.current = null;
-    }
-
-    const numericValue = parseDraft(draftValue);
+  async function commitValue(nextValue = draftValue) {
+    const numericValue = parseDraft(nextValue);
     await onCommit(numericValue);
     setDraftValue(String(numericValue));
   }
@@ -890,9 +864,12 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       onChange={(e) => {
         const nextValue = e.target.value;
         setDraftValue(nextValue);
-        scheduleCommit(nextValue);
+
+        // Mise à jour immédiate du total à chaque saisie, sans attendre Entrée ou perte de focus.
+        void onCommit(parseDraft(nextValue));
       }}
       onBlur={() => {
+        setIsFocused(false);
         void commitValue();
       }}
       onKeyDown={(e) => {
