@@ -642,12 +642,13 @@ function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
     .map((line) => {
       const separator = line.includes(";") ? ";" : "\t";
       const parts = line.split(separator).map((part) => part.trim());
+      const groupPart = [...parts].reverse().find((part) => /^\d+$/.test(part));
 
       return {
         email: normalizeEmail(parts[0] ?? ""),
         first_name: parts[1] ?? "",
         last_name: parts[2] ?? "",
-        group_number: Number(parts[3] ?? 0),
+        group_number: Number(groupPart ?? 0),
       };
     })
     .filter((student) => {
@@ -678,6 +679,41 @@ function downloadAssignmentTemplate() {
   link.click();
   document.body.removeChild(link);
 
+  URL.revokeObjectURL(url);
+}
+
+function formatAssignmentLastName(value: string | null | undefined) {
+  return String(value ?? "").trim().toLocaleUpperCase("fr-FR");
+}
+
+function formatAssignmentFirstName(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("fr-FR")
+    .replace(/(^|[\s-])([\p{L}])/gu, (_match, separator: string, letter: string) =>
+      `${separator}${letter.toLocaleUpperCase("fr-FR")}`
+    );
+}
+
+function formatAssignmentStudentName(student: StudentAssignmentDraft) {
+  return [
+    formatAssignmentLastName(student.last_name),
+    formatAssignmentFirstName(student.first_name),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function downloadCsvFile(fileName: string, content: string) {
+  const blob = new Blob([`\ufeff${content}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
 
@@ -1373,9 +1409,11 @@ const teacherVoteResults = useMemo<TeacherVoteResult[]>(() => {
     [teacherTransportReportRowsDb, teacherGroupNumber]
   );
 
+  const effectiveStudentGroupNumber = studentAssignedGroup ?? studentGroupNumber;
+
   const studentTransportRows = useMemo(
-    () => buildTransportRowsForGroup(studentTransportReportRowsDb, studentGroupNumber),
-    [studentTransportReportRowsDb, studentGroupNumber]
+    () => buildTransportRowsForGroup(studentTransportReportRowsDb, effectiveStudentGroupNumber),
+    [studentTransportReportRowsDb, effectiveStudentGroupNumber]
   );
 
   const teacherDejeunerRows = useMemo(
@@ -1384,8 +1422,8 @@ const teacherVoteResults = useMemo<TeacherVoteResult[]>(() => {
   );
 
   const studentDejeunerRows = useMemo(
-    () => buildDejeunerRowsForGroup(studentDejeunerReportRowsDb, studentGroupNumber),
-    [studentDejeunerReportRowsDb, studentGroupNumber]
+    () => buildDejeunerRowsForGroup(studentDejeunerReportRowsDb, effectiveStudentGroupNumber),
+    [studentDejeunerReportRowsDb, effectiveStudentGroupNumber]
   );
 const teacherEquipementRows = useMemo(
   () => buildEquipementRowsForGroup(teacherEquipementReportRowsDb, teacherGroupNumber),
@@ -1393,12 +1431,12 @@ const teacherEquipementRows = useMemo(
 );
 
 const studentEquipementRows = useMemo(
-  () => buildEquipementRowsForGroup(studentEquipementReportRowsDb, studentGroupNumber),
-  [studentEquipementReportRowsDb, studentGroupNumber]
+  () => buildEquipementRowsForGroup(studentEquipementReportRowsDb, effectiveStudentGroupNumber),
+  [studentEquipementReportRowsDb, effectiveStudentGroupNumber]
 );
 
   const teacherTheme = getThemeForGroup(teacherGroupNumber);
-  const studentTheme = getThemeForGroup(studentGroupNumber);
+  const studentTheme = getThemeForGroup(effectiveStudentGroupNumber);
 
   const teacherDisplayedTransportReportableRows = teacherTransportReportableRows;
   const studentDisplayedTransportReportableRows = studentTransportReportableRows;
@@ -1467,8 +1505,8 @@ const teacherAutresRows = useMemo(
 );
 
 const studentAutresRows = useMemo(
-  () => buildAutresRowsForGroup(studentAutresReportRowsDb, studentGroupNumber),
-  [studentAutresReportRowsDb, studentGroupNumber]
+  () => buildAutresRowsForGroup(studentAutresReportRowsDb, effectiveStudentGroupNumber),
+  [studentAutresReportRowsDb, effectiveStudentGroupNumber]
 );
 
 const teacherAutresChartRows = useMemo(
@@ -1497,8 +1535,8 @@ const teacherSalleRows = useMemo(
 );
 
 const studentSalleRows = useMemo(
-  () => buildSalleRowsForGroup(studentSalleReportRowsDb, studentGroupNumber),
-  [studentSalleReportRowsDb, studentGroupNumber]
+  () => buildSalleRowsForGroup(studentSalleReportRowsDb, effectiveStudentGroupNumber),
+  [studentSalleReportRowsDb, effectiveStudentGroupNumber]
 );
 
 const teacherSalleChartRows = useMemo(
@@ -1579,6 +1617,31 @@ const studentSyntheseData = useMemo(
   if (assignmentMode !== "groups") return [];
   return parseStudentAssignments(assignmentRawText);
 }, [assignmentMode, assignmentRawText]);
+
+function exportStudentAssignmentsTable() {
+  if (!parsedStudentAssignments.length) {
+    setMessage("Aucune assignation valide à exporter.");
+    return;
+  }
+
+  const sortedAssignments = [...parsedStudentAssignments].sort((a, b) => {
+    if (a.group_number !== b.group_number) return a.group_number - b.group_number;
+    const nameA = formatAssignmentStudentName(a);
+    const nameB = formatAssignmentStudentName(b);
+    return nameA.localeCompare(nameB, "fr-FR");
+  });
+
+  const lines = [
+    "Groupe;Nom et prénom",
+    ...sortedAssignments.map((student) =>
+      [student.group_number, formatAssignmentStudentName(student)].join(";")
+    ),
+  ];
+
+  const safeCode = sanitizeFilenamePart(formatSessionCode(selectedSessionCode) || "session");
+  downloadCsvFile(`assignation_groupes_${safeCode}.csv`, lines.join("\n"));
+  setMessage("Export de l'assignation généré.");
+}
 
   const filteredAdminTeachers = useMemo(() => {
     const q = teacherSearch.trim().toLowerCase();
@@ -3307,7 +3370,7 @@ console.log("SAVE AUTRES →", {
   };
 
   setStudentAutresReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, studentGroupNumber)
+    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
   );
   setTeacherAutresReportRowsDb((prev) =>
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
@@ -3397,7 +3460,7 @@ async function saveSalleReportRow(params: {
   };
 
   setStudentSalleReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, studentGroupNumber)
+    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
   );
   setTeacherSalleReportRowsDb((prev) =>
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
@@ -4081,6 +4144,15 @@ if (normalizedAssignments.length > 0) {
   setStudentSelectedSessionCode(sessionRow?.session_code ?? normalizedSessionCode);
 
   await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode);
+
+  if (normalizedAssignments.length > 0) {
+    const assignment = normalizedAssignments.find(
+      (row) => row.email === normalizedStudentEmail
+    );
+    if (assignment) {
+      setStudentGroupNumber(assignment.group_number);
+    }
+  }
 
   await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
   await loadTransportReportRows(nextSessionId, setStudentTransportReportRowsDb);
@@ -6821,6 +6893,18 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                       </div>
 
                       {parsedStudentAssignments.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", marginTop: 12, marginBottom: 12 }}>
+                          <button
+                            type="button"
+                            style={styles.secondaryButton}
+                            onClick={exportStudentAssignmentsTable}
+                          >
+                            Exporter l'assignation
+                          </button>
+                        </div>
+                      )}
+
+                      {parsedStudentAssignments.length > 0 && (
                         <div style={{ maxHeight: 180, overflowY: "auto", marginTop: 8 }}>
                           {parsedStudentAssignments.slice(0, 8).map((student) => (
                             <div key={`${student.email}-${student.group_number}`} style={styles.emptyText}>
@@ -6912,7 +6996,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
       <button
         key={groupNumber}
         type="button"
-        style={studentGroupNumber === groupNumber ? styles.groupTabButtonActive : styles.groupTabButton}
+        style={effectiveStudentGroupNumber === groupNumber ? styles.groupTabButtonActive : styles.groupTabButton}
         onClick={() => {
           if (studentAssignedGroup && groupNumber !== studentAssignedGroup) {
             setMessage("Accès non autorisé à ce groupe.");
@@ -6941,7 +7025,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   </div>
 )}
             <div style={styles.innerCardFull}>
-              <h3 style={styles.innerTitle}>Groupe {studentGroupNumber}</h3>
+              <h3 style={styles.innerTitle}>Groupe {effectiveStudentGroupNumber}</h3>
               <p style={styles.bodyText}>
                 <strong>Thématique attribuée :</strong> {getThemeLabel(studentTheme)}
               </p>
@@ -7004,9 +7088,9 @@ onClick={() => {
 
                 <button
                   type="button"
-                  style={openProposalGroup === studentGroupNumber ? styles.sidebarButtonActive : styles.sidebarButton}
+                  style={openProposalGroup === effectiveStudentGroupNumber ? styles.sidebarButtonActive : styles.sidebarButton}
                   onClick={() => {
-  setOpenProposalGroup((prev) => (prev === studentGroupNumber ? null : studentGroupNumber));
+  setOpenProposalGroup((prev) => (prev === effectiveStudentGroupNumber ? null : effectiveStudentGroupNumber));
   setStudentShowCarbonChart(false);
 }}
                 >
@@ -7014,51 +7098,51 @@ onClick={() => {
                 </button>
               </div>
 
-              {openProposalGroup === studentGroupNumber && (
+              {openProposalGroup === effectiveStudentGroupNumber && (
                 <div style={styles.proposalsCard}>
-                  <h3 style={styles.innerTitle}>Propositions du groupe {studentGroupNumber}</h3>
+                  <h3 style={styles.innerTitle}>Propositions du groupe {effectiveStudentGroupNumber}</h3>
 
                   <div style={styles.column}>
                     <textarea
                       style={styles.proposalTextarea}
                       placeholder="Proposition 1"
-                      value={teacherGroupProposals[studentGroupNumber]?.proposal_1 ?? ""}
+                      value={teacherGroupProposals[effectiveStudentGroupNumber]?.proposal_1 ?? ""}
                       onChange={(e) =>
-                        updateTeacherGroupProposalField(studentGroupNumber, "proposal_1", e.target.value)
+                        updateTeacherGroupProposalField(effectiveStudentGroupNumber, "proposal_1", e.target.value)
                       }
-                      readOnly={Boolean(teacherGroupProposals[studentGroupNumber]?.is_validated)}
+                      readOnly={Boolean(teacherGroupProposals[effectiveStudentGroupNumber]?.is_validated)}
                       maxLength={220}
                     />
 
                     <textarea
                       style={styles.proposalTextarea}
                       placeholder="Proposition 2"
-                      value={teacherGroupProposals[studentGroupNumber]?.proposal_2 ?? ""}
+                      value={teacherGroupProposals[effectiveStudentGroupNumber]?.proposal_2 ?? ""}
                       onChange={(e) =>
-                        updateTeacherGroupProposalField(studentGroupNumber, "proposal_2", e.target.value)
+                        updateTeacherGroupProposalField(effectiveStudentGroupNumber, "proposal_2", e.target.value)
                       }
-                      readOnly={Boolean(teacherGroupProposals[studentGroupNumber]?.is_validated)}
+                      readOnly={Boolean(teacherGroupProposals[effectiveStudentGroupNumber]?.is_validated)}
                       maxLength={220}
                     />
 
                     <textarea
                       style={styles.proposalTextarea}
                       placeholder="Proposition 3"
-                      value={teacherGroupProposals[studentGroupNumber]?.proposal_3 ?? ""}
+                      value={teacherGroupProposals[effectiveStudentGroupNumber]?.proposal_3 ?? ""}
                       onChange={(e) =>
-                        updateTeacherGroupProposalField(studentGroupNumber, "proposal_3", e.target.value)
+                        updateTeacherGroupProposalField(effectiveStudentGroupNumber, "proposal_3", e.target.value)
                       }
-                      readOnly={Boolean(teacherGroupProposals[studentGroupNumber]?.is_validated)}
+                      readOnly={Boolean(teacherGroupProposals[effectiveStudentGroupNumber]?.is_validated)}
                       maxLength={220}
                     />
                   </div>
 
                   <div style={{ ...styles.row, marginTop: 16 }}>
-                    {!teacherGroupProposals[studentGroupNumber]?.is_validated ? (
+                    {!teacherGroupProposals[effectiveStudentGroupNumber]?.is_validated ? (
                       <button
                         type="button"
                         style={styles.primaryButton}
-                        onClick={() => handleValidateGroupProposals(studentGroupNumber, "student")}
+                        onClick={() => handleValidateGroupProposals(effectiveStudentGroupNumber, "student")}
                       >
                         Valider les propositions
                       </button>
@@ -7066,7 +7150,7 @@ onClick={() => {
                       <button
                         type="button"
                         style={styles.secondaryButton}
-                        onClick={() => handleUnlockGroupProposals(studentGroupNumber, "student")}
+                        onClick={() => handleUnlockGroupProposals(effectiveStudentGroupNumber, "student")}
                       >
                         Modifier les propositions
                       </button>
@@ -7137,7 +7221,7 @@ onClick={() => {
 {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "transport" && (
   renderTransportAnalysisTable({
     rows: studentTransportRows,
-    groupNumber: studentGroupNumber,
+    groupNumber: effectiveStudentGroupNumber,
     sessionId: studentSelectedSessionId,
     updatedBy: null,
     readOnly: false,
@@ -7148,7 +7232,7 @@ onClick={() => {
 {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "dejeuner" && (
   renderDejeunerAnalysisTable({
     rows: studentDejeunerRows,
-    groupNumber: studentGroupNumber,
+    groupNumber: effectiveStudentGroupNumber,
     sessionId: studentSelectedSessionId,
     updatedBy: null,
     readOnly: false,
@@ -7159,7 +7243,7 @@ onClick={() => {
 {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "equipement" && (
   renderEquipementAnalysisTable({
     rows: studentEquipementRows,
-    groupNumber: studentGroupNumber,
+    groupNumber: effectiveStudentGroupNumber,
     sessionId: studentSelectedSessionId,
     updatedBy: null,
     readOnly: false,
@@ -7170,7 +7254,7 @@ onClick={() => {
 {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && studentTheme === "autres" &&
   renderAutresAnalysisTable({
     rows: studentAutresRows,
-    groupNumber: studentGroupNumber,
+    groupNumber: effectiveStudentGroupNumber,
     sessionId: studentSelectedSessionId,
     updatedBy: null,
     readOnly: false,
@@ -7180,7 +7264,7 @@ onClick={() => {
 {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "salle" && (
   renderSalleAnalysisTable({
     rows: studentSalleRows,
-    groupNumber: studentGroupNumber,
+    groupNumber: effectiveStudentGroupNumber,
     sessionId: studentSelectedSessionId,
     updatedBy: null,
     readOnly: false,
