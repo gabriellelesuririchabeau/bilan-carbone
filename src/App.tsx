@@ -7175,69 +7175,67 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   : "Liste simple d'emails autorisés"}
               </div>
 
-              <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
-                <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
+              {assignmentMode === "groups" && (
+                <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
+                  <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
 
-                <label style={styles.label}>Email</label>
-                <input
-                  style={styles.input}
-                  value={newStudentEmail}
-                  onChange={(e) => setNewStudentEmail(e.target.value)}
-                  placeholder="email@exemple.com"
-                />
+                  <label style={styles.label}>Email</label>
+                  <input
+                    style={styles.input}
+                    value={newStudentEmail}
+                    onChange={(e) => setNewStudentEmail(e.target.value)}
+                    placeholder="email@exemple.com"
+                  />
 
-                {assignmentMode === "groups" && (
-                  <>
-                    <label style={styles.label}>Nom</label>
+                  <label style={styles.label}>Nom</label>
+                  <input
+                    style={styles.input}
+                    value={newStudentLastName}
+                    onChange={(e) => setNewStudentLastName(e.target.value)}
+                    placeholder="Nom"
+                  />
+
+                  <label style={styles.label}>Prénom</label>
+                  <input
+                    style={styles.input}
+                    value={newStudentFirstName}
+                    onChange={(e) => setNewStudentFirstName(e.target.value)}
+                    placeholder="Prénom"
+                  />
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
                     <input
-                      style={styles.input}
-                      value={newStudentLastName}
-                      onChange={(e) => setNewStudentLastName(e.target.value)}
-                      placeholder="Nom"
+                      type="checkbox"
+                      checked={autoAssignNewStudentGroup}
+                      onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
                     />
+                    <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
+                  </div>
 
-                    <label style={styles.label}>Prénom</label>
-                    <input
-                      style={styles.input}
-                      value={newStudentFirstName}
-                      onChange={(e) => setNewStudentFirstName(e.target.value)}
-                      placeholder="Prénom"
-                    />
+                  {!autoAssignNewStudentGroup && (
+                    <>
+                      <label style={styles.label}>Groupe</label>
+                      <select
+                        style={styles.input}
+                        value={newStudentGroupNumber}
+                        onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
+                      >
+                        {studentGroups.map((group) => (
+                          <option key={group} value={group}>
+                            Groupe {group}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
-                      <input
-                        type="checkbox"
-                        checked={autoAssignNewStudentGroup}
-                        onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
-                      />
-                      <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
-                    </div>
-
-                    {!autoAssignNewStudentGroup && (
-                      <>
-                        <label style={styles.label}>Groupe</label>
-                        <select
-                          style={styles.input}
-                          value={newStudentGroupNumber}
-                          onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
-                        >
-                          {studentGroups.map((group) => (
-                            <option key={group} value={group}>
-                              Groupe {group}
-                            </option>
-                          ))}
-                        </select>
-                      </>
-                    )}
-                  </>
-                )}
-
-                <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                  <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
-                    Ajouter l'étudiant
-                  </button>
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                    <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
+                      Ajouter l'étudiant
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {assignmentMode === "emails" ? (
                 <>
