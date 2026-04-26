@@ -630,6 +630,23 @@ function formatSessionCode(value: string | null | undefined) {
   return String(value ?? "").toUpperCase();
 }
 
+function formatStudentDisplayFirstName(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("fr-FR")
+    .split(/([\s-]+)/)
+    .map((part) => {
+      if (/^[\s-]+$/.test(part)) return part;
+      if (!part) return "";
+      return part.charAt(0).toLocaleUpperCase("fr-FR") + part.slice(1);
+    })
+    .join("");
+}
+
+function formatStudentDisplayLastName(value: string | null | undefined) {
+  return String(value ?? "").trim().toLocaleUpperCase("fr-FR");
+}
+
 function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
   return rawText
     .split("\n")
@@ -698,21 +715,6 @@ function formatAssignmentFirstName(student: StudentAssignmentDraft) {
         .join("-")
     )
     .join(" ");
-}
-
-function formatStudentDisplayName(firstName: string, lastName: string, fallbackEmail: string) {
-  const student: StudentAssignmentDraft = {
-    email: fallbackEmail,
-    first_name: firstName,
-    last_name: lastName,
-    group_number: 0,
-  };
-
-  const lastNameFormatted = formatAssignmentLastName(student);
-  const firstNameFormatted = formatAssignmentFirstName(student);
-  const fullName = [lastNameFormatted, firstNameFormatted].filter(Boolean).join(" ").trim();
-
-  return fullName || fallbackEmail;
 }
 
 function renderAssignmentsTable(assignments: StudentAssignmentDraft[], searchText = "") {
@@ -7236,11 +7238,14 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     <div style={styles.emptyText}>
       Étudiant :{" "}
       <strong>
-        {formatStudentDisplayName(
-          studentAssignedFirstName,
-          studentAssignedLastName,
-          studentEmail
-        )}
+        {studentAssignedFirstName || studentAssignedLastName
+          ? [
+              formatStudentDisplayLastName(studentAssignedLastName),
+              formatStudentDisplayFirstName(studentAssignedFirstName),
+            ]
+              .filter(Boolean)
+              .join(" ")
+          : studentEmail}
       </strong>{" "}
       — Groupe assigné : <strong>{studentAssignedGroup}</strong>
     </div>
