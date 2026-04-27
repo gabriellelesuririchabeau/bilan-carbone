@@ -354,9 +354,7 @@ function buildEquipementRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      // Les facteurs de la salle sont des facteurs fixes.
-      // Si une ancienne ligne DB contient factor = 0 ou null, on conserve le facteur de référence.
-      factor: Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
+      factor: Number(dbRow?.factor ?? baseRow.factor),
     };
   });
 }
@@ -393,13 +391,7 @@ function buildAutresRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      // On garde le facteur de référence si une ancienne ligne DB contient factor = 0/null.
-      factor:
-        baseRow.factor === 0
-          ? 0
-          : Number(dbRow?.factor ?? 0) > 0
-            ? Number(dbRow?.factor)
-            : baseRow.factor,
+      factor: Number(dbRow?.factor ?? baseRow.factor),
     };
   });
 }
@@ -421,9 +413,7 @@ function buildSalleRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      // Les facteurs de la salle sont des facteurs fixes.
-      // Si une ancienne ligne DB contient factor = 0/null, on conserve le facteur de référence.
-      factor: Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
+      factor: Number(dbRow?.factor ?? baseRow.factor),
     };
   });
 }
@@ -2696,7 +2686,8 @@ async function loadTeacherProfileName(userId: string) {
 
   async function loadAdminTeachers() {
     const { data, error } = await supabase
-      .from("admin_teachers_overview").select("id,user_id,teacher_id,name,full_name,email,role,is_active,created_at,updated_at,sessions_count,session_count,total_sessions,last_activity_at,last_sign_in_at");
+      .from("admin_teachers_overview")
+      .select("*");
 
     if (error) {
       setMessage(`Erreur chargement professeurs : ${error.message}`);
@@ -2708,7 +2699,8 @@ async function loadTeacherProfileName(userId: string) {
 
   async function loadAdminSessions() {
     const { data, error } = await supabase
-      .from("admin_sessions_overview").select("id,session_id,session_code,code,title,campus,programme,level,teacher_id,teacher_name,teacher_email,created_at,updated_at,student_count,total_students,response_count,total_responses,assignment_mode,assignment_method,is_active");
+      .from("admin_sessions_overview")
+      .select("*");
 
     if (error) {
       setMessage(`Erreur chargement sessions admin : ${error.message}`);
@@ -2968,7 +2960,8 @@ async function handleCreateTeacher(name: string, email: string, password: string
     }
 
     const { data, error } = await supabase
-      .from("group_reports").select("*")
+      .from("group_reports")
+      .select("*")
       .eq("session_id", sessionId)
       .eq("theme", "transport")
       .order("group_number", { ascending: true })
@@ -2980,7 +2973,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
       return;
     }
 
-    setRows((data ?? []) as unknown as GroupReportRow[]);
+    setRows((data ?? []) as GroupReportRow[]);
   }
 
   async function loadDejeunerReportRows(
@@ -2993,7 +2986,8 @@ async function handleCreateTeacher(name: string, email: string, password: string
     }
 
     const { data, error } = await supabase
-      .from("group_reports").select("*")
+      .from("group_reports")
+      .select("*")
       .eq("session_id", sessionId)
       .eq("theme", "dejeuner")
       .order("group_number", { ascending: true })
@@ -3005,7 +2999,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
       return;
     }
 
-    setRows((data ?? []) as unknown as GroupReportRow[]);
+    setRows((data ?? []) as GroupReportRow[]);
   }
 async function loadEquipementReportRows(
   sessionId: string,
@@ -3017,7 +3011,8 @@ async function loadEquipementReportRows(
   }
 
   const { data, error } = await supabase
-    .from("group_reports").select("*")
+    .from("group_reports")
+    .select("*")
     .eq("session_id", sessionId)
     .eq("theme", "equipement")
     .order("group_number", { ascending: true })
@@ -3029,7 +3024,7 @@ async function loadEquipementReportRows(
     return;
   }
 
-  setRows((data ?? []) as unknown as GroupReportRow[]);
+  setRows((data ?? []) as GroupReportRow[]);
 }
 
 async function loadTransportReportableRows(
@@ -3130,7 +3125,8 @@ async function loadAutresReportRows(
   }
 
   const { data, error } = await supabase
-    .from("group_reports").select("*")
+    .from("group_reports")
+    .select("*")
     .eq("session_id", sessionId)
     .eq("theme", "autres_consommations")
     .order("group_number", { ascending: true })
@@ -3142,7 +3138,7 @@ async function loadAutresReportRows(
     return;
   }
 
-  setRows((data ?? []) as unknown as GroupReportRow[]);
+  setRows((data ?? []) as GroupReportRow[]);
 }
 async function loadSalleReportRows(
   sessionId: string,
@@ -3154,7 +3150,8 @@ async function loadSalleReportRows(
   }
 
   const { data, error } = await supabase
-    .from("group_reports").select("*")
+    .from("group_reports")
+    .select("*")
     .eq("session_id", sessionId)
     .eq("theme", "salle")
     .order("group_number", { ascending: true })
@@ -3166,7 +3163,7 @@ async function loadSalleReportRows(
     return;
   }
 
-  setRows((data ?? []) as unknown as GroupReportRow[]);
+  setRows((data ?? []) as GroupReportRow[]);
 }
 
 async function loadAutresReportableRowsWithSetter(
