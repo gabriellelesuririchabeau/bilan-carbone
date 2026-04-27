@@ -2986,52 +2986,14 @@ async function handleCreateTeacher(name: string, email: string, password: string
     sessionId: string,
     setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
   ) {
-    if (!sessionId) {
-      setRows([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("group_reports")
-      .select("*")
-      .eq("session_id", sessionId)
-      .eq("theme", "transport")
-      .order("group_number", { ascending: true })
-      .order("row_key", { ascending: true });
-
-    if (error) {
-      setMessage(`Erreur chargement report transport : ${error.message}`);
-      setRows([]);
-      return;
-    }
-
-    setRows((data ?? []) as GroupReportRow[]);
+    await loadGroupReportRowsWithFallback(sessionId, setRows, ["transport"], "transport");
   }
 
   async function loadDejeunerReportRows(
     sessionId: string,
     setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
   ) {
-    if (!sessionId) {
-      setRows([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("group_reports")
-      .select("*")
-      .eq("session_id", sessionId)
-      .eq("theme", "dejeuner")
-      .order("group_number", { ascending: true })
-      .order("row_key", { ascending: true });
-
-    if (error) {
-      setMessage(`Erreur chargement report déjeuner : ${error.message}`);
-      setRows([]);
-      return;
-    }
-
-    setRows((data ?? []) as GroupReportRow[]);
+    await loadGroupReportRowsWithFallback(sessionId, setRows, ["dejeuner"], "déjeuner");
   }
 function normalizeGroupReportTheme(theme: string | null | undefined) {
   const cleanTheme = String(theme ?? "").trim();
@@ -3044,36 +3006,107 @@ function normalizeGroupReportRows(rows: GroupReportRow[]) {
   return rows.map((row) => ({
     ...row,
     theme: normalizeGroupReportTheme(row.theme),
+    group_number: Number(row.group_number),
     quantity: row.quantity === null || row.quantity === undefined ? 0 : Number(row.quantity),
     persons: row.persons === null || row.persons === undefined ? null : Number(row.persons),
     factor: row.factor === null || row.factor === undefined ? 0 : Number(row.factor),
   })) as GroupReportRow[];
 }
 
-async function loadEquipementReportRows(
+async function loadGroupReportRowsWithFallback(
   sessionId: string,
-  setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
+  setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>,
+  themes: string[],
+  errorLabel: string
 ) {
   if (!sessionId) {
     setRows([]);
     return;
   }
 
-  const { data, error } = await supabase
-    .from("group_reports")
-    .select("*")
-    .eq("session_id", sessionId)
-    .in("theme", ["equipement"])
-    .order("group_number", { ascending: true })
-    .order("row_key", { ascending: true });
+  const fetchRowsForSessionIds = async (sessionIds: string[]) => {
+    let query = supabase
+      .from("group_reports")
+      .select("*")
+      .in("theme", themes)
+      .order("group_number", { ascending: true })
+      .order("row_key", { ascending: true });
 
-  if (error) {
-    setMessage(`Erreur chargement report équipement : ${error.message}`);
+    if (sessionIds.length === 1) {
+      query = query.eq("session_id", sessionIds[0]);
+    } else {
+      query = query.in("session_id", sessionIds);
+    }
+
+    return await query;
+  };
+
+  const direct = await fetchRowsForSessionIds([sessionId]);
+
+  if (direct.error) {
+    setMessage(`Erreur chargement report ${errorLabel} : ${direct.error.message}`);
     setRows([]);
     return;
   }
 
-  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
+  const directRows = normalizeGroupReportRows((direct.data ?? []) as GroupReportRow[]);
+
+  if (directRows.length > 0) {
+    setRows(directRows);
+    return;
+  }
+
+  const candidateCode = String(selectedSessionCode || studentSelectedSessionCode || studentCodeSession || "").trim();
+  if (!candidateCode) {
+    setRows([]);
+    return;
+  }
+
+  const { data: matchingSessions, error: sessionError } = await supabase
+    .from("sessions")
+    .select("id, session_code")
+    .ilike("session_code", candidateCode)
+    .limit(20);
+
+  if (sessionError) {
+    console.warn(`Fallback session_code impossible pour ${errorLabel}`, sessionError.message);
+    setRows([]);
+    return;
+  }
+
+  const matchingSessionIds = Array.from(
+    new Set((matchingSessions ?? []).map((session: any) => String(session.id)).filter(Boolean))
+  );
+
+  if (!matchingSessionIds.length || (matchingSessionIds.length === 1 && matchingSessionIds[0] === sessionId)) {
+    setRows([]);
+    return;
+  }
+
+  const fallback = await fetchRowsForSessionIds(matchingSessionIds);
+
+  if (fallback.error) {
+    setMessage(`Erreur chargement report ${errorLabel} : ${fallback.error.message}`);
+    setRows([]);
+    return;
+  }
+
+  const fallbackRows = normalizeGroupReportRows((fallback.data ?? []) as GroupReportRow[]);
+  if (fallbackRows.length > 0) {
+    console.warn(
+      `[DEBUG] Reports ${errorLabel} chargés via fallback session_code`,
+      { requestedSessionId: sessionId, candidateCode, matchingSessionIds, rows: fallbackRows.length }
+    );
+  }
+
+  setRows(fallbackRows);
+}
+
+async function loadEquipementReportRows(
+  sessionId: string,
+  setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
+) {
+  await loadGroupReportRowsWithFallback(sessionId, setRows, ["equipement"], "équipement");
 }
 
 async function loadTransportReportableRows(
@@ -3168,52 +3201,24 @@ async function loadAutresReportRows(
   sessionId: string,
   setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
 ) {
-  if (!sessionId) {
-    setRows([]);
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("group_reports")
-    .select("*")
-    .eq("session_id", sessionId)
-    .in("theme", ["autres_consommations", "autres"])
-    .order("group_number", { ascending: true })
-    .order("row_key", { ascending: true });
-
-  if (error) {
-    setMessage(`Erreur chargement report autres consommations : ${error.message}`);
-    setRows([]);
-    return;
-  }
-
-  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
+  await loadGroupReportRowsWithFallback(
+    sessionId,
+    setRows,
+    ["autres_consommations", "autres"],
+    "autres consommations"
+  );
 }
 
 async function loadSalleReportRows(
   sessionId: string,
   setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
 ) {
-  if (!sessionId) {
-    setRows([]);
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("group_reports")
-    .select("*")
-    .eq("session_id", sessionId)
-    .in("theme", ["salle", "salle_de_cours"])
-    .order("group_number", { ascending: true })
-    .order("row_key", { ascending: true });
-
-  if (error) {
-    setMessage(`Erreur chargement report salle : ${error.message}`);
-    setRows([]);
-    return;
-  }
-
-  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
+  await loadGroupReportRowsWithFallback(
+    sessionId,
+    setRows,
+    ["salle", "salle_de_cours"],
+    "salle"
+  );
 }
 
 async function loadAutresReportableRowsWithSetter(
