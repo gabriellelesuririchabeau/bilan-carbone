@@ -858,19 +858,21 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
-  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const commitSequenceRef = useRef(0);
+  const latestSavedValueRef = useRef(String(value ?? 0));
+  const autosaveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isFocused) {
-      setDraftValue(String(value ?? 0));
+      const nextValue = String(value ?? 0);
+      setDraftValue(nextValue);
+      latestSavedValueRef.current = nextValue;
     }
   }, [value, isFocused]);
 
   useEffect(() => {
     return () => {
-      if (autosaveTimerRef.current) {
-        clearTimeout(autosaveTimerRef.current);
+      if (autosaveTimerRef.current !== null) {
+        window.clearTimeout(autosaveTimerRef.current);
       }
     };
   }, []);
@@ -884,42 +886,42 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     return Math.max(min, numericValue);
   }
 
-  async function commitValue(nextValue = draftValue, options?: { resetInvalid?: boolean }) {
-    const numericValue = parseDraft(nextValue);
-
-    // Important : pendant la saisie, un input type="number" peut valoir "".
-    // On ne sauvegarde jamais ce vide comme 0, sinon une sauvegarde asynchrone
-    // tardive peut écraser la vraie valeur en base.
-    if (numericValue === null) {
-      if (options?.resetInvalid) {
-        setDraftValue(String(value ?? 0));
-      }
-      return;
-    }
-
-    const sequence = commitSequenceRef.current + 1;
-    commitSequenceRef.current = sequence;
-
+  async function saveValue(numericValue: number) {
+    const savedAsString = String(numericValue);
+    latestSavedValueRef.current = savedAsString;
     await onCommit(numericValue);
-
-    // Si une saisie plus récente a déjà lancé une sauvegarde, on ne réécrit pas
-    // l affichage avec une ancienne valeur.
-    if (commitSequenceRef.current === sequence) {
-      setDraftValue(String(numericValue));
-    }
   }
 
   function scheduleAutosave(nextValue: string) {
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current);
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current);
     }
 
-    // Ne pas autosauvegarder un champ temporairement vide.
-    if (parseDraft(nextValue) === null) return;
+    const numericValue = parseDraft(nextValue);
 
-    autosaveTimerRef.current = setTimeout(() => {
-      void commitValue(nextValue);
-    }, 350);
+    // Ne jamais transformer un champ temporairement vide en 0.
+    if (numericValue === null) return;
+
+    autosaveTimerRef.current = window.setTimeout(() => {
+      void saveValue(numericValue);
+    }, 250);
+  }
+
+  async function commitValue(nextValue = draftValue) {
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+
+    const numericValue = parseDraft(nextValue);
+
+    if (numericValue === null) {
+      setDraftValue(latestSavedValueRef.current);
+      return;
+    }
+
+    await saveValue(numericValue);
+    setDraftValue(String(numericValue));
   }
 
   return (
@@ -936,19 +938,11 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       }}
       onBlur={() => {
         setIsFocused(false);
-        if (autosaveTimerRef.current) {
-          clearTimeout(autosaveTimerRef.current);
-          autosaveTimerRef.current = null;
-        }
-        void commitValue(draftValue, { resetInvalid: true });
+        void commitValue();
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
-          if (autosaveTimerRef.current) {
-            clearTimeout(autosaveTimerRef.current);
-            autosaveTimerRef.current = null;
-          }
-          void commitValue(e.currentTarget.value, { resetInvalid: true });
+          void commitValue(e.currentTarget.value);
           e.currentTarget.blur();
         }
       }}
@@ -3067,82 +3061,25 @@ async function loadGroupReportRowsWithFallback(
     return;
   }
 
-  const fetchRowsForSessionIds = async (sessionIds: string[]) => {
-    let query = supabase
-      .from("group_reports")
-      .select("*")
-      .in("theme", themes)
-      .order("group_number", { ascending: true })
-      .order("row_key", { ascending: true });
+  // IMPORTANT : pas de fallback par code session.
+  // Le prof doit voir UNIQUEMENT les lignes de la session sélectionnée.
+  // Avant, si la session courante était vide, le fallback pouvait charger
+  // des reports d'une ancienne session avec le même code, donc des données obsolètes.
+  const { data, error } = await supabase
+    .from("group_reports")
+    .select("*")
+    .eq("session_id", sessionId)
+    .in("theme", themes)
+    .order("group_number", { ascending: true })
+    .order("row_key", { ascending: true });
 
-    if (sessionIds.length === 1) {
-      query = query.eq("session_id", sessionIds[0]);
-    } else {
-      query = query.in("session_id", sessionIds);
-    }
-
-    return await query;
-  };
-
-  const direct = await fetchRowsForSessionIds([sessionId]);
-
-  if (direct.error) {
-    setMessage(`Erreur chargement report ${errorLabel} : ${direct.error.message}`);
+  if (error) {
+    setMessage(`Erreur chargement report ${errorLabel} : ${error.message}`);
     setRows([]);
     return;
   }
 
-  const directRows = normalizeGroupReportRows((direct.data ?? []) as GroupReportRow[]);
-
-  if (directRows.length > 0) {
-    setRows(directRows);
-    return;
-  }
-
-  const candidateCode = String(selectedSessionCode || studentSelectedSessionCode || studentCodeSession || "").trim();
-  if (!candidateCode) {
-    setRows([]);
-    return;
-  }
-
-  const { data: matchingSessions, error: sessionError } = await supabase
-    .from("sessions")
-    .select("id, session_code")
-    .ilike("session_code", candidateCode)
-    .limit(20);
-
-  if (sessionError) {
-    console.warn(`Fallback session_code impossible pour ${errorLabel}`, sessionError.message);
-    setRows([]);
-    return;
-  }
-
-  const matchingSessionIds = Array.from(
-    new Set((matchingSessions ?? []).map((session: any) => String(session.id)).filter(Boolean))
-  );
-
-  if (!matchingSessionIds.length || (matchingSessionIds.length === 1 && matchingSessionIds[0] === sessionId)) {
-    setRows([]);
-    return;
-  }
-
-  const fallback = await fetchRowsForSessionIds(matchingSessionIds);
-
-  if (fallback.error) {
-    setMessage(`Erreur chargement report ${errorLabel} : ${fallback.error.message}`);
-    setRows([]);
-    return;
-  }
-
-  const fallbackRows = normalizeGroupReportRows((fallback.data ?? []) as GroupReportRow[]);
-  if (fallbackRows.length > 0) {
-    console.warn(
-      `[DEBUG] Reports ${errorLabel} chargés via fallback session_code`,
-      { requestedSessionId: sessionId, candidateCode, matchingSessionIds, rows: fallbackRows.length }
-    );
-  }
-
-  setRows(fallbackRows);
+  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
 }
 
 async function loadEquipementReportRows(
@@ -3646,6 +3583,13 @@ async function saveEquipementReportRow(params: {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
     return;
   }
+
+  if (studentSelectedSessionId === sessionId) {
+    await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
+  }
+  if (selectedSessionId === sessionId) {
+    await loadEquipementReportRows(sessionId, setTeacherEquipementReportRowsDb);
+  }
 }
 
 async function saveAutresReportRow(params: {
@@ -3715,6 +3659,13 @@ async function saveAutresReportRow(params: {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
     return;
   }
+
+  if (studentSelectedSessionId === sessionId) {
+    await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
+  }
+  if (selectedSessionId === sessionId) {
+    await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
+  }
 }
 
 async function saveSalleReportRow(params: {
@@ -3783,6 +3734,13 @@ async function saveSalleReportRow(params: {
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
     return;
+  }
+
+  if (studentSelectedSessionId === sessionId) {
+    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
+  }
+  if (selectedSessionId === sessionId) {
+    await loadSalleReportRows(sessionId, setTeacherSalleReportRowsDb);
   }
 }
 
