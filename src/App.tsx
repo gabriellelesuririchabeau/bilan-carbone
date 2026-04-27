@@ -858,21 +858,19 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
-  const latestSavedValueRef = useRef(String(value ?? 0));
-  const autosaveTimerRef = useRef<number | null>(null);
+  const debounceRef = useRef<number | null>(null);
+  const saveSeqRef = useRef(0);
 
   useEffect(() => {
     if (!isFocused) {
-      const nextValue = String(value ?? 0);
-      setDraftValue(nextValue);
-      latestSavedValueRef.current = nextValue;
+      setDraftValue(String(value ?? 0));
     }
   }, [value, isFocused]);
 
   useEffect(() => {
     return () => {
-      if (autosaveTimerRef.current !== null) {
-        window.clearTimeout(autosaveTimerRef.current);
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
       }
     };
   }, []);
@@ -886,42 +884,32 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     return Math.max(min, numericValue);
   }
 
-  async function saveValue(numericValue: number) {
-    const savedAsString = String(numericValue);
-    latestSavedValueRef.current = savedAsString;
+  async function commitParsedValue(numericValue: number, syncDisplayedValue: boolean) {
+    const seq = saveSeqRef.current + 1;
+    saveSeqRef.current = seq;
     await onCommit(numericValue);
+    if (saveSeqRef.current === seq && syncDisplayedValue) {
+      setDraftValue(String(numericValue));
+    }
+  }
+
+  async function commitValue(nextValue = draftValue, syncDisplayedValue = true) {
+    const numericValue = parseDraft(nextValue);
+    if (numericValue === null) {
+      if (syncDisplayedValue) setDraftValue(String(value ?? 0));
+      return;
+    }
+    await commitParsedValue(numericValue, syncDisplayedValue);
   }
 
   function scheduleAutosave(nextValue: string) {
-    if (autosaveTimerRef.current !== null) {
-      window.clearTimeout(autosaveTimerRef.current);
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
     }
-
-    const numericValue = parseDraft(nextValue);
-
-    // Ne jamais transformer un champ temporairement vide en 0.
-    if (numericValue === null) return;
-
-    autosaveTimerRef.current = window.setTimeout(() => {
-      void saveValue(numericValue);
-    }, 250);
-  }
-
-  async function commitValue(nextValue = draftValue) {
-    if (autosaveTimerRef.current !== null) {
-      window.clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = null;
-    }
-
-    const numericValue = parseDraft(nextValue);
-
-    if (numericValue === null) {
-      setDraftValue(latestSavedValueRef.current);
-      return;
-    }
-
-    await saveValue(numericValue);
-    setDraftValue(String(numericValue));
+    if (parseDraft(nextValue) === null) return;
+    debounceRef.current = window.setTimeout(() => {
+      void commitValue(nextValue, false);
+    }, 350);
   }
 
   return (
@@ -938,10 +926,18 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       }}
       onBlur={() => {
         setIsFocused(false);
+        if (debounceRef.current !== null) {
+          window.clearTimeout(debounceRef.current);
+          debounceRef.current = null;
+        }
         void commitValue();
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
+          if (debounceRef.current !== null) {
+            window.clearTimeout(debounceRef.current);
+            debounceRef.current = null;
+          }
           void commitValue(e.currentTarget.value);
           e.currentTarget.blur();
         }
@@ -3061,10 +3057,8 @@ async function loadGroupReportRowsWithFallback(
     return;
   }
 
-  // IMPORTANT : pas de fallback par code session.
-  // Le prof doit voir UNIQUEMENT les lignes de la session sélectionnée.
-  // Avant, si la session courante était vide, le fallback pouvait charger
-  // des reports d'une ancienne session avec le même code, donc des données obsolètes.
+  // Lecture stricte de la session ouverte : aucun fallback par code session.
+  // Le fallback récupérait les lignes d'anciennes sessions portant le même code.
   const { data, error } = await supabase
     .from("group_reports")
     .select("*")
@@ -3584,12 +3578,13 @@ async function saveEquipementReportRow(params: {
     return;
   }
 
-  if (studentSelectedSessionId === sessionId) {
-    await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
-  }
+  await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
+  await loadEquipementReportableRows(sessionId);
   if (selectedSessionId === sessionId) {
     await loadEquipementReportRows(sessionId, setTeacherEquipementReportRowsDb);
+    await loadTeacherEquipementReportableRows(sessionId);
   }
+
 }
 
 async function saveAutresReportRow(params: {
@@ -3660,12 +3655,13 @@ async function saveAutresReportRow(params: {
     return;
   }
 
-  if (studentSelectedSessionId === sessionId) {
-    await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-  }
+  await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
+  await loadAutresReportableRows(sessionId);
   if (selectedSessionId === sessionId) {
     await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
+    await loadTeacherAutresReportableRows(sessionId);
   }
+
 }
 
 async function saveSalleReportRow(params: {
@@ -3736,12 +3732,11 @@ async function saveSalleReportRow(params: {
     return;
   }
 
-  if (studentSelectedSessionId === sessionId) {
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
-  }
+  await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
   if (selectedSessionId === sessionId) {
     await loadSalleReportRows(sessionId, setTeacherSalleReportRowsDb);
   }
+
 }
 
   useEffect(() => {
@@ -4457,24 +4452,24 @@ async function handleStudentEnter() {
     return;
   }
 
-  // IMPORTANT : get_student_session_access peut renvoyer un ancien session_id si une session
-  // portant le même code a existé. Pour que l étudiant et le professeur lisent/écrivent
-  // exactement dans la même session, on recale toujours l id sur la session ouverte
-  // correspondant au code saisi. C est cette même source qui est utilisée côté professeur.
-  const { data: openSessionRows, error: openSessionError } = await supabase.rpc(
-    "get_open_session_by_code",
-    { p_session_code: normalizedSessionCode }
-  );
+  // On choisit explicitement la session la plus récente portant ce code.
+  // Cela évite qu'une ancienne session supprimée/recréée avec le même code soit utilisée.
+  const { data: matchingSessions, error: matchingSessionsError } = await supabase
+    .from("sessions")
+    .select("id, session_code, created_at")
+    .ilike("session_code", normalizedSessionCode)
+    .order("created_at", { ascending: false })
+    .limit(1);
 
-  if (openSessionError) {
-    setMessage(`Erreur chargement session ouverte : `);
+  if (matchingSessionsError) {
+    setMessage(`Erreur chargement session : ${matchingSessionsError.message}`);
     return;
   }
 
-  const openSessionRow = Array.isArray(openSessionRows) ? openSessionRows[0] : openSessionRows;
+  const openSessionRow = Array.isArray(matchingSessions) ? matchingSessions[0] : matchingSessions;
 
   if (!openSessionRow?.id) {
-    setMessage("Session introuvable ou fermée pour ce code.");
+    setMessage("Session introuvable pour ce code.");
     return;
   }
 
@@ -4482,9 +4477,9 @@ async function handleStudentEnter() {
   const nextSessionCode = String(openSessionRow.session_code ?? accessRow.session_code ?? normalizedSessionCode);
 
   if (String(accessRow.session_id) !== nextSessionId) {
-    console.warn("Session étudiant recalée sur la session ouverte", {
+    console.warn("Session étudiant recalée sur la session la plus récente", {
       accessSessionId: String(accessRow.session_id),
-      openSessionId: nextSessionId,
+      latestSessionId: nextSessionId,
       code: normalizedSessionCode,
     });
   }
@@ -4573,6 +4568,7 @@ function removeTrip(index: number) {
     await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
     await loadAutresReportableRows(sessionId);
     await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
+    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
   }
 
 async function refreshStudentAnalysisData() {
