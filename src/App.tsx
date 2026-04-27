@@ -631,6 +631,24 @@ function formatReportNumber(value: number | string | null | undefined, digits = 
     .replace(/\./g, ",");
 }
 
+function formatFactorNumber(value: number | string | null | undefined) {
+  const numericValue =
+    typeof value === "string"
+      ? Number(value.replace(",", "."))
+      : Number(value ?? 0);
+
+  if (!Number.isFinite(numericValue)) {
+    return "0";
+  }
+
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  })
+    .format(numericValue)
+    .replace(/\./g, ",");
+}
+
 function formatSessionCode(value: string | null | undefined) {
   return String(value ?? "").toUpperCase();
 }
@@ -3578,28 +3596,23 @@ async function saveAutresReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
+      setMessage("Accès non autorisé à ce groupe.");
+      return;
+    }
 
-  const isStudentAssignedSession =
-    currentUserRole === "student" &&
-    Boolean(studentAssignedGroup) &&
-    sessionId === studentSelectedSessionId;
-
-  if (
-    isStudentAssignedSession &&
-    studentAssignedGroup &&
-    params.groupNumber !== studentAssignedGroup
-  ) {
-    setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
-  }
-
-  const groupNumber =
-    isStudentAssignedSession && studentAssignedGroup
-      ? studentAssignedGroup
-      : params.groupNumber;
+    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
+console.log("SAVE AUTRES →", {
+    sessionId,
+    groupNumber,
+    rowKey,
+    quantity: safeQuantity,
+    label
+  });
   const optimisticRow = {
     session_id: sessionId,
     group_number: groupNumber,
@@ -3617,13 +3630,13 @@ async function saveAutresReportRow(params: {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+    if (sessionId !== targetSessionId) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === groupNumber &&
+        row.group_number === targetGroupNumber &&
         row.theme === "autres_consommations" &&
         String(row.row_key) === rowKey
     );
@@ -3679,25 +3692,13 @@ async function saveSalleReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
+      setMessage("Accès non autorisé à ce groupe.");
+      return;
+    }
 
-  const isStudentAssignedSession =
-    currentUserRole === "student" &&
-    Boolean(studentAssignedGroup) &&
-    sessionId === studentSelectedSessionId;
-
-  if (
-    isStudentAssignedSession &&
-    studentAssignedGroup &&
-    params.groupNumber !== studentAssignedGroup
-  ) {
-    setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
-  }
-
-  const groupNumber =
-    isStudentAssignedSession && studentAssignedGroup
-      ? studentAssignedGroup
-      : params.groupNumber;
+    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3719,13 +3720,13 @@ async function saveSalleReportRow(params: {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+    if (sessionId !== targetSessionId) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === groupNumber &&
+        row.group_number === targetGroupNumber &&
         row.theme === "salle" &&
         String(row.row_key) === rowKey
     );
@@ -5215,7 +5216,7 @@ function renderEquipementAnalysisTable(params: {
                         />
                       )}
                     </td>
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(row.factor)}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatFactorNumber(row.factor)}</td>
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(total)}</td>
                   </tr>
                 </React.Fragment>
@@ -5379,7 +5380,7 @@ function renderDejeunerAnalysisTable(params: {
                         />
                       )}
                     </td>
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(row.factor)}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatFactorNumber(row.factor)}</td>
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(total)}</td>
                   </tr>
                 </React.Fragment>
@@ -5610,7 +5611,7 @@ function renderAutresAnalysisTable(params: {
                     </td>
 
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                      {formatReportNumber(row.factor)}
+                      {formatFactorNumber(row.factor)}
                     </td>
 
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
@@ -5755,7 +5756,7 @@ function renderTransportAnalysisTable(params: {
                       />
                     )}
                   </td>
-                  <td style={styles.reportTd}>{formatReportNumber(row.factor)}</td>
+                  <td style={styles.reportTd}>{formatFactorNumber(row.factor)}</td>
                   <td style={styles.reportTd}>{formatReportNumber(total)}</td>
                 </tr>
               );
@@ -5880,7 +5881,7 @@ function renderSalleAnalysisTable(params: {
                   </td>
 
                   <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                    {formatReportNumber(row.factor)}
+                    {formatFactorNumber(row.factor)}
                   </td>
                   <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
                     {formatReportNumber(total)}
