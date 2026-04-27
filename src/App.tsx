@@ -858,12 +858,22 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commitSequenceRef = useRef(0);
 
   useEffect(() => {
     if (!isFocused) {
       setDraftValue(String(value ?? 0));
     }
   }, [value, isFocused]);
+
+  useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, []);
 
   function parseDraft(nextValue: string) {
     const cleanValue = String(nextValue ?? "").trim();
@@ -874,19 +884,42 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     return Math.max(min, numericValue);
   }
 
-  async function commitValue(nextValue = draftValue) {
+  async function commitValue(nextValue = draftValue, options?: { resetInvalid?: boolean }) {
     const numericValue = parseDraft(nextValue);
 
     // Important : pendant la saisie, un input type="number" peut valoir "".
     // On ne sauvegarde jamais ce vide comme 0, sinon une sauvegarde asynchrone
     // tardive peut écraser la vraie valeur en base.
     if (numericValue === null) {
-      setDraftValue(String(value ?? 0));
+      if (options?.resetInvalid) {
+        setDraftValue(String(value ?? 0));
+      }
       return;
     }
 
+    const sequence = commitSequenceRef.current + 1;
+    commitSequenceRef.current = sequence;
+
     await onCommit(numericValue);
-    setDraftValue(String(numericValue));
+
+    // Si une saisie plus récente a déjà lancé une sauvegarde, on ne réécrit pas
+    // l affichage avec une ancienne valeur.
+    if (commitSequenceRef.current === sequence) {
+      setDraftValue(String(numericValue));
+    }
+  }
+
+  function scheduleAutosave(nextValue: string) {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    // Ne pas autosauvegarder un champ temporairement vide.
+    if (parseDraft(nextValue) === null) return;
+
+    autosaveTimerRef.current = setTimeout(() => {
+      void commitValue(nextValue);
+    }, 350);
   }
 
   return (
@@ -897,15 +930,25 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       style={style}
       onFocus={() => setIsFocused(true)}
       onChange={(e) => {
-        setDraftValue(e.target.value);
+        const nextValue = e.target.value;
+        setDraftValue(nextValue);
+        scheduleAutosave(nextValue);
       }}
       onBlur={() => {
         setIsFocused(false);
-        void commitValue();
+        if (autosaveTimerRef.current) {
+          clearTimeout(autosaveTimerRef.current);
+          autosaveTimerRef.current = null;
+        }
+        void commitValue(draftValue, { resetInvalid: true });
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
-          void commitValue(e.currentTarget.value);
+          if (autosaveTimerRef.current) {
+            clearTimeout(autosaveTimerRef.current);
+            autosaveTimerRef.current = null;
+          }
+          void commitValue(e.currentTarget.value, { resetInvalid: true });
           e.currentTarget.blur();
         }
       }}
