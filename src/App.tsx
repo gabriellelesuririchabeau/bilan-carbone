@@ -317,40 +317,6 @@ function compareAutresReportableRows(
 
 
 
-function normalizeReportTheme(theme: string | null | undefined) {
-  const value = String(theme ?? "").trim();
-  if (value === "autres") return "autres_consommations";
-  if (value === "autres_consommation") return "autres_consommations";
-  if (value === "salle_de_cours") return "salle";
-  return value;
-}
-
-function normalizeReportRowKey(rowKey: string | null | undefined) {
-  return String(rowKey ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
-function getAutresCandidateKeys(rowKey: string) {
-  const candidateKeys = [rowKey];
-
-  if (rowKey === "coffee") candidateKeys.push("cafe", "café");
-  if (rowKey === "tea") candidateKeys.push("the", "thé");
-  if (rowKey === "milk_chocolate") candidateKeys.push("hot_chocolate", "chocolat_chaud", "chocolat_lait");
-  if (rowKey === "chocolate_bar") candidateKeys.push("chocolat_bar", "barre_chocolatee", "chocolat", "barre_chocolat");
-  if (rowKey === "viennoiserie") candidateKeys.push("viennoiseries");
-  if (rowKey === "apple") candidateKeys.push("pomme");
-  if (rowKey === "grapes") candidateKeys.push("raisin");
-  if (rowKey === "pear") candidateKeys.push("poire");
-  if (rowKey === "banana") candidateKeys.push("banane");
-  if (rowKey === "pineapple") candidateKeys.push("ananas");
-  if (rowKey === "mango") candidateKeys.push("mangue");
-
-  return candidateKeys.map(normalizeReportRowKey);
-}
-
 function buildDejeunerRowsForGroup(rowsDb: GroupReportRow[], groupNumber: number): DejeunerAnalysisRow[] {
   return DEJEUNER_ANALYSIS_ROWS.map((baseRow) => {
     const dbRow = rowsDb.find(
@@ -399,15 +365,26 @@ function buildAutresRowsForGroup(
   groupNumber: number
 ): AutresAnalysisRow[] {
   return AUTRES_ANALYSIS_ROWS.map((baseRow) => {
-    const candidateKeys = getAutresCandidateKeys(baseRow.rowKey);
+    const candidateKeys = [baseRow.rowKey];
 
-    const matchedRows = rowsDb.filter((row) => {
-      return (
-        Number(row.group_number) === Number(groupNumber) &&
-        normalizeReportTheme(row.theme) === "autres_consommations" &&
-        candidateKeys.includes(normalizeReportRowKey(row.row_key))
-      );
-    });
+    if (baseRow.rowKey === "coffee") candidateKeys.push("cafe", "café");
+    if (baseRow.rowKey === "tea") candidateKeys.push("the", "thé");
+    if (baseRow.rowKey === "milk_chocolate") candidateKeys.push("hot_chocolate", "chocolat_chaud", "chocolat_lait");
+    if (baseRow.rowKey === "chocolate_bar") candidateKeys.push("chocolat_bar", "barre_chocolatee");
+    if (baseRow.rowKey === "viennoiserie") candidateKeys.push("viennoiseries");
+    if (baseRow.rowKey === "apple") candidateKeys.push("pomme");
+    if (baseRow.rowKey === "grapes") candidateKeys.push("raisin");
+    if (baseRow.rowKey === "pear") candidateKeys.push("poire");
+    if (baseRow.rowKey === "banana") candidateKeys.push("banane");
+    if (baseRow.rowKey === "pineapple") candidateKeys.push("ananas");
+    if (baseRow.rowKey === "mango") candidateKeys.push("mangue");
+
+    const matchedRows = rowsDb.filter(
+      (row) =>
+        row.group_number === groupNumber &&
+        row.theme === "autres_consommations" &&
+        candidateKeys.includes(String(row.row_key))
+    );
 
     const dbRow = matchedRows[0];
 
@@ -429,20 +406,19 @@ function buildSalleRowsForGroup(
   groupNumber: number
 ): SalleAnalysisRow[] {
   return SALLE_ANALYSIS_ROWS.map((baseRow) => {
-    const matchedRows = rowsDb.filter((row) => {
-      return (
-        Number(row.group_number) === Number(groupNumber) &&
-        normalizeReportTheme(row.theme) === "salle" &&
-        normalizeReportRowKey(row.row_key) === normalizeReportRowKey(baseRow.rowKey)
-      );
-    });
+    const matchedRows = rowsDb.filter(
+      (row) =>
+        row.group_number === groupNumber &&
+        row.theme === "salle" &&
+        String(row.row_key) === baseRow.rowKey
+    );
 
     const dbRow = matchedRows[0];
 
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      factor: baseRow.rowKey === "ampoules" ? 0.004 : Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
+      factor: Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
     };
   });
 }
@@ -890,16 +866,25 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
   }, [value, isFocused]);
 
   function parseDraft(nextValue: string) {
-    const cleanedValue = String(nextValue ?? "").trim().replace(",", ".");
-    if (cleanedValue === "") return min;
+    const cleanValue = String(nextValue ?? "").trim();
+    if (cleanValue === "") return null;
 
-    const numericValue = Number(cleanedValue);
-    if (!Number.isFinite(numericValue)) return min;
+    const numericValue = Number(cleanValue.replace(",", "."));
+    if (!Number.isFinite(numericValue)) return null;
     return Math.max(min, numericValue);
   }
 
   async function commitValue(nextValue = draftValue) {
     const numericValue = parseDraft(nextValue);
+
+    // Important : pendant la saisie, un input type="number" peut valoir "".
+    // On ne sauvegarde jamais ce vide comme 0, sinon une sauvegarde asynchrone
+    // tardive peut écraser la vraie valeur en base.
+    if (numericValue === null) {
+      setDraftValue(String(value ?? 0));
+      return;
+    }
+
     await onCommit(numericValue);
     setDraftValue(String(numericValue));
   }
@@ -912,8 +897,6 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       style={style}
       onFocus={() => setIsFocused(true)}
       onChange={(e) => {
-        // On ne sauvegarde plus à chaque frappe : cela envoyait parfois 0
-        // quand le champ était temporairement vide pendant la saisie.
         setDraftValue(e.target.value);
       }}
       onBlur={() => {
@@ -922,6 +905,7 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
+          void commitValue(e.currentTarget.value);
           e.currentTarget.blur();
         }
       }}
@@ -3049,6 +3033,23 @@ async function handleCreateTeacher(name: string, email: string, password: string
 
     setRows((data ?? []) as GroupReportRow[]);
   }
+function normalizeGroupReportTheme(theme: string | null | undefined) {
+  const cleanTheme = String(theme ?? "").trim();
+  if (cleanTheme === "autres") return "autres_consommations";
+  if (cleanTheme === "salle_de_cours") return "salle";
+  return cleanTheme;
+}
+
+function normalizeGroupReportRows(rows: GroupReportRow[]) {
+  return rows.map((row) => ({
+    ...row,
+    theme: normalizeGroupReportTheme(row.theme),
+    quantity: row.quantity === null || row.quantity === undefined ? 0 : Number(row.quantity),
+    persons: row.persons === null || row.persons === undefined ? null : Number(row.persons),
+    factor: row.factor === null || row.factor === undefined ? 0 : Number(row.factor),
+  })) as GroupReportRow[];
+}
+
 async function loadEquipementReportRows(
   sessionId: string,
   setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
@@ -3062,7 +3063,7 @@ async function loadEquipementReportRows(
     .from("group_reports")
     .select("*")
     .eq("session_id", sessionId)
-    .eq("theme", "equipement")
+    .in("theme", ["equipement"])
     .order("group_number", { ascending: true })
     .order("row_key", { ascending: true });
 
@@ -3072,7 +3073,7 @@ async function loadEquipementReportRows(
     return;
   }
 
-  setRows((data ?? []) as GroupReportRow[]);
+  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
 }
 
 async function loadTransportReportableRows(
@@ -3176,7 +3177,7 @@ async function loadAutresReportRows(
     .from("group_reports")
     .select("*")
     .eq("session_id", sessionId)
-    .in("theme", ["autres_consommations", "autres", "autres_consommation"])
+    .in("theme", ["autres_consommations", "autres"])
     .order("group_number", { ascending: true })
     .order("row_key", { ascending: true });
 
@@ -3186,8 +3187,9 @@ async function loadAutresReportRows(
     return;
   }
 
-  setRows((data ?? []) as GroupReportRow[]);
+  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
 }
+
 async function loadSalleReportRows(
   sessionId: string,
   setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
@@ -3211,7 +3213,7 @@ async function loadSalleReportRows(
     return;
   }
 
-  setRows((data ?? []) as GroupReportRow[]);
+  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
 }
 
 async function loadAutresReportableRowsWithSetter(
@@ -3436,6 +3438,7 @@ updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null
       payload,
       { onConflict: "session_id,group_number,theme,row_key" }
     );
+console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
       return;
@@ -3517,6 +3520,7 @@ updatedBy: string | null;
       payload,
       { onConflict: "session_id,group_number,theme,row_key" }
     );
+console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report déjeuner : ${error.message}`);
       return;
@@ -3536,13 +3540,13 @@ async function saveEquipementReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
-    }
+  const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+  const groupNumber =
+    studentAssignedGroup && sessionId === studentSelectedSessionId
+      ? studentAssignedGroup
+      : params.groupNumber;
 
-    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
+  if (!sessionId || !groupNumber || !rowKey) return;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3554,32 +3558,23 @@ async function saveEquipementReportRow(params: {
     row_key: rowKey,
     label,
     persons: safeQuantity > 0 ? safeQuantity : null,
-    quantity: safeQuantity > 0 ? safeQuantity : null,
+    quantity: safeQuantity > 0 ? safeQuantity : 0,
     factor: safeFactor,
-    updated_by: updatedBy,
+    updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const applyOptimisticUpdate = (
-    rows: GroupReportRow[],
-    targetSessionId: string,
-    targetGroupNumber: number
-  ) => {
-    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
-
-    const nextRows = [...rows];
+  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
+    const nextRows = normalizeGroupReportRows(rows);
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === groupNumber &&
-        row.theme === "equipement" &&
+        Number(row.group_number) === groupNumber &&
+        normalizeGroupReportTheme(row.theme) === "equipement" &&
         String(row.row_key) === rowKey
     );
 
     if (existingIndex >= 0) {
-      nextRows[existingIndex] = {
-        ...nextRows[existingIndex],
-        ...payload,
-      } as GroupReportRow;
+      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
       return nextRows;
     }
 
@@ -3587,12 +3582,12 @@ async function saveEquipementReportRow(params: {
     return nextRows;
   };
 
-  setStudentEquipementReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
-  );
-  setTeacherEquipementReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
-  );
+  if (studentSelectedSessionId === sessionId) {
+    setStudentEquipementReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
+  if (selectedSessionId === sessionId) {
+    setTeacherEquipementReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
 
   const { error } = await supabase.from("group_reports").upsert(
     payload,
@@ -3602,10 +3597,6 @@ async function saveEquipementReportRow(params: {
   if (error) {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
     return;
-  }
-
-  if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-    await loadEquipementReportableRows(sessionId);
   }
 }
 
@@ -3618,81 +3609,63 @@ async function saveAutresReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
-    }
+  const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+  const groupNumber =
+    studentAssignedGroup && sessionId === studentSelectedSessionId
+      ? studentAssignedGroup
+      : params.groupNumber;
 
-    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
+  if (!sessionId || !groupNumber || !rowKey) return;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
-  const optimisticRow = {
+
+  const payload = {
     session_id: sessionId,
     group_number: groupNumber,
     theme: "autres_consommations",
     row_key: rowKey,
     label,
     persons: safeQuantity > 0 ? safeQuantity : null,
-    quantity: safeQuantity > 0 ? safeQuantity : null,
+    quantity: safeQuantity > 0 ? safeQuantity : 0,
     factor: safeFactor,
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const applyOptimisticUpdate = (
-    rows: GroupReportRow[],
-    targetSessionId: string,
-    targetGroupNumber: number
-  ) => {
-    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
-
-    const nextRows = [...rows];
+  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
+    const nextRows = normalizeGroupReportRows(rows);
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        Number(row.group_number) === Number(groupNumber) &&
-        normalizeReportTheme(row.theme) === "autres_consommations" &&
+        Number(row.group_number) === groupNumber &&
+        normalizeGroupReportTheme(row.theme) === "autres_consommations" &&
         String(row.row_key) === rowKey
     );
 
     if (existingIndex >= 0) {
-      nextRows[existingIndex] = {
-        ...nextRows[existingIndex],
-        ...optimisticRow,
-      } as GroupReportRow;
+      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
       return nextRows;
     }
 
-    nextRows.push(optimisticRow as unknown as GroupReportRow);
+    nextRows.push(payload as unknown as GroupReportRow);
     return nextRows;
   };
 
-  setStudentAutresReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
-  );
-  setTeacherAutresReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
-  );
+  if (studentSelectedSessionId === sessionId) {
+    setStudentAutresReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
+  if (selectedSessionId === sessionId) {
+    setTeacherAutresReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
 
   const { error } = await supabase.from("group_reports").upsert(
-    optimisticRow,
+    payload,
     { onConflict: "session_id,group_number,theme,row_key" }
   );
 
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
-    await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-    await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
     return;
-  }
-
-  if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-    await loadAutresReportableRows(sessionId);
-  }
-
-  if (selectedSessionId && sessionId === selectedSessionId) {
-    await loadTeacherAutresReportableRows(sessionId);
   }
 }
 
@@ -3705,83 +3678,66 @@ async function saveSalleReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
-    }
+  const { sessionId, rowKey, label, quantity, updatedBy } = params;
+  const groupNumber =
+    studentAssignedGroup && sessionId === studentSelectedSessionId
+      ? studentAssignedGroup
+      : params.groupNumber;
 
-    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
+  if (!sessionId || !groupNumber || !rowKey) return;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
-  const safeFactor = Math.max(0, Number(factor || 0));
+  const safeFactor = rowKey === "ampoules" ? 0.004 : Math.max(0, Number(params.factor || 0));
 
-  const optimisticRow = {
+  const payload = {
     session_id: sessionId,
     group_number: groupNumber,
     theme: "salle",
     row_key: rowKey,
     label,
     persons: safeQuantity > 0 ? safeQuantity : null,
-    quantity: safeQuantity > 0 ? safeQuantity : null,
+    quantity: safeQuantity > 0 ? safeQuantity : 0,
     factor: safeFactor,
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const applyOptimisticUpdate = (
-    rows: GroupReportRow[],
-    targetSessionId: string,
-    targetGroupNumber: number
-  ) => {
-    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
-
-    const nextRows = [...rows];
+  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
+    const nextRows = normalizeGroupReportRows(rows);
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        Number(row.group_number) === Number(groupNumber) &&
-        normalizeReportTheme(row.theme) === "salle" &&
+        Number(row.group_number) === groupNumber &&
+        normalizeGroupReportTheme(row.theme) === "salle" &&
         String(row.row_key) === rowKey
     );
 
     if (existingIndex >= 0) {
-      nextRows[existingIndex] = {
-        ...nextRows[existingIndex],
-        ...optimisticRow,
-      } as GroupReportRow;
+      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
       return nextRows;
     }
 
-    nextRows.push(optimisticRow as unknown as GroupReportRow);
+    nextRows.push(payload as unknown as GroupReportRow);
     return nextRows;
   };
 
-  setStudentSalleReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
-  );
-  setTeacherSalleReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
-  );
+  if (studentSelectedSessionId === sessionId) {
+    setStudentSalleReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
+  if (selectedSessionId === sessionId) {
+    setTeacherSalleReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
 
   const { error } = await supabase.from("group_reports").upsert(
-    optimisticRow,
+    payload,
     { onConflict: "session_id,group_number,theme,row_key" }
   );
 
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
-    await loadSalleReportRows(sessionId, setTeacherSalleReportRowsDb);
     return;
   }
-
-  // L'état optimiste garde immédiatement la quantité saisie.
-  // Le refresh/intervalle relira ensuite la base.
 }
 
-
-
-  // ✅ useEffect : chargement initial session étudiant
   useEffect(() => {
     let active = true;
     supabase.auth.getUser().then(async ({ data }) => {
@@ -4581,17 +4537,11 @@ function removeTrip(index: number) {
     await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
     await loadAutresReportableRows(sessionId);
     await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
   }
 
 async function refreshStudentAnalysisData() {
   if (!studentSelectedSessionId) return false;
-
-  const unlocked = await loadSessionAnalysisAccess(studentSelectedSessionId);
-  if (!unlocked) return false;
-
-  await refreshStudentTransportData(studentSelectedSessionId);
-  return true;
+  return await loadSessionAnalysisAccess(studentSelectedSessionId);
 }
 
   async function refreshStudentSyntheseData() {
@@ -4753,6 +4703,13 @@ setDejeunerMessage("Questionnaire déjeuner enregistré.");
       ai_prep_minutes: Number(equipement.ai_prep_minutes || 0),
       ai_during_class_minutes: Number(equipement.ai_during_class_minutes || 0),
     };
+
+    console.log("DEBUG EQUIPEMENT", {
+  normalizedStudentEmail,
+  normalizedSessionCode,
+  studentSelectedSessionId,
+  equipement,
+});
 
     const { error } = await supabase.rpc("submit_equipement_response_student", {
       p_session_code: normalizedSessionCode,
@@ -7572,15 +7529,6 @@ onClick={() => {
       studentAutresReportableRows,
       "Aucune donnée autres consommations à reporter pour le moment. Les réponses validées apparaîtront ici automatiquement."
     )
-  ) : studentTheme === "salle" ? (
-    renderSalleAnalysisTable({
-      rows: studentSalleRows,
-      groupNumber: effectiveStudentGroupNumber,
-      sessionId: studentSelectedSessionId,
-      updatedBy: null,
-      readOnly: false,
-      onSave: saveSalleReportRow,
-    })
   ) : null)}
 
 {studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && openProposalGroup === null && studentTheme === "transport" && (
@@ -7651,7 +7599,7 @@ onClick={() => {
   })
 )}
 
-{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && studentTheme === "autres" &&
+{studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "autres" &&
   renderAutresAnalysisTable({
     rows: studentAutresRows,
     groupNumber: effectiveStudentGroupNumber,
@@ -8413,14 +8361,6 @@ style={
       teacherAutresReportableRows,
       "Aucune donnée autres consommations à reporter pour le moment. Les réponses validées apparaîtront ici automatiquement."
     )
-  ) : teacherTheme === "salle" ? (
-    renderSalleAnalysisTable({
-      rows: teacherSalleRows,
-      groupNumber: teacherGroupNumber,
-      sessionId: selectedSessionId,
-      updatedBy: teacherUserId,
-      readOnly: true,
-    })
   ) : null
 )}
 
