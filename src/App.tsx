@@ -888,8 +888,10 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
         const nextValue = e.target.value;
         setDraftValue(nextValue);
 
-        // Mise à jour immédiate du total à chaque saisie, sans attendre Entrée ou perte de focus.
-        void onCommit(parseDraft(nextValue));
+        // Ne pas sauvegarder à chaque frappe : quand l'utilisateur efface temporairement
+        // le champ pour saisir une nouvelle valeur, React envoyait 0 en base puis
+        // le reload pouvait écraser la valeur saisie. La sauvegarde se fait maintenant
+        // à la perte de focus ou avec Entrée.
       }}
       onBlur={() => {
         setIsFocused(false);
@@ -3597,8 +3599,7 @@ async function saveAutresReportRow(params: {
   updatedBy: string | null;
 }) {
   if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
+      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
     }
 
     const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
@@ -3630,13 +3631,13 @@ console.log("SAVE AUTRES →", {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId) return rows;
+    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === targetGroupNumber &&
+        row.group_number === groupNumber &&
         row.theme === "autres_consommations" &&
         String(row.row_key) === rowKey
     );
@@ -3693,15 +3694,14 @@ async function saveSalleReportRow(params: {
   updatedBy: string | null;
 }) {
   if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
+      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
     }
 
     const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
     const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
-  const safeFactor = Math.max(0, Number(factor || 0));
+  const safeFactor = rowKey === "ampoules" ? 0.004 : Math.max(0, Number(factor || 0));
 
   const optimisticRow = {
     session_id: sessionId,
@@ -3720,13 +3720,13 @@ async function saveSalleReportRow(params: {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId) return rows;
+    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === targetGroupNumber &&
+        row.group_number === groupNumber &&
         row.theme === "salle" &&
         String(row.row_key) === rowKey
     );
