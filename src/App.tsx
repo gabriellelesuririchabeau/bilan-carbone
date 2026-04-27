@@ -142,6 +142,16 @@ type TeacherVoteResult = {
   rank3Count: number;
 };
 
+type AssignmentMode = "emails" | "groups";
+type AssignmentMethod = "import" | "random";
+
+type StudentAssignmentDraft = {
+  email: string;
+  first_name: string;
+  last_name: string;
+  group_number: number;
+};
+
 const DEJEUNER_ANALYSIS_ROWS: DejeunerAnalysisRow[] = [
 { rowKey: "kebab", category: "Sandwich", label: "Kebab", factor: 3570, quantity: 0 },
 { rowKey: "hamburger", category: "Sandwich", label: "Hamburger", factor: 4375, quantity: 0 },
@@ -381,7 +391,12 @@ function buildAutresRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      factor: Number(dbRow?.factor ?? baseRow.factor),
+      factor:
+        baseRow.factor === 0
+          ? 0
+          : Number(dbRow?.factor ?? 0) > 0
+            ? Number(dbRow?.factor)
+            : baseRow.factor,
     };
   });
 }
@@ -403,7 +418,7 @@ function buildSalleRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      factor: Number(dbRow?.factor ?? baseRow.factor),
+      factor: Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
     };
   });
 }
@@ -616,8 +631,221 @@ function formatReportNumber(value: number | string | null | undefined, digits = 
     .replace(/\./g, ",");
 }
 
+function formatFactorNumber(value: number | string | null | undefined) {
+  const numericValue =
+    typeof value === "string"
+      ? Number(value.replace(",", "."))
+      : Number(value ?? 0);
+
+  if (!Number.isFinite(numericValue)) {
+    return "0";
+  }
+
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  })
+    .format(numericValue)
+    .replace(/\./g, ",");
+}
+
 function formatSessionCode(value: string | null | undefined) {
   return String(value ?? "").toUpperCase();
+}
+
+function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
+  return rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line, index) => {
+      if (index !== 0) return true;
+      return !line.toLowerCase().includes("email");
+    })
+    .map((line) => {
+      const separator = line.includes(";") ? ";" : "\t";
+      const parts = line.split(separator).map((part) => part.trim());
+
+      let groupIndex = -1;
+      for (let i = parts.length - 1; i >= 0; i -= 1) {
+        const numericValue = Number(parts[i]);
+        if (Number.isInteger(numericValue) && numericValue >= 1 && numericValue <= 10) {
+          groupIndex = i;
+          break;
+        }
+      }
+
+      return {
+        email: normalizeEmail(parts[0] ?? ""),
+        first_name: parts[1] ?? "",
+        last_name: parts[2] ?? "",
+        group_number: groupIndex >= 0 ? Number(parts[groupIndex]) : Number(parts[3] ?? 0),
+      };
+    })
+    .filter((student) => {
+      return (
+        student.email &&
+        student.email.includes("@") &&
+        Number.isInteger(student.group_number) &&
+        student.group_number >= 1 &&
+        student.group_number <= 10
+      );
+    });
+}
+
+function capitalizeNamePart(value: string) {
+  const cleanValue = String(value ?? "").trim().toLowerCase();
+  if (!cleanValue) return "";
+
+  return cleanValue
+    .split(/([\\s-]+)/)
+    .map((part) => {
+      if (/^[\\s-]+$/.test(part)) return part;
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join("");
+}
+
+function formatAssignmentLastName(student: StudentAssignmentDraft) {
+  return String(student.last_name ?? "").trim().toUpperCase();
+}
+
+function formatAssignmentFirstName(student: StudentAssignmentDraft) {
+  return String(student.first_name ?? "")
+    .trim()
+    .split(/\\s+/)
+    .map((word) =>
+      word
+        .split("-")
+        .map((part) => capitalizeNamePart(part))
+        .join("-")
+    )
+    .join(" ");
+}
+
+function renderAssignmentsTable(assignments: StudentAssignmentDraft[], searchText = "") {
+  const query = searchText.trim().toLowerCase();
+
+  const filteredAssignments = [...assignments]
+    .filter((student) => {
+      if (!query) return true;
+      return (
+        student.email.toLowerCase().includes(query) ||
+        formatAssignmentLastName(student).toLowerCase().includes(query) ||
+        formatAssignmentFirstName(student).toLowerCase().includes(query) ||
+        String(student.group_number).includes(query)
+      );
+    })
+    .sort((a, b) => {
+      if (a.group_number !== b.group_number) return a.group_number - b.group_number;
+      const lastNameCompare = formatAssignmentLastName(a).localeCompare(formatAssignmentLastName(b));
+      if (lastNameCompare !== 0) return lastNameCompare;
+      return formatAssignmentFirstName(a).localeCompare(formatAssignmentFirstName(b));
+    });
+
+  if (!filteredAssignments.length) {
+    return (
+      <div style={{ ...styles.emptyText, marginTop: 12 }}>
+        Aucun étudiant ne correspond à la recherche.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        maxHeight: 360,
+        overflowY: "auto",
+        overflowX: "auto",
+        marginTop: 14,
+        border: "1px solid #d8e0ec",
+        borderRadius: 14,
+        background: "#fff",
+      }}
+    >
+      <table style={{ ...styles.reportTable, marginTop: 0 }}>
+        <thead>
+          <tr>
+            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Nom</th>
+            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Prénom</th>
+            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Groupe</th>
+            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Email</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredAssignments.map((student) => (
+            <tr key={`${student.email}-${student.group_number}`}>
+              <td style={styles.reportTd}>{formatAssignmentLastName(student)}</td>
+              <td style={styles.reportTd}>{formatAssignmentFirstName(student)}</td>
+              <td style={styles.reportTd}>{student.group_number}</td>
+              <td style={styles.reportTd}>{student.email}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
+function generateRandomAssignments(rawText: string): StudentAssignmentDraft[] {
+  const students = rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line, index) => {
+      if (index !== 0) return true;
+      return !line.toLowerCase().includes("email");
+    })
+    .map((line) => {
+      const separator = line.includes(";") ? ";" : "\t";
+      const parts = line.split(separator).map((part) => part.trim());
+
+      return {
+        email: normalizeEmail(parts[0] ?? ""),
+        first_name: parts[1] ?? "",
+        last_name: parts[2] ?? "",
+      };
+    })
+    .filter((student) => student.email && student.email.includes("@"));
+
+  return students
+    .map((student) => ({ ...student, sortKey: Math.random() }))
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .map((student, index) => ({
+      email: student.email,
+      first_name: student.first_name,
+      last_name: student.last_name,
+      group_number: (index % 10) + 1,
+    }));
+}
+
+function serializeStudentAssignments(assignments: StudentAssignmentDraft[]) {
+  return assignments
+    .map((student) =>
+      [
+        student.email,
+        student.first_name,
+        student.last_name,
+        student.group_number,
+      ].join(";")
+    )
+    .join("\n");
+}
+
+function downloadTextFile(filename: string, content: string) {
+  // BOM UTF-8 pour que Microsoft Excel reconnaisse correctement les accents.
+  const blob = new Blob(["\ufeff", content], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
 }
 
 type DraftNumberInputProps = {
@@ -637,10 +865,14 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     }
   }, [value, isFocused]);
 
-  async function commitValue() {
-    setIsFocused(false);
+  function parseDraft(nextValue: string) {
+    const numericValue = Number(String(nextValue || "0").replace(",", "."));
+    if (!Number.isFinite(numericValue)) return min;
+    return Math.max(min, numericValue);
+  }
 
-    const numericValue = Math.max(min, Number(draftValue || 0));
+  async function commitValue(nextValue = draftValue) {
+    const numericValue = parseDraft(nextValue);
     await onCommit(numericValue);
     setDraftValue(String(numericValue));
   }
@@ -653,9 +885,14 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       style={style}
       onFocus={() => setIsFocused(true)}
       onChange={(e) => {
-        setDraftValue(e.target.value);
+        const nextValue = e.target.value;
+        setDraftValue(nextValue);
+
+        // Mise à jour immédiate du total à chaque saisie, sans attendre Entrée ou perte de focus.
+        void onCommit(parseDraft(nextValue));
       }}
       onBlur={() => {
+        setIsFocused(false);
         void commitValue();
       }}
       onKeyDown={(e) => {
@@ -1173,6 +1410,12 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
 
   const [studentEmail, setStudentEmail] = useState("");
   const [studentCodeSession, setStudentCodeSession] = useState("");
+  const [studentAssignedGroup, setStudentAssignedGroup] = useState<number | null>(null);
+const [studentAssignedFirstName, setStudentAssignedFirstName] = useState("");
+const [studentAssignedLastName, setStudentAssignedLastName] = useState("");
+
+const effectiveStudentGroupNumber = studentAssignedGroup ?? studentGroupNumber;
+
 
 const [quickSessionCampus, setQuickSessionCampus] = useState("");
 const [quickSessionProgramme, setQuickSessionProgramme] = useState("");
@@ -1188,6 +1431,16 @@ const [quickSessionSuffix, setQuickSessionSuffix] = useState("");  const [teache
   const [settingsCampus, setSettingsCampus] = useState("");
   const [settingsAllowedEmailsText, setSettingsAllowedEmailsText] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [assignmentSearch, setAssignmentSearch] = useState("");
+
+const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("emails");
+const [assignmentMethod, setAssignmentMethod] = useState<AssignmentMethod>("import");
+const [assignmentRawText, setAssignmentRawText] = useState("");
+const [newStudentEmail, setNewStudentEmail] = useState("");
+const [newStudentFirstName, setNewStudentFirstName] = useState("");
+const [newStudentLastName, setNewStudentLastName] = useState("");
+const [newStudentGroupNumber, setNewStudentGroupNumber] = useState(1);
+const [autoAssignNewStudentGroup, setAutoAssignNewStudentGroup] = useState(true);
 
   const [transportTrips, setTransportTrips] = useState<TransportTrip[]>(emptyTrips());
   const [transportMessage, setTransportMessage] = useState("");
@@ -1306,8 +1559,8 @@ const teacherVoteResults = useMemo<TeacherVoteResult[]>(() => {
   );
 
   const studentTransportRows = useMemo(
-    () => buildTransportRowsForGroup(studentTransportReportRowsDb, studentGroupNumber),
-    [studentTransportReportRowsDb, studentGroupNumber]
+    () => buildTransportRowsForGroup(studentTransportReportRowsDb, effectiveStudentGroupNumber),
+    [studentTransportReportRowsDb, effectiveStudentGroupNumber]
   );
 
   const teacherDejeunerRows = useMemo(
@@ -1316,8 +1569,8 @@ const teacherVoteResults = useMemo<TeacherVoteResult[]>(() => {
   );
 
   const studentDejeunerRows = useMemo(
-    () => buildDejeunerRowsForGroup(studentDejeunerReportRowsDb, studentGroupNumber),
-    [studentDejeunerReportRowsDb, studentGroupNumber]
+    () => buildDejeunerRowsForGroup(studentDejeunerReportRowsDb, effectiveStudentGroupNumber),
+    [studentDejeunerReportRowsDb, effectiveStudentGroupNumber]
   );
 const teacherEquipementRows = useMemo(
   () => buildEquipementRowsForGroup(teacherEquipementReportRowsDb, teacherGroupNumber),
@@ -1325,12 +1578,12 @@ const teacherEquipementRows = useMemo(
 );
 
 const studentEquipementRows = useMemo(
-  () => buildEquipementRowsForGroup(studentEquipementReportRowsDb, studentGroupNumber),
-  [studentEquipementReportRowsDb, studentGroupNumber]
+  () => buildEquipementRowsForGroup(studentEquipementReportRowsDb, effectiveStudentGroupNumber),
+  [studentEquipementReportRowsDb, effectiveStudentGroupNumber]
 );
 
   const teacherTheme = getThemeForGroup(teacherGroupNumber);
-  const studentTheme = getThemeForGroup(studentGroupNumber);
+  const studentTheme = getThemeForGroup(effectiveStudentGroupNumber);
 
   const teacherDisplayedTransportReportableRows = teacherTransportReportableRows;
   const studentDisplayedTransportReportableRows = studentTransportReportableRows;
@@ -1399,8 +1652,8 @@ const teacherAutresRows = useMemo(
 );
 
 const studentAutresRows = useMemo(
-  () => buildAutresRowsForGroup(studentAutresReportRowsDb, studentGroupNumber),
-  [studentAutresReportRowsDb, studentGroupNumber]
+  () => buildAutresRowsForGroup(studentAutresReportRowsDb, effectiveStudentGroupNumber),
+  [studentAutresReportRowsDb, effectiveStudentGroupNumber]
 );
 
 const teacherAutresChartRows = useMemo(
@@ -1429,8 +1682,8 @@ const teacherSalleRows = useMemo(
 );
 
 const studentSalleRows = useMemo(
-  () => buildSalleRowsForGroup(studentSalleReportRowsDb, studentGroupNumber),
-  [studentSalleReportRowsDb, studentGroupNumber]
+  () => buildSalleRowsForGroup(studentSalleReportRowsDb, effectiveStudentGroupNumber),
+  [studentSalleReportRowsDb, effectiveStudentGroupNumber]
 );
 
 const teacherSalleChartRows = useMemo(
@@ -1494,8 +1747,13 @@ const teacherSyntheseData = useMemo(
 );
 
 const studentSyntheseData = useMemo(
-  () => computeSynthese(studentSyntheseSourceRows),
-  [studentSyntheseSourceRows]
+  () =>
+    computeSynthese(
+      studentSyntheseSourceRows.filter((row) =>
+        !studentAssignedGroup || Number(row.group_number) === studentAssignedGroup
+      )
+    ),
+  [studentSyntheseSourceRows, studentAssignedGroup]
 );
 
   const sortedFilteredEmails = useMemo(() => {
@@ -1506,6 +1764,30 @@ const studentSyntheseData = useMemo(
       .sort((a, b) => a.localeCompare(b))
       .filter((email) => email.includes(userSearch.toLowerCase()));
   }, [settingsAllowedEmailsText, userSearch]);
+
+  const parsedStudentAssignments = useMemo(() => {
+  if (assignmentMode !== "groups") return [];
+  return parseStudentAssignments(assignmentRawText);
+}, [assignmentMode, assignmentRawText]);
+
+  const randomStudentAssignments = useMemo(() => {
+    if (assignmentMode !== "groups" || assignmentMethod !== "random") return [];
+    return generateRandomAssignments(settingsAllowedEmailsText);
+  }, [assignmentMode, assignmentMethod, settingsAllowedEmailsText]);
+
+  const activeStudentAssignments = useMemo(() => {
+    if (assignmentMode !== "groups") return [];
+    return assignmentMethod === "random" ? randomStudentAssignments : parsedStudentAssignments;
+  }, [assignmentMode, assignmentMethod, parsedStudentAssignments, randomStudentAssignments]);
+
+  const displayedStudentAssignments = useMemo(() => {
+    if (activeStudentAssignments.length > 0) return activeStudentAssignments;
+
+    const parsedFromAllowedEmails = parseStudentAssignments(settingsAllowedEmailsText);
+    if (parsedFromAllowedEmails.length > 0) return parsedFromAllowedEmails;
+
+    return [];
+  }, [activeStudentAssignments, settingsAllowedEmailsText]);
 
   const filteredAdminTeachers = useMemo(() => {
     const q = teacherSearch.trim().toLowerCase();
@@ -1541,6 +1823,32 @@ const studentSyntheseData = useMemo(
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [openTeacherActionsId]);
+
+  useEffect(() => {
+    if (studentAssignedGroup && studentGroupNumber !== studentAssignedGroup) {
+      setStudentGroupNumber(studentAssignedGroup);
+      setOpenProposalGroup(null);
+    }
+  }, [studentAssignedGroup, studentGroupNumber]);
+
+  useEffect(() => {
+    if (!studentAssignedGroup) return;
+    if (openProposalGroup !== null && openProposalGroup !== studentAssignedGroup) {
+      setOpenProposalGroup(null);
+    }
+  }, [studentAssignedGroup, openProposalGroup]);
+
+  useEffect(() => {
+    if (!studentAssignedGroup) return;
+
+    if (
+      screen === "student_analyses" ||
+      screen === "student_synthese" ||
+      screen === "student_vote"
+    ) {
+      setStudentGroupNumber(studentAssignedGroup);
+    }
+  }, [screen, studentAssignedGroup]);
 
   useEffect(() => {
   if (screen === "student_analyses" && !studentAnalysisUnlocked) {
@@ -3040,7 +3348,12 @@ async function toggleStudentAnalysisAccess() {
     factor: number;
 updatedBy: string | null;
   }) {
-    const { sessionId, groupNumber, rowKey, label, persons, distanceTotalKm, factor, updatedBy } = params;
+    if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
+      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
+    }
+
+    const { sessionId, rowKey, label, persons, distanceTotalKm, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
     const safePersons = Math.max(0, Number(persons || 0));
     const safeDistanceTotalKm = Math.max(0, Number(distanceTotalKm || 0));
@@ -3054,9 +3367,45 @@ updatedBy: string | null;
       label,
       persons: safePersons > 0 ? safePersons : null,
       quantity: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
+      distance_total_km: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
       factor: safeFactor,
 updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
     };
+
+    const applyOptimisticUpdate = (
+      rows: GroupReportRow[],
+      targetSessionId: string,
+      targetGroupNumber: number
+    ) => {
+      if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+
+      const nextRows = [...rows];
+      const existingIndex = nextRows.findIndex(
+        (row) =>
+          row.session_id === sessionId &&
+          row.group_number === groupNumber &&
+          row.theme === "transport" &&
+          String(row.row_key) === rowKey
+      );
+
+      if (existingIndex >= 0) {
+        nextRows[existingIndex] = {
+          ...nextRows[existingIndex],
+          ...payload,
+        } as GroupReportRow;
+        return nextRows;
+      }
+
+      nextRows.push(payload as unknown as GroupReportRow);
+      return nextRows;
+    };
+
+    setStudentTransportReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
+    );
+    setTeacherTransportReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
+    );
 
     const { error } = await supabase.from("group_reports").upsert(
       payload,
@@ -3083,23 +3432,65 @@ console.log("SAVE REPORT ERROR", error);
     factor: number;
 updatedBy: string | null;
   }) {
-    const { sessionId, groupNumber, rowKey, label, quantity, factor, updatedBy } = params;
+    if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
+      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
+    }
+
+    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
     const safeQuantity = Math.max(0, Number(quantity || 0));
     const safeFactor = Math.max(0, Number(factor || 0));
 
+    const payload = {
+      session_id: sessionId,
+      group_number: groupNumber,
+      theme: "dejeuner",
+      row_key: rowKey,
+      label,
+      persons: safeQuantity > 0 ? safeQuantity : null,
+      quantity: safeQuantity > 0 ? safeQuantity : null,
+      factor: safeFactor,
+      updated_by: updatedBy,
+    };
+
+    const applyOptimisticUpdate = (
+      rows: GroupReportRow[],
+      targetSessionId: string,
+      targetGroupNumber: number
+    ) => {
+      if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+
+      const nextRows = [...rows];
+      const existingIndex = nextRows.findIndex(
+        (row) =>
+          row.session_id === sessionId &&
+          row.group_number === groupNumber &&
+          row.theme === "dejeuner" &&
+          String(row.row_key) === rowKey
+      );
+
+      if (existingIndex >= 0) {
+        nextRows[existingIndex] = {
+          ...nextRows[existingIndex],
+          ...payload,
+        } as GroupReportRow;
+        return nextRows;
+      }
+
+      nextRows.push(payload as unknown as GroupReportRow);
+      return nextRows;
+    };
+
+    setStudentDejeunerReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
+    );
+    setTeacherDejeunerReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
+    );
+
     const { error } = await supabase.from("group_reports").upsert(
-      {
-        session_id: sessionId,
-        group_number: groupNumber,
-        theme: "dejeuner",
-        row_key: rowKey,
-        label,
-        persons: safeQuantity > 0 ? safeQuantity : null,
-        quantity: safeQuantity > 0 ? safeQuantity : null,
-        factor: safeFactor,
-        updated_by: updatedBy,
-      },
+      payload,
       { onConflict: "session_id,group_number,theme,row_key" }
     );
 console.log("SAVE REPORT ERROR", error);
@@ -3122,23 +3513,66 @@ async function saveEquipementReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  const { sessionId, groupNumber, rowKey, label, quantity, factor, updatedBy } = params;
+  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
+      setMessage("Accès non autorisé à ce groupe.");
+      return;
+    }
+
+    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
 
+  const payload = {
+    session_id: sessionId,
+    group_number: groupNumber,
+    theme: "equipement",
+    row_key: rowKey,
+    label,
+    persons: safeQuantity > 0 ? safeQuantity : null,
+    quantity: safeQuantity > 0 ? safeQuantity : null,
+    factor: safeFactor,
+    updated_by: updatedBy,
+  };
+
+  const applyOptimisticUpdate = (
+    rows: GroupReportRow[],
+    targetSessionId: string,
+    targetGroupNumber: number
+  ) => {
+    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+
+    const nextRows = [...rows];
+    const existingIndex = nextRows.findIndex(
+      (row) =>
+        row.session_id === sessionId &&
+        row.group_number === groupNumber &&
+        row.theme === "equipement" &&
+        String(row.row_key) === rowKey
+    );
+
+    if (existingIndex >= 0) {
+      nextRows[existingIndex] = {
+        ...nextRows[existingIndex],
+        ...payload,
+      } as GroupReportRow;
+      return nextRows;
+    }
+
+    nextRows.push(payload as unknown as GroupReportRow);
+    return nextRows;
+  };
+
+  setStudentEquipementReportRowsDb((prev) =>
+    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
+  );
+  setTeacherEquipementReportRowsDb((prev) =>
+    applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
+  );
+
   const { error } = await supabase.from("group_reports").upsert(
-    {
-      session_id: sessionId,
-      group_number: groupNumber,
-      theme: "equipement",
-      row_key: rowKey,
-      label,
-      persons: safeQuantity > 0 ? safeQuantity : null,
-      quantity: safeQuantity > 0 ? safeQuantity : null,
-      factor: safeFactor,
-      updated_by: updatedBy,
-    },
+    payload,
     { onConflict: "session_id,group_number,theme,row_key" }
   );
 
@@ -3162,7 +3596,13 @@ async function saveAutresReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  const { sessionId, groupNumber, rowKey, label, quantity, factor, updatedBy } = params;
+  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
+      setMessage("Accès non autorisé à ce groupe.");
+      return;
+    }
+
+    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3209,12 +3649,12 @@ console.log("SAVE AUTRES →", {
       return nextRows;
     }
 
-    nextRows.push(optimisticRow as GroupReportRow);
+    nextRows.push(optimisticRow as unknown as GroupReportRow);
     return nextRows;
   };
 
   setStudentAutresReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, studentGroupNumber)
+    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
   );
   setTeacherAutresReportRowsDb((prev) =>
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
@@ -3228,7 +3668,6 @@ console.log("SAVE AUTRES →", {
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
     await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
     await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
     return;
   }
@@ -3253,7 +3692,13 @@ async function saveSalleReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  const { sessionId, groupNumber, rowKey, label, quantity, factor, updatedBy } = params;
+  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
+      setMessage("Accès non autorisé à ce groupe.");
+      return;
+    }
+
+    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3294,12 +3739,12 @@ async function saveSalleReportRow(params: {
       return nextRows;
     }
 
-    nextRows.push(optimisticRow as GroupReportRow);
+    nextRows.push(optimisticRow as unknown as GroupReportRow);
     return nextRows;
   };
 
   setStudentSalleReportRowsDb((prev) =>
-    applyOptimisticUpdate(prev, studentSelectedSessionId, studentGroupNumber)
+    applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
   );
   setTeacherSalleReportRowsDb((prev) =>
     applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
@@ -3671,16 +4116,24 @@ async function handleCreateSessionQuick() {
   setSelectedSessionCode(normalizedCode);
   setSettingsTitle(normalizedCode);
   setSettingsCampus("");
-  setSettingsAllowedEmailsText(teacherUserEmail || "");
+
+  if (assignmentMode === "emails") {
+    setSettingsAllowedEmailsText(teacherUserEmail || "");
+  } else {
+    setSettingsAllowedEmailsText("");
+  }
+
+  setAssignmentMethod("import");
+  setAssignmentRawText("");
   setQuickSessionCampus("");
   setQuickSessionProgramme("");
   setQuickSessionLevel("");
   setQuickSessionSuffix("");
+
   await loadTeacherSessions(teacherUserId);
   setScreen("teacher_session_settings");
   setMessage(`Session créée : ${normalizedCode}`);
 }
-
 async function handleOpenSession(session: SessionRow) {
   setMessage("");
   setSelectedSessionId(session.id);
@@ -3689,14 +4142,54 @@ async function handleOpenSession(session: SessionRow) {
   setSettingsTitle(session.title || "");
   setSettingsCampus(session.campus || "");
 
-  // ✅ Charger les emails depuis session_allowed_emails
   const { data: emailData } = await supabase
     .from("session_allowed_emails")
     .select("email")
     .eq("session_id", session.id);
-  setSettingsAllowedEmailsText(
-    (emailData ?? []).map((row: { email: string }) => row.email).join("\n")
-  );
+
+  const allowedEmailText = (emailData ?? []).map((row: { email: string }) => row.email).join("\n");
+  setSettingsAllowedEmailsText(allowedEmailText);
+
+  const { data: assignmentData } = await supabase
+    .from("session_student_assignments")
+    .select("email, first_name, last_name, group_number")
+    .eq("session_id", session.id)
+    .order("group_number", { ascending: true })
+    .order("last_name", { ascending: true });
+
+  if (assignmentData && assignmentData.length > 0) {
+    const loadedAssignmentsText = assignmentData
+      .map((student: any) =>
+        [
+          student.email ?? "",
+          student.first_name ?? "",
+          student.last_name ?? "",
+          student.group_number ?? "",
+        ].join(";")
+      )
+      .join("\n");
+
+    setAssignmentMode("groups");
+    setAssignmentMethod("import");
+    setAssignmentRawText(loadedAssignmentsText);
+    setSettingsAllowedEmailsText(
+      assignmentData.map((student: any) => normalizeEmail(String(student.email ?? ""))).join("\n")
+    );
+  } else {
+    const recoveredAssignments = parseStudentAssignments(allowedEmailText);
+
+    if (recoveredAssignments.length > 0) {
+      setAssignmentMode("groups");
+      setAssignmentMethod("import");
+      setAssignmentRawText(serializeStudentAssignments(recoveredAssignments));
+      setSettingsAllowedEmailsText(recoveredAssignments.map((student) => student.email).join("\n"));
+    } else {
+      setAssignmentMode("emails");
+      setAssignmentMethod("import");
+      setAssignmentRawText("");
+    }
+  }
+
 
   setTeacherMenu("session_open");
   setTeacherSessionTab(draft?.teacherSessionTab ?? "counts");
@@ -3709,7 +4202,7 @@ async function handleOpenSession(session: SessionRow) {
   await loadSessionSyntheseAccess(session.id);
   await loadTeacherGroupProposals(session.id);
   await loadConsolidatedProposals(session.id);
-  setMessage(`Session ouverte : ${session.session_code}`);
+  setMessage(`Session ouverte : ${formatSessionCode(session.session_code)}`);
 }
 
   async function handleDeleteSession(session: SessionRow) {
@@ -3732,7 +4225,9 @@ async function handleOpenSession(session: SessionRow) {
       setSelectedSessionCode("");
       setSettingsTitle("");
       setSettingsCampus("");
-      // ✅ CORRIGÉ : vider les emails dans handleDeleteSession
+setAssignmentMode("emails");
+setAssignmentMethod("import");
+setAssignmentRawText("");
       setSettingsAllowedEmailsText("");
       setCounts(EMPTY_COUNTS);
       setTeacherTransportReportRowsDb([]);
@@ -3754,6 +4249,126 @@ async function handleOpenSession(session: SessionRow) {
     setMessage(`Session supprimée : ${formatSessionCode(session.session_code)}`);
   }
 
+
+  function getNextAutoGroupNumber(assignments: StudentAssignmentDraft[]) {
+    const countsByGroup = Array.from({ length: 10 }, (_, index) => ({
+      groupNumber: index + 1,
+      count: assignments.filter((student) => student.group_number === index + 1).length,
+    }));
+
+    countsByGroup.sort((a, b) => {
+      if (a.count !== b.count) return a.count - b.count;
+      return a.groupNumber - b.groupNumber;
+    });
+
+    return countsByGroup[0]?.groupNumber ?? 1;
+  }
+
+  function resetNewStudentForm() {
+    setNewStudentEmail("");
+    setNewStudentFirstName("");
+    setNewStudentLastName("");
+    setNewStudentGroupNumber(1);
+    setAutoAssignNewStudentGroup(true);
+  }
+
+  function handleAddStudentToSessionDraft() {
+    const normalizedNewEmail = normalizeEmail(newStudentEmail);
+
+    if (!normalizedNewEmail || !normalizedNewEmail.includes("@")) {
+      setMessage("Ajout impossible : l'email de l'étudiant est obligatoire.");
+      return;
+    }
+
+    if (assignmentMode === "emails") {
+      const emails = settingsAllowedEmailsText
+        .split("\n")
+        .map((value) => normalizeEmail(value))
+        .filter(Boolean);
+
+      if (emails.includes(normalizedNewEmail)) {
+        setMessage("Cet étudiant est déjà présent dans la liste des emails autorisés.");
+        return;
+      }
+
+      setSettingsAllowedEmailsText([...emails, normalizedNewEmail].join("\n"));
+      resetNewStudentForm();
+      setMessage("Étudiant ajouté à la liste. Pensez à enregistrer les paramètres.");
+      return;
+    }
+
+    const firstName = newStudentFirstName.trim();
+    const lastName = newStudentLastName.trim();
+
+    if (!firstName || !lastName) {
+      setMessage("Ajout impossible : prénom et nom sont obligatoires pour une session avec assignation.");
+      return;
+    }
+
+    const currentAssignments = activeStudentAssignments;
+
+    if (currentAssignments.some((student) => student.email === normalizedNewEmail)) {
+      setMessage("Cet étudiant est déjà présent dans l'assignation.");
+      return;
+    }
+
+    const groupNumber = autoAssignNewStudentGroup
+      ? getNextAutoGroupNumber(currentAssignments)
+      : Number(newStudentGroupNumber);
+
+    if (!Number.isInteger(groupNumber) || groupNumber < 1 || groupNumber > 10) {
+      setMessage("Ajout impossible : le groupe doit être compris entre 1 et 10.");
+      return;
+    }
+
+    const nextAssignments = [
+      ...currentAssignments,
+      {
+        email: normalizedNewEmail,
+        first_name: firstName,
+        last_name: lastName,
+        group_number: groupNumber,
+      },
+    ];
+
+    setAssignmentMode("groups");
+    setAssignmentMethod("import");
+    setAssignmentRawText(serializeStudentAssignments(nextAssignments));
+    setSettingsAllowedEmailsText(nextAssignments.map((student) => student.email).join("\n"));
+    resetNewStudentForm();
+    setMessage(`Étudiant ajouté au groupe ${groupNumber}. Pensez à enregistrer les paramètres.`);
+  }
+
+  function downloadAssignmentExport() {
+    const sourceAssignments =
+      displayedStudentAssignments.length > 0 ? displayedStudentAssignments : activeStudentAssignments;
+
+    const assignments = [...sourceAssignments].sort((a, b) => {
+      if (a.group_number !== b.group_number) return a.group_number - b.group_number;
+      const lastNameCompare = formatAssignmentLastName(a).localeCompare(formatAssignmentLastName(b));
+      if (lastNameCompare !== 0) return lastNameCompare;
+      return formatAssignmentFirstName(a).localeCompare(formatAssignmentFirstName(b));
+    });
+
+    if (!assignments.length) {
+      setMessage("Aucune assignation à exporter.");
+      return;
+    }
+
+    const content = [
+      "Nom;Prénom;Groupe;Email",
+      ...assignments.map((student) => [
+        formatAssignmentLastName(student),
+        formatAssignmentFirstName(student),
+        String(student.group_number),
+        student.email,
+      ].join(";")),
+    ].join("\n");
+
+    downloadTextFile(`assignation_groupes_${formatSessionCode(selectedSessionCode || "session")}.csv`, content);
+  }
+
+
   async function handleSaveSessionSettings() {
     setMessage("");
 
@@ -3762,12 +4377,17 @@ async function handleOpenSession(session: SessionRow) {
       return;
     }
 
-    const allowedEmails = settingsAllowedEmailsText
-      .split("\n")
-      .map((v) => normalizeEmail(v))
-      .filter(Boolean);
+const assignmentsToSave = assignmentMode === "groups" ? activeStudentAssignments : [];
 
-    const { error } = await supabase.rpc("update_session_settings", {
+const allowedEmails =
+  assignmentMode === "groups"
+    ? assignmentsToSave.map((student) => student.email)
+    : settingsAllowedEmailsText
+        .split("\n")
+        .map((v) => normalizeEmail(v))
+        .filter(Boolean);
+
+            const { error } = await supabase.rpc("update_session_settings", {
       p_session_id: selectedSessionId,
       p_title: settingsTitle,
       p_campus: settingsCampus,
@@ -3778,6 +4398,45 @@ async function handleOpenSession(session: SessionRow) {
       setMessage(error.message);
       return;
     }
+
+    const { error: deleteAssignmentsError } = await supabase
+  .from("session_student_assignments")
+  .delete()
+  .eq("session_id", selectedSessionId);
+
+if (deleteAssignmentsError) {
+  setMessage(`Paramètres emails enregistrés, mais erreur suppression assignations : ${deleteAssignmentsError.message}`);
+  return;
+}
+
+if (assignmentMode === "groups") {
+  if (assignmentsToSave.length === 0) {
+    setMessage("Aucune assignation valide détectée. Vérifiez le format : email;prenom;nom;groupe.");
+    return;
+  }
+
+  const { error: insertAssignmentsError } = await supabase
+    .from("session_student_assignments")
+    .insert(
+      assignmentsToSave.map((student) => ({
+        session_id: selectedSessionId,
+        email: student.email,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        group_number: student.group_number,
+      }))
+    );
+
+  if (insertAssignmentsError) {
+    setMessage(`Paramètres emails enregistrés, mais erreur assignations : ${insertAssignmentsError.message}`);
+    return;
+  }
+
+  setAssignmentMode("groups");
+  setAssignmentMethod("import");
+  setAssignmentRawText(serializeStudentAssignments(assignmentsToSave));
+  setSettingsAllowedEmailsText(assignmentsToSave.map((student) => student.email).join("\n"));
+}
 
     await loadTeacherSessions(teacherUserId);
    setMessage(`Paramètres enregistrés pour ${formatSessionCode(selectedSessionCode)}`);
@@ -3801,71 +4460,69 @@ async function handleStudentEnter() {
   const normalizedStudentEmail = normalizeEmail(studentEmail);
   const normalizedSessionCode = studentCodeSession.trim().toLowerCase();
 
-const { data, error } = await supabase.rpc("get_open_session_by_code_for_student", {
-  p_session_code: normalizedSessionCode,
-  p_email: normalizedStudentEmail,
-});
-
-  let resolvedSessionData = data;
-
-  if ((!resolvedSessionData || !resolvedSessionData.length) && !error) {
-    const { data: fallbackSession, error: fallbackError } = await supabase
-      .from("sessions")
-      .select("id,session_code")
-      .eq("session_code", normalizedSessionCode)
-      .limit(1);
-
-    if (!fallbackError && fallbackSession?.length) {
-      resolvedSessionData = fallbackSession;
+  // Sécurité groupe étudiant : cette fonction SQL SECURITY DEFINER est la source de vérité.
+  // Elle renvoie une ligne uniquement si :
+  // - la session existe ;
+  // - l'email est autorisé ;
+  // - et, si la session a des assignations, l'email appartient bien à un groupe.
+  // On ne lit plus directement session_student_assignments côté étudiant, car une policy/RLS
+  // ou un fallback peut faire croire à tort qu'il n'y a pas d'assignation.
+  const { data: accessRows, error: accessError } = await supabase.rpc(
+    "get_student_session_access",
+    {
+      p_session_code: normalizedSessionCode,
+      p_email: normalizedStudentEmail,
     }
-  }
-
-  if ((!resolvedSessionData || !resolvedSessionData.length) && teacherSessions.length) {
-    const localSession = teacherSessions.find(
-      (session) => (session.session_code ?? "").trim().toLowerCase() === normalizedSessionCode
-    );
-
-    if (localSession) {
-      resolvedSessionData = [localSession];
-    }
-  }
-
-if (error || !resolvedSessionData || !resolvedSessionData.length) {
-  setMessage("Code session invalide ou email non autorisé.");
-  return;
-}
-
-  const sessionRow = Array.isArray(resolvedSessionData)
-    ? resolvedSessionData[0]
-    : resolvedSessionData;
-
-  const nextSessionId = String(sessionRow?.id ?? "");
-
-  const { data: allowedRows, error: allowedError } = await supabase
-    .from("session_allowed_emails")
-    .select("email")
-    .eq("session_id", nextSessionId);
-
-  if (allowedError) {
-    setMessage(`Erreur vérification email autorisé : ${allowedError.message}`);
-    return;
-  }
-
-  const allowedEmails = (allowedRows ?? []).map((row: { email: string | null }) =>
-    normalizeEmail(String(row.email ?? ""))
   );
 
-  if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedStudentEmail)) {
-    setMessage("Email non autorisé");
+  if (accessError) {
+    setMessage(`Erreur vérification accès étudiant : ${accessError.message}`);
     return;
+  }
+
+  const accessRow = Array.isArray(accessRows) ? accessRows[0] : accessRows;
+
+  if (!accessRow?.session_id) {
+    setMessage("Code session invalide, email non autorisé ou email non assigné à un groupe pour cette session.");
+    return;
+  }
+
+  const nextSessionId = String(accessRow.session_id);
+  const nextSessionCode = String(accessRow.session_code ?? normalizedSessionCode);
+  const assignedGroupNumber = Number(accessRow.assigned_group_number ?? 0);
+  const hasAssignments = Boolean(accessRow.has_assignments);
+
+  if (hasAssignments) {
+    if (!Number.isInteger(assignedGroupNumber) || assignedGroupNumber < 1 || assignedGroupNumber > 10) {
+      setMessage("Email non assigné à un groupe pour cette session.");
+      return;
+    }
+
+    setStudentAssignedGroup(assignedGroupNumber);
+    setStudentAssignedFirstName(String(accessRow.first_name ?? ""));
+    setStudentAssignedLastName(String(accessRow.last_name ?? ""));
+    setStudentGroupNumber(assignedGroupNumber);
+    setOpenProposalGroup(null);
+  } else {
+    setStudentAssignedGroup(null);
+    setStudentAssignedFirstName("");
+    setStudentAssignedLastName("");
   }
 
   setStudentEmail(normalizedStudentEmail);
   setStudentCodeSession(normalizedSessionCode);
   setStudentSelectedSessionId(nextSessionId);
-  setStudentSelectedSessionCode(sessionRow?.session_code ?? normalizedSessionCode);
+  setStudentSelectedSessionCode(nextSessionCode);
 
   await restoreStudentStateFromDraft(normalizedStudentEmail, normalizedSessionCode);
+
+  // Après restauration d'un brouillon, on force à nouveau le groupe assigné.
+  // Cela évite qu'un brouillon local réactive un ancien studentGroupNumber.
+  if (hasAssignments) {
+    setStudentAssignedGroup(assignedGroupNumber);
+    setStudentGroupNumber(assignedGroupNumber);
+    setOpenProposalGroup(null);
+  }
 
   await loadTransportReportableRows(nextSessionId, setStudentTransportReportableRows);
   await loadTransportReportRows(nextSessionId, setStudentTransportReportRowsDb);
@@ -4559,7 +5216,7 @@ function renderEquipementAnalysisTable(params: {
                         />
                       )}
                     </td>
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(row.factor)}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatFactorNumber(row.factor)}</td>
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(total)}</td>
                   </tr>
                 </React.Fragment>
@@ -4723,7 +5380,7 @@ function renderDejeunerAnalysisTable(params: {
                         />
                       )}
                     </td>
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(row.factor)}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatFactorNumber(row.factor)}</td>
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(total)}</td>
                   </tr>
                 </React.Fragment>
@@ -4954,7 +5611,7 @@ function renderAutresAnalysisTable(params: {
                     </td>
 
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                      {formatReportNumber(row.factor)}
+                      {formatFactorNumber(row.factor)}
                     </td>
 
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
@@ -5099,7 +5756,7 @@ function renderTransportAnalysisTable(params: {
                       />
                     )}
                   </td>
-                  <td style={styles.reportTd}>{formatReportNumber(row.factor)}</td>
+                  <td style={styles.reportTd}>{formatFactorNumber(row.factor)}</td>
                   <td style={styles.reportTd}>{formatReportNumber(total)}</td>
                 </tr>
               );
@@ -5205,18 +5862,16 @@ function renderSalleAnalysisTable(params: {
                         <option value={1}>Oui</option>
                       </select>
                     ) : (
-                      <input
-                        type="number"
-                        min="0"
+                      <DraftNumberInput
                         value={row.quantity}
                         style={styles.input}
-                        onChange={async (e) => {
+                        onCommit={async (value) => {
                           await onSave?.({
                             sessionId,
                             groupNumber,
                             rowKey: row.rowKey,
                             label: row.label,
-                            quantity: Number(e.target.value || 0),
+                            quantity: value,
                             factor: row.factor,
                             updatedBy,
                           });
@@ -5226,7 +5881,7 @@ function renderSalleAnalysisTable(params: {
                   </td>
 
                   <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                    {formatReportNumber(row.factor)}
+                    {formatFactorNumber(row.factor)}
                   </td>
                   <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
                     {formatReportNumber(total)}
@@ -6511,7 +7166,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <header style={styles.topHeader}>
             <div style={styles.topHeaderTitle}>PARAMÉTRER LA SESSION</div>
             <div style={styles.topHeaderSub}>
-              Professeur : {teacherDisplayName || teacherUserEmail || "—"} · Code session : {selectedSessionCode || "—"}
+              Professeur : {teacherDisplayName || teacherUserEmail || "—"} · Code session : {selectedSessionCode ? formatSessionCode(selectedSessionCode) : "—"}
             </div>
           </header>
 
@@ -6522,12 +7177,142 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               <label style={styles.label}>Code de session</label>
               <input style={styles.input} value={settingsTitle} onChange={(e) => setSettingsTitle(e.target.value)} />
 
-              <label style={styles.label}>Emails autorisés (un par ligne)</label>
-              <textarea
-                style={{ ...styles.input, minHeight: 180 } as React.CSSProperties}
-                value={settingsAllowedEmailsText}
-                onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
-              />
+              <label style={styles.label}>Mode d'accès étudiant</label>
+              <div style={{ ...styles.emptyText, marginBottom: 16 }}>
+                {assignmentMode === "groups"
+                  ? "Assignation des étudiants à un groupe"
+                  : "Liste simple d'emails autorisés"}
+              </div>
+
+              {assignmentMode === "groups" && (
+                <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
+                  <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
+
+                <label style={styles.label}>Email</label>
+                <input
+                  style={styles.input}
+                  value={newStudentEmail}
+                  onChange={(e) => setNewStudentEmail(e.target.value)}
+                  placeholder="email@exemple.com"
+                />
+
+                {assignmentMode === "groups" && (
+                  <>
+                    <label style={styles.label}>Nom</label>
+                    <input
+                      style={styles.input}
+                      value={newStudentLastName}
+                      onChange={(e) => setNewStudentLastName(e.target.value)}
+                      placeholder="Nom"
+                    />
+
+                    <label style={styles.label}>Prénom</label>
+                    <input
+                      style={styles.input}
+                      value={newStudentFirstName}
+                      onChange={(e) => setNewStudentFirstName(e.target.value)}
+                      placeholder="Prénom"
+                    />
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={autoAssignNewStudentGroup}
+                        onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
+                      />
+                      <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
+                    </div>
+
+                    {!autoAssignNewStudentGroup && (
+                      <>
+                        <label style={styles.label}>Groupe</label>
+                        <select
+                          style={styles.input}
+                          value={newStudentGroupNumber}
+                          onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
+                        >
+                          {studentGroups.map((group) => (
+                            <option key={group} value={group}>
+                              Groupe {group}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </>
+                )}
+
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                    <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
+                      Ajouter l'étudiant
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {assignmentMode === "emails" ? (
+                <>
+                  <label style={styles.label}>Emails autorisés (un par ligne)</label>
+                  <textarea
+                    style={{ ...styles.input, minHeight: 180 } as React.CSSProperties}
+                    value={settingsAllowedEmailsText}
+                    onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
+                    placeholder="Un email par ligne"
+                  />
+
+                  <div style={{ ...styles.emptyText, marginTop: 10 }}>
+                    {
+                      settingsAllowedEmailsText
+                        .split("\n")
+                        .map((value) => normalizeEmail(value))
+                        .filter(Boolean).length
+                    } email(s) autorisé(s).
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
+                    Liste avec assignation
+                  </label>
+
+                  <textarea
+                    style={{ ...styles.input, minHeight: 170 } as React.CSSProperties}
+                    value={assignmentRawText}
+                    onChange={(e) => setAssignmentRawText(e.target.value)}
+                    placeholder={"email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
+                  />
+
+                  <div style={{ ...styles.emptyText, marginTop: 10 }}>
+                    {activeStudentAssignments.length} assignation(s) valide(s) détectée(s).
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                    <button
+                      type="button"
+                      style={styles.primaryButton}
+                      onClick={downloadAssignmentExport}
+                    >
+                      Exporter l'assignation
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Rechercher par nom, prénom, groupe ou email..."
+                    value={assignmentSearch}
+                    onChange={(e) => setAssignmentSearch(e.target.value)}
+                    style={{ ...styles.input, marginTop: 14 }}
+                  />
+
+                  {activeStudentAssignments.length > 0 ? (
+                    renderAssignmentsTable(activeStudentAssignments, assignmentSearch)
+                  ) : (
+                    <div style={{ ...styles.emptyText, marginTop: 12 }}>
+                      Aucune assignation valide détectée.
+                    </div>
+                  )}
+                </>
+              )}
 
               <div style={styles.row}>
                 <button style={styles.primaryButton} onClick={handleSaveSessionSettings}>
@@ -6581,26 +7366,50 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <section style={styles.bigPanel}>
             <h2 style={styles.panelTitle}>Analyses</h2>
 
+            {studentAssignedGroup && studentGroupNumber !== studentAssignedGroup && (
+              <div style={styles.infoMessage}>
+                Accès limité au groupe {studentAssignedGroup}. Redirection automatique vers votre groupe.
+              </div>
+            )}
+
             <div style={styles.innerCardFull}>
 <div style={styles.groupTabsRow}>
-  {studentGroups.map((groupNumber) => (
+  {(studentAssignedGroup ? [studentAssignedGroup] : studentGroups).map((groupNumber) => (
     <button
       key={groupNumber}
       type="button"
-      style={studentGroupNumber === groupNumber ? styles.groupTabButtonActive : styles.groupTabButton}
-onClick={() => {
-  setStudentGroupNumber(groupNumber);
-  setOpenProposalGroup(null);
-}}
+      disabled={Boolean(studentAssignedGroup && groupNumber !== studentAssignedGroup)}
+      style={effectiveStudentGroupNumber === groupNumber ? styles.groupTabButtonActive : styles.groupTabButton}
+      onClick={() => {
+        if (studentAssignedGroup) {
+          setStudentGroupNumber(studentAssignedGroup);
+          setOpenProposalGroup(null);
+          return;
+        }
+
+        setStudentGroupNumber(groupNumber);
+        setOpenProposalGroup(null);
+      }}
     >
       Groupe {groupNumber}
     </button>
   ))}
 </div>
             </div>
-
+{studentAssignedGroup && (
+  <div style={styles.innerCardFull}>
+    <div style={styles.emptyText}>
+      Étudiant :{" "}
+      <strong>
+        {[studentAssignedFirstName, studentAssignedLastName].filter(Boolean).join(" ") ||
+          studentEmail}
+      </strong>{" "}
+      — Groupe assigné : <strong>{studentAssignedGroup}</strong>
+    </div>
+  </div>
+)}
             <div style={styles.innerCardFull}>
-              <h3 style={styles.innerTitle}>Groupe {studentGroupNumber}</h3>
+              <h3 style={styles.innerTitle}>Groupe {effectiveStudentGroupNumber}</h3>
               <p style={styles.bodyText}>
                 <strong>Thématique attribuée :</strong> {getThemeLabel(studentTheme)}
               </p>
@@ -6663,9 +7472,9 @@ onClick={() => {
 
                 <button
                   type="button"
-                  style={openProposalGroup === studentGroupNumber ? styles.sidebarButtonActive : styles.sidebarButton}
+                  style={openProposalGroup === effectiveStudentGroupNumber ? styles.sidebarButtonActive : styles.sidebarButton}
                   onClick={() => {
-  setOpenProposalGroup((prev) => (prev === studentGroupNumber ? null : studentGroupNumber));
+  setOpenProposalGroup((prev) => (prev === effectiveStudentGroupNumber ? null : effectiveStudentGroupNumber));
   setStudentShowCarbonChart(false);
 }}
                 >
@@ -6673,51 +7482,51 @@ onClick={() => {
                 </button>
               </div>
 
-              {openProposalGroup === studentGroupNumber && (
+              {openProposalGroup === effectiveStudentGroupNumber && (
                 <div style={styles.proposalsCard}>
-                  <h3 style={styles.innerTitle}>Propositions du groupe {studentGroupNumber}</h3>
+                  <h3 style={styles.innerTitle}>Propositions du groupe {effectiveStudentGroupNumber}</h3>
 
                   <div style={styles.column}>
                     <textarea
                       style={styles.proposalTextarea}
                       placeholder="Proposition 1"
-                      value={teacherGroupProposals[studentGroupNumber]?.proposal_1 ?? ""}
+                      value={teacherGroupProposals[effectiveStudentGroupNumber]?.proposal_1 ?? ""}
                       onChange={(e) =>
-                        updateTeacherGroupProposalField(studentGroupNumber, "proposal_1", e.target.value)
+                        updateTeacherGroupProposalField(effectiveStudentGroupNumber, "proposal_1", e.target.value)
                       }
-                      readOnly={Boolean(teacherGroupProposals[studentGroupNumber]?.is_validated)}
+                      readOnly={Boolean(teacherGroupProposals[effectiveStudentGroupNumber]?.is_validated)}
                       maxLength={220}
                     />
 
                     <textarea
                       style={styles.proposalTextarea}
                       placeholder="Proposition 2"
-                      value={teacherGroupProposals[studentGroupNumber]?.proposal_2 ?? ""}
+                      value={teacherGroupProposals[effectiveStudentGroupNumber]?.proposal_2 ?? ""}
                       onChange={(e) =>
-                        updateTeacherGroupProposalField(studentGroupNumber, "proposal_2", e.target.value)
+                        updateTeacherGroupProposalField(effectiveStudentGroupNumber, "proposal_2", e.target.value)
                       }
-                      readOnly={Boolean(teacherGroupProposals[studentGroupNumber]?.is_validated)}
+                      readOnly={Boolean(teacherGroupProposals[effectiveStudentGroupNumber]?.is_validated)}
                       maxLength={220}
                     />
 
                     <textarea
                       style={styles.proposalTextarea}
                       placeholder="Proposition 3"
-                      value={teacherGroupProposals[studentGroupNumber]?.proposal_3 ?? ""}
+                      value={teacherGroupProposals[effectiveStudentGroupNumber]?.proposal_3 ?? ""}
                       onChange={(e) =>
-                        updateTeacherGroupProposalField(studentGroupNumber, "proposal_3", e.target.value)
+                        updateTeacherGroupProposalField(effectiveStudentGroupNumber, "proposal_3", e.target.value)
                       }
-                      readOnly={Boolean(teacherGroupProposals[studentGroupNumber]?.is_validated)}
+                      readOnly={Boolean(teacherGroupProposals[effectiveStudentGroupNumber]?.is_validated)}
                       maxLength={220}
                     />
                   </div>
 
                   <div style={{ ...styles.row, marginTop: 16 }}>
-                    {!teacherGroupProposals[studentGroupNumber]?.is_validated ? (
+                    {!teacherGroupProposals[effectiveStudentGroupNumber]?.is_validated ? (
                       <button
                         type="button"
                         style={styles.primaryButton}
-                        onClick={() => handleValidateGroupProposals(studentGroupNumber, "student")}
+                        onClick={() => handleValidateGroupProposals(effectiveStudentGroupNumber, "student")}
                       >
                         Valider les propositions
                       </button>
@@ -6725,7 +7534,7 @@ onClick={() => {
                       <button
                         type="button"
                         style={styles.secondaryButton}
-                        onClick={() => handleUnlockGroupProposals(studentGroupNumber, "student")}
+                        onClick={() => handleUnlockGroupProposals(effectiveStudentGroupNumber, "student")}
                       >
                         Modifier les propositions
                       </button>
@@ -6796,7 +7605,7 @@ onClick={() => {
 {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "transport" && (
   renderTransportAnalysisTable({
     rows: studentTransportRows,
-    groupNumber: studentGroupNumber,
+    groupNumber: effectiveStudentGroupNumber,
     sessionId: studentSelectedSessionId,
     updatedBy: null,
     readOnly: false,
@@ -6807,7 +7616,7 @@ onClick={() => {
 {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "dejeuner" && (
   renderDejeunerAnalysisTable({
     rows: studentDejeunerRows,
-    groupNumber: studentGroupNumber,
+    groupNumber: effectiveStudentGroupNumber,
     sessionId: studentSelectedSessionId,
     updatedBy: null,
     readOnly: false,
@@ -6818,7 +7627,7 @@ onClick={() => {
 {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "equipement" && (
   renderEquipementAnalysisTable({
     rows: studentEquipementRows,
-    groupNumber: studentGroupNumber,
+    groupNumber: effectiveStudentGroupNumber,
     sessionId: studentSelectedSessionId,
     updatedBy: null,
     readOnly: false,
@@ -6829,7 +7638,7 @@ onClick={() => {
 {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && studentTheme === "autres" &&
   renderAutresAnalysisTable({
     rows: studentAutresRows,
-    groupNumber: studentGroupNumber,
+    groupNumber: effectiveStudentGroupNumber,
     sessionId: studentSelectedSessionId,
     updatedBy: null,
     readOnly: false,
@@ -6839,7 +7648,7 @@ onClick={() => {
 {studentAnalysesTab === "report_des_donnees" && !studentShowCarbonChart && openProposalGroup === null && studentTheme === "salle" && (
   renderSalleAnalysisTable({
     rows: studentSalleRows,
-    groupNumber: studentGroupNumber,
+    groupNumber: effectiveStudentGroupNumber,
     sessionId: studentSelectedSessionId,
     updatedBy: null,
     readOnly: false,
@@ -7205,6 +8014,30 @@ if (screen === "student_vote") {
   </strong>
 </div>
 
+<div style={{ marginTop: 16 }}>
+  <label style={styles.label}>Mode d'accès étudiant</label>
+
+  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <label>
+      <input
+        type="radio"
+        checked={assignmentMode === "emails"}
+        onChange={() => setAssignmentMode("emails")}
+      />{" "}
+      Liste simple d'emails autorisés
+    </label>
+
+    <label>
+      <input
+        type="radio"
+        checked={assignmentMode === "groups"}
+        onChange={() => setAssignmentMode("groups")}
+      />{" "}
+      Assignation des étudiants à un groupe
+    </label>
+  </div>
+</div>
+
 <button style={styles.primaryButton} onClick={handleCreateSessionQuick}>
   Créer la session
 </button>
@@ -7225,11 +8058,19 @@ if (screen === "student_vote") {
                             </div>
                           </div>
 
-                          <div style={styles.row}>
-                            <button style={styles.secondaryButton} onClick={() => handleOpenSession(session)}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 10,
+                              alignItems: "stretch",
+                              minWidth: 112,
+                            }}
+                          >
+                            <button style={{ ...styles.secondaryButton, width: "100%" }} onClick={() => handleOpenSession(session)}>
                               Ouvrir
                             </button>
-                            <button style={styles.deleteButton} onClick={() => handleDeleteSession(session)}>
+                            <button style={{ ...styles.deleteButton, width: "100%" }} onClick={() => handleDeleteSession(session)}>
                               Supprimer
                             </button>
                           </div>
@@ -7334,32 +8175,62 @@ if (screen === "student_vote") {
                   <h3 style={styles.innerTitle}>Utilisateurs autorisés</h3>
 
                   <div style={styles.sessionItemMeta}>
-                    Session : <strong>{selectedSessionCode || "—"}</strong>
+                    Session : <strong>{formatSessionCode(selectedSessionCode) || "—"}</strong>
                   </div>
 
                   <input
                     type="text"
-                    placeholder="Rechercher un email..."
+                    placeholder="Rechercher par nom, prénom, groupe ou email..."
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
                     style={{ ...styles.input, marginTop: 10 }}
                   />
 
-                  {!sortedFilteredEmails.length ? (
+                  {displayedStudentAssignments.length > 0 ? (
+                    renderAssignmentsTable(displayedStudentAssignments, userSearch)
+                  ) : !sortedFilteredEmails.length ? (
                     <div style={{ ...styles.emptyText, marginTop: 12 }}>
                       Aucun email trouvé.
                     </div>
                   ) : (
-                    <div style={{ marginTop: 12 }}>
-                      {sortedFilteredEmails.map((email) => (
-                        <div key={email} style={styles.sessionItemMeta}>
-                          • {email}
-                        </div>
-                      ))}
+                    <div
+                      style={{
+                        maxHeight: 360,
+                        overflowY: "auto",
+                        overflowX: "auto",
+                        marginTop: 12,
+                        border: "1px solid #d8e0ec",
+                        borderRadius: 14,
+                        background: "#fff",
+                      }}
+                    >
+                      <table style={{ ...styles.reportTable, marginTop: 0 }}>
+                        <thead>
+                          <tr>
+                            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Email</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedFilteredEmails.map((email) => (
+                            <tr key={email}>
+                              <td style={styles.reportTd}>{email}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
 
                   <div style={{ ...styles.row, marginTop: 16 }}>
+                    {displayedStudentAssignments.length > 0 && (
+                      <button
+                        style={styles.primaryButton}
+                        onClick={downloadAssignmentExport}
+                      >
+                        Exporter l'assignation
+                      </button>
+                    )}
+
                     <button
                       style={styles.secondaryButton}
                       onClick={() => setScreen("teacher_session_settings")}
@@ -8178,7 +9049,7 @@ panelTitle: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 12,
+    gap: 16,
     border: "1px solid #e2e8f0",
   },
   sessionItemTitle: {
