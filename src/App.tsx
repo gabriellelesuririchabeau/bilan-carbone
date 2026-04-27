@@ -858,8 +858,8 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
-  const debounceRef = useRef<number | null>(null);
-  const saveSeqRef = useRef(0);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commitSequenceRef = useRef(0);
 
   useEffect(() => {
     if (!isFocused) {
@@ -869,8 +869,8 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
 
   useEffect(() => {
     return () => {
-      if (debounceRef.current !== null) {
-        window.clearTimeout(debounceRef.current);
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
       }
     };
   }, []);
@@ -884,31 +884,41 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     return Math.max(min, numericValue);
   }
 
-  async function commitParsedValue(numericValue: number, syncDisplayedValue: boolean) {
-    const seq = saveSeqRef.current + 1;
-    saveSeqRef.current = seq;
+  async function commitValue(nextValue = draftValue, options?: { resetInvalid?: boolean }) {
+    const numericValue = parseDraft(nextValue);
+
+    // Important : pendant la saisie, un input type="number" peut valoir "".
+    // On ne sauvegarde jamais ce vide comme 0, sinon une sauvegarde asynchrone
+    // tardive peut écraser la vraie valeur en base.
+    if (numericValue === null) {
+      if (options?.resetInvalid) {
+        setDraftValue(String(value ?? 0));
+      }
+      return;
+    }
+
+    const sequence = commitSequenceRef.current + 1;
+    commitSequenceRef.current = sequence;
+
     await onCommit(numericValue);
-    if (saveSeqRef.current === seq && syncDisplayedValue) {
+
+    // Si une saisie plus récente a déjà lancé une sauvegarde, on ne réécrit pas
+    // l affichage avec une ancienne valeur.
+    if (commitSequenceRef.current === sequence) {
       setDraftValue(String(numericValue));
     }
   }
 
-  async function commitValue(nextValue = draftValue, syncDisplayedValue = true) {
-    const numericValue = parseDraft(nextValue);
-    if (numericValue === null) {
-      if (syncDisplayedValue) setDraftValue(String(value ?? 0));
-      return;
-    }
-    await commitParsedValue(numericValue, syncDisplayedValue);
-  }
-
   function scheduleAutosave(nextValue: string) {
-    if (debounceRef.current !== null) {
-      window.clearTimeout(debounceRef.current);
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
     }
+
+    // Ne pas autosauvegarder un champ temporairement vide.
     if (parseDraft(nextValue) === null) return;
-    debounceRef.current = window.setTimeout(() => {
-      void commitValue(nextValue, false);
+
+    autosaveTimerRef.current = setTimeout(() => {
+      void commitValue(nextValue);
     }, 350);
   }
 
@@ -926,19 +936,19 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       }}
       onBlur={() => {
         setIsFocused(false);
-        if (debounceRef.current !== null) {
-          window.clearTimeout(debounceRef.current);
-          debounceRef.current = null;
+        if (autosaveTimerRef.current) {
+          clearTimeout(autosaveTimerRef.current);
+          autosaveTimerRef.current = null;
         }
-        void commitValue();
+        void commitValue(draftValue, { resetInvalid: true });
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
-          if (debounceRef.current !== null) {
-            window.clearTimeout(debounceRef.current);
-            debounceRef.current = null;
+          if (autosaveTimerRef.current) {
+            clearTimeout(autosaveTimerRef.current);
+            autosaveTimerRef.current = null;
           }
-          void commitValue(e.currentTarget.value);
+          void commitValue(e.currentTarget.value, { resetInvalid: true });
           e.currentTarget.blur();
         }
       }}
@@ -3057,23 +3067,82 @@ async function loadGroupReportRowsWithFallback(
     return;
   }
 
-  // Lecture stricte de la session ouverte : aucun fallback par code session.
-  // Le fallback récupérait les lignes d'anciennes sessions portant le même code.
-  const { data, error } = await supabase
-    .from("group_reports")
-    .select("*")
-    .eq("session_id", sessionId)
-    .in("theme", themes)
-    .order("group_number", { ascending: true })
-    .order("row_key", { ascending: true });
+  const fetchRowsForSessionIds = async (sessionIds: string[]) => {
+    let query = supabase
+      .from("group_reports")
+      .select("*")
+      .in("theme", themes)
+      .order("group_number", { ascending: true })
+      .order("row_key", { ascending: true });
 
-  if (error) {
-    setMessage(`Erreur chargement report ${errorLabel} : ${error.message}`);
+    if (sessionIds.length === 1) {
+      query = query.eq("session_id", sessionIds[0]);
+    } else {
+      query = query.in("session_id", sessionIds);
+    }
+
+    return await query;
+  };
+
+  const direct = await fetchRowsForSessionIds([sessionId]);
+
+  if (direct.error) {
+    setMessage(`Erreur chargement report ${errorLabel} : ${direct.error.message}`);
     setRows([]);
     return;
   }
 
-  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
+  const directRows = normalizeGroupReportRows((direct.data ?? []) as GroupReportRow[]);
+
+  if (directRows.length > 0) {
+    setRows(directRows);
+    return;
+  }
+
+  const candidateCode = String(selectedSessionCode || studentSelectedSessionCode || studentCodeSession || "").trim();
+  if (!candidateCode) {
+    setRows([]);
+    return;
+  }
+
+  const { data: matchingSessions, error: sessionError } = await supabase
+    .from("sessions")
+    .select("id, session_code")
+    .ilike("session_code", candidateCode)
+    .limit(20);
+
+  if (sessionError) {
+    console.warn(`Fallback session_code impossible pour ${errorLabel}`, sessionError.message);
+    setRows([]);
+    return;
+  }
+
+  const matchingSessionIds = Array.from(
+    new Set((matchingSessions ?? []).map((session: any) => String(session.id)).filter(Boolean))
+  );
+
+  if (!matchingSessionIds.length || (matchingSessionIds.length === 1 && matchingSessionIds[0] === sessionId)) {
+    setRows([]);
+    return;
+  }
+
+  const fallback = await fetchRowsForSessionIds(matchingSessionIds);
+
+  if (fallback.error) {
+    setMessage(`Erreur chargement report ${errorLabel} : ${fallback.error.message}`);
+    setRows([]);
+    return;
+  }
+
+  const fallbackRows = normalizeGroupReportRows((fallback.data ?? []) as GroupReportRow[]);
+  if (fallbackRows.length > 0) {
+    console.warn(
+      `[DEBUG] Reports ${errorLabel} chargés via fallback session_code`,
+      { requestedSessionId: sessionId, candidateCode, matchingSessionIds, rows: fallbackRows.length }
+    );
+  }
+
+  setRows(fallbackRows);
 }
 
 async function loadEquipementReportRows(
@@ -3577,14 +3646,6 @@ async function saveEquipementReportRow(params: {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
     return;
   }
-
-  await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
-  await loadEquipementReportableRows(sessionId);
-  if (selectedSessionId === sessionId) {
-    await loadEquipementReportRows(sessionId, setTeacherEquipementReportRowsDb);
-    await loadTeacherEquipementReportableRows(sessionId);
-  }
-
 }
 
 async function saveAutresReportRow(params: {
@@ -3654,14 +3715,6 @@ async function saveAutresReportRow(params: {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
     return;
   }
-
-  await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-  await loadAutresReportableRows(sessionId);
-  if (selectedSessionId === sessionId) {
-    await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
-    await loadTeacherAutresReportableRows(sessionId);
-  }
-
 }
 
 async function saveSalleReportRow(params: {
@@ -3731,12 +3784,6 @@ async function saveSalleReportRow(params: {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
     return;
   }
-
-  await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
-  if (selectedSessionId === sessionId) {
-    await loadSalleReportRows(sessionId, setTeacherSalleReportRowsDb);
-  }
-
 }
 
   useEffect(() => {
@@ -4452,24 +4499,24 @@ async function handleStudentEnter() {
     return;
   }
 
-  // On choisit explicitement la session la plus récente portant ce code.
-  // Cela évite qu'une ancienne session supprimée/recréée avec le même code soit utilisée.
-  const { data: matchingSessions, error: matchingSessionsError } = await supabase
-    .from("sessions")
-    .select("id, session_code, created_at")
-    .ilike("session_code", normalizedSessionCode)
-    .order("created_at", { ascending: false })
-    .limit(1);
+  // IMPORTANT : get_student_session_access peut renvoyer un ancien session_id si une session
+  // portant le même code a existé. Pour que l étudiant et le professeur lisent/écrivent
+  // exactement dans la même session, on recale toujours l id sur la session ouverte
+  // correspondant au code saisi. C est cette même source qui est utilisée côté professeur.
+  const { data: openSessionRows, error: openSessionError } = await supabase.rpc(
+    "get_open_session_by_code",
+    { p_session_code: normalizedSessionCode }
+  );
 
-  if (matchingSessionsError) {
-    setMessage(`Erreur chargement session : ${matchingSessionsError.message}`);
+  if (openSessionError) {
+    setMessage(`Erreur chargement session ouverte : `);
     return;
   }
 
-  const openSessionRow = Array.isArray(matchingSessions) ? matchingSessions[0] : matchingSessions;
+  const openSessionRow = Array.isArray(openSessionRows) ? openSessionRows[0] : openSessionRows;
 
   if (!openSessionRow?.id) {
-    setMessage("Session introuvable pour ce code.");
+    setMessage("Session introuvable ou fermée pour ce code.");
     return;
   }
 
@@ -4477,9 +4524,9 @@ async function handleStudentEnter() {
   const nextSessionCode = String(openSessionRow.session_code ?? accessRow.session_code ?? normalizedSessionCode);
 
   if (String(accessRow.session_id) !== nextSessionId) {
-    console.warn("Session étudiant recalée sur la session la plus récente", {
+    console.warn("Session étudiant recalée sur la session ouverte", {
       accessSessionId: String(accessRow.session_id),
-      latestSessionId: nextSessionId,
+      openSessionId: nextSessionId,
       code: normalizedSessionCode,
     });
   }
@@ -4568,7 +4615,6 @@ function removeTrip(index: number) {
     await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
     await loadAutresReportableRows(sessionId);
     await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
   }
 
 async function refreshStudentAnalysisData() {
