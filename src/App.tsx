@@ -391,12 +391,7 @@ function buildAutresRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      factor:
-        baseRow.factor === 0
-          ? 0
-          : Number(dbRow?.factor ?? 0) > 0
-            ? Number(dbRow?.factor)
-            : baseRow.factor,
+      factor: Number(dbRow?.factor ?? baseRow.factor),
     };
   });
 }
@@ -418,7 +413,7 @@ function buildSalleRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      factor: Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
+      factor: Number(dbRow?.factor ?? baseRow.factor),
     };
   });
 }
@@ -626,24 +621,6 @@ function formatReportNumber(value: number | string | null | undefined, digits = 
   return new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: 0,
     maximumFractionDigits: digits,
-  })
-    .format(numericValue)
-    .replace(/\./g, ",");
-}
-
-function formatFactorNumber(value: number | string | null | undefined) {
-  const numericValue =
-    typeof value === "string"
-      ? Number(value.replace(",", "."))
-      : Number(value ?? 0);
-
-  if (!Number.isFinite(numericValue)) {
-    return "0";
-  }
-
-  return new Intl.NumberFormat("fr-FR", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 4,
   })
     .format(numericValue)
     .replace(/\./g, ",");
@@ -3668,6 +3645,7 @@ console.log("SAVE AUTRES →", {
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
     await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
+    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
     await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
     return;
   }
@@ -5216,7 +5194,7 @@ function renderEquipementAnalysisTable(params: {
                         />
                       )}
                     </td>
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatFactorNumber(row.factor)}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(row.factor)}</td>
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(total)}</td>
                   </tr>
                 </React.Fragment>
@@ -5380,7 +5358,7 @@ function renderDejeunerAnalysisTable(params: {
                         />
                       )}
                     </td>
-                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatFactorNumber(row.factor)}</td>
+                    <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(row.factor)}</td>
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>{formatReportNumber(total)}</td>
                   </tr>
                 </React.Fragment>
@@ -5611,7 +5589,7 @@ function renderAutresAnalysisTable(params: {
                     </td>
 
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                      {formatFactorNumber(row.factor)}
+                      {formatReportNumber(row.factor)}
                     </td>
 
                     <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
@@ -5756,7 +5734,7 @@ function renderTransportAnalysisTable(params: {
                       />
                     )}
                   </td>
-                  <td style={styles.reportTd}>{formatFactorNumber(row.factor)}</td>
+                  <td style={styles.reportTd}>{formatReportNumber(row.factor)}</td>
                   <td style={styles.reportTd}>{formatReportNumber(total)}</td>
                 </tr>
               );
@@ -5862,16 +5840,18 @@ function renderSalleAnalysisTable(params: {
                         <option value={1}>Oui</option>
                       </select>
                     ) : (
-                      <DraftNumberInput
+                      <input
+                        type="number"
+                        min="0"
                         value={row.quantity}
                         style={styles.input}
-                        onCommit={async (value) => {
+                        onChange={async (e) => {
                           await onSave?.({
                             sessionId,
                             groupNumber,
                             rowKey: row.rowKey,
                             label: row.label,
-                            quantity: value,
+                            quantity: Number(e.target.value || 0),
                             factor: row.factor,
                             updatedBy,
                           });
@@ -5881,7 +5861,7 @@ function renderSalleAnalysisTable(params: {
                   </td>
 
                   <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                    {formatFactorNumber(row.factor)}
+                    {formatReportNumber(row.factor)}
                   </td>
                   <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
                     {formatReportNumber(total)}
