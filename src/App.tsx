@@ -2958,7 +2958,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
     }
 
     const { data, error } = await supabase
-      .from("group_reports").select("id,session_id,group_number,theme,row_key,label,category,persons,quantity,distance_total_km,distance_total,emission_factor,factor,total,created_at,updated_at")
+      .from("group_reports").select("id,session_id,group_number,theme,row_key,label,persons,quantity,distance_total_km,factor,updated_by,created_at,updated_at")
       .eq("session_id", sessionId)
       .eq("theme", "transport")
       .order("group_number", { ascending: true })
@@ -2983,7 +2983,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
     }
 
     const { data, error } = await supabase
-      .from("group_reports").select("id,session_id,group_number,theme,row_key,label,category,persons,quantity,distance_total_km,distance_total,emission_factor,factor,total,created_at,updated_at")
+      .from("group_reports").select("id,session_id,group_number,theme,row_key,label,persons,quantity,distance_total_km,factor,updated_by,created_at,updated_at")
       .eq("session_id", sessionId)
       .eq("theme", "dejeuner")
       .order("group_number", { ascending: true })
@@ -3007,7 +3007,7 @@ async function loadEquipementReportRows(
   }
 
   const { data, error } = await supabase
-    .from("group_reports").select("id,session_id,group_number,theme,row_key,label,category,persons,quantity,distance_total_km,distance_total,emission_factor,factor,total,created_at,updated_at")
+    .from("group_reports").select("id,session_id,group_number,theme,row_key,label,persons,quantity,distance_total_km,factor,updated_by,created_at,updated_at")
     .eq("session_id", sessionId)
     .eq("theme", "equipement")
     .order("group_number", { ascending: true })
@@ -3120,7 +3120,7 @@ async function loadAutresReportRows(
   }
 
   const { data, error } = await supabase
-    .from("group_reports").select("id,session_id,group_number,theme,row_key,label,category,persons,quantity,distance_total_km,distance_total,emission_factor,factor,total,created_at,updated_at")
+    .from("group_reports").select("id,session_id,group_number,theme,row_key,label,persons,quantity,distance_total_km,factor,updated_by,created_at,updated_at")
     .eq("session_id", sessionId)
     .eq("theme", "autres_consommations")
     .order("group_number", { ascending: true })
@@ -3144,7 +3144,7 @@ async function loadSalleReportRows(
   }
 
   const { data, error } = await supabase
-    .from("group_reports").select("id,session_id,group_number,theme,row_key,label,category,persons,quantity,distance_total_km,distance_total,emission_factor,factor,total,created_at,updated_at")
+    .from("group_reports").select("id,session_id,group_number,theme,row_key,label,persons,quantity,distance_total_km,factor,updated_by,created_at,updated_at")
     .eq("session_id", sessionId)
     .eq("theme", "salle")
     .order("group_number", { ascending: true })
