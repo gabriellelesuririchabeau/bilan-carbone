@@ -317,6 +317,40 @@ function compareAutresReportableRows(
 
 
 
+function normalizeReportTheme(theme: string | null | undefined) {
+  const value = String(theme ?? "").trim();
+  if (value === "autres") return "autres_consommations";
+  if (value === "autres_consommation") return "autres_consommations";
+  if (value === "salle_de_cours") return "salle";
+  return value;
+}
+
+function normalizeReportRowKey(rowKey: string | null | undefined) {
+  return String(rowKey ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function getAutresCandidateKeys(rowKey: string) {
+  const candidateKeys = [rowKey];
+
+  if (rowKey === "coffee") candidateKeys.push("cafe", "café");
+  if (rowKey === "tea") candidateKeys.push("the", "thé");
+  if (rowKey === "milk_chocolate") candidateKeys.push("hot_chocolate", "chocolat_chaud", "chocolat_lait");
+  if (rowKey === "chocolate_bar") candidateKeys.push("chocolat_bar", "barre_chocolatee", "chocolat", "barre_chocolat");
+  if (rowKey === "viennoiserie") candidateKeys.push("viennoiseries");
+  if (rowKey === "apple") candidateKeys.push("pomme");
+  if (rowKey === "grapes") candidateKeys.push("raisin");
+  if (rowKey === "pear") candidateKeys.push("poire");
+  if (rowKey === "banana") candidateKeys.push("banane");
+  if (rowKey === "pineapple") candidateKeys.push("ananas");
+  if (rowKey === "mango") candidateKeys.push("mangue");
+
+  return candidateKeys.map(normalizeReportRowKey);
+}
+
 function buildDejeunerRowsForGroup(rowsDb: GroupReportRow[], groupNumber: number): DejeunerAnalysisRow[] {
   return DEJEUNER_ANALYSIS_ROWS.map((baseRow) => {
     const dbRow = rowsDb.find(
@@ -360,73 +394,20 @@ function buildEquipementRowsForGroup(
 }
 type AnalysisTheme = "transport" | "dejeuner" | "equipement" | "autres" | "salle";
 
-const AUTRES_DB_THEMES = ["autres_consommations", "autres"] as const;
-const SALLE_DB_THEMES = ["salle", "salle_de_cours"] as const;
-
-const AUTRES_CANONICAL_ROW_KEYS: Record<string, string> = {
-  cafe: "coffee",
-  "café": "coffee",
-  coffee: "coffee",
-  the: "tea",
-  "thé": "tea",
-  tea: "tea",
-  hot_chocolate: "milk_chocolate",
-  chocolat_chaud: "milk_chocolate",
-  chocolat_lait: "milk_chocolate",
-  milk_chocolate: "milk_chocolate",
-  chocolat_bar: "chocolate_bar",
-  barre_chocolatee: "chocolate_bar",
-  chocolate_bar: "chocolate_bar",
-  viennoiseries: "viennoiserie",
-  viennoiserie: "viennoiserie",
-  pomme: "apple",
-  apple: "apple",
-  raisin: "grapes",
-  grapes: "grapes",
-  poire: "pear",
-  pear: "pear",
-  banane: "banana",
-  banana: "banana",
-  ananas: "pineapple",
-  pineapple: "pineapple",
-  mangue: "mango",
-  mango: "mango",
-};
-
-function normalizeAutresRowKey(rowKey: string | null | undefined) {
-  const key = String(rowKey ?? "").trim();
-  return AUTRES_CANONICAL_ROW_KEYS[key] ?? key;
-}
-
-function normalizeSalleRowKey(rowKey: string | null | undefined) {
-  return String(rowKey ?? "").trim();
-}
-
 function buildAutresRowsForGroup(
   rowsDb: GroupReportRow[],
   groupNumber: number
 ): AutresAnalysisRow[] {
   return AUTRES_ANALYSIS_ROWS.map((baseRow) => {
-    const candidateKeys = [baseRow.rowKey];
+    const candidateKeys = getAutresCandidateKeys(baseRow.rowKey);
 
-    if (baseRow.rowKey === "coffee") candidateKeys.push("cafe", "café");
-    if (baseRow.rowKey === "tea") candidateKeys.push("the", "thé");
-    if (baseRow.rowKey === "milk_chocolate") candidateKeys.push("hot_chocolate", "chocolat_chaud", "chocolat_lait");
-    if (baseRow.rowKey === "chocolate_bar") candidateKeys.push("chocolat_bar", "barre_chocolatee");
-    if (baseRow.rowKey === "viennoiserie") candidateKeys.push("viennoiseries");
-    if (baseRow.rowKey === "apple") candidateKeys.push("pomme");
-    if (baseRow.rowKey === "grapes") candidateKeys.push("raisin");
-    if (baseRow.rowKey === "pear") candidateKeys.push("poire");
-    if (baseRow.rowKey === "banana") candidateKeys.push("banane");
-    if (baseRow.rowKey === "pineapple") candidateKeys.push("ananas");
-    if (baseRow.rowKey === "mango") candidateKeys.push("mangue");
-
-    const matchedRows = rowsDb.filter(
-      (row) =>
+    const matchedRows = rowsDb.filter((row) => {
+      return (
         Number(row.group_number) === Number(groupNumber) &&
-        AUTRES_DB_THEMES.includes(String(row.theme ?? "") as typeof AUTRES_DB_THEMES[number]) &&
-        candidateKeys.includes(normalizeAutresRowKey(row.row_key))
-    );
+        normalizeReportTheme(row.theme) === "autres_consommations" &&
+        candidateKeys.includes(normalizeReportRowKey(row.row_key))
+      );
+    });
 
     const dbRow = matchedRows[0];
 
@@ -448,19 +429,20 @@ function buildSalleRowsForGroup(
   groupNumber: number
 ): SalleAnalysisRow[] {
   return SALLE_ANALYSIS_ROWS.map((baseRow) => {
-    const matchedRows = rowsDb.filter(
-      (row) =>
+    const matchedRows = rowsDb.filter((row) => {
+      return (
         Number(row.group_number) === Number(groupNumber) &&
-        SALLE_DB_THEMES.includes(String(row.theme ?? "") as typeof SALLE_DB_THEMES[number]) &&
-        normalizeSalleRowKey(row.row_key) === baseRow.rowKey
-    );
+        normalizeReportTheme(row.theme) === "salle" &&
+        normalizeReportRowKey(row.row_key) === normalizeReportRowKey(baseRow.rowKey)
+      );
+    });
 
     const dbRow = matchedRows[0];
 
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      factor: Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
+      factor: baseRow.rowKey === "ampoules" ? 0.004 : Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
     };
   });
 }
@@ -908,7 +890,10 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
   }, [value, isFocused]);
 
   function parseDraft(nextValue: string) {
-    const numericValue = Number(String(nextValue || "0").replace(",", "."));
+    const cleanedValue = String(nextValue ?? "").trim().replace(",", ".");
+    if (cleanedValue === "") return min;
+
+    const numericValue = Number(cleanedValue);
     if (!Number.isFinite(numericValue)) return min;
     return Math.max(min, numericValue);
   }
@@ -927,8 +912,9 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       style={style}
       onFocus={() => setIsFocused(true)}
       onChange={(e) => {
-        const nextValue = e.target.value;
-        setDraftValue(nextValue);
+        // On ne sauvegarde plus à chaque frappe : cela envoyait parfois 0
+        // quand le champ était temporairement vide pendant la saisie.
+        setDraftValue(e.target.value);
       }}
       onBlur={() => {
         setIsFocused(false);
@@ -3190,7 +3176,7 @@ async function loadAutresReportRows(
     .from("group_reports")
     .select("*")
     .eq("session_id", sessionId)
-    .in("theme", [...AUTRES_DB_THEMES])
+    .in("theme", ["autres_consommations", "autres", "autres_consommation"])
     .order("group_number", { ascending: true })
     .order("row_key", { ascending: true });
 
@@ -3215,7 +3201,7 @@ async function loadSalleReportRows(
     .from("group_reports")
     .select("*")
     .eq("session_id", sessionId)
-    .in("theme", [...SALLE_DB_THEMES])
+    .in("theme", ["salle", "salle_de_cours"])
     .order("group_number", { ascending: true })
     .order("row_key", { ascending: true });
 
@@ -3450,7 +3436,6 @@ updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null
       payload,
       { onConflict: "session_id,group_number,theme,row_key" }
     );
-console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
       return;
@@ -3532,7 +3517,6 @@ updatedBy: string | null;
       payload,
       { onConflict: "session_id,group_number,theme,row_key" }
     );
-console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report déjeuner : ${error.message}`);
       return;
@@ -3569,8 +3553,8 @@ async function saveEquipementReportRow(params: {
     theme: "equipement",
     row_key: rowKey,
     label,
-    persons: safeQuantity,
-    quantity: safeQuantity,
+    persons: safeQuantity > 0 ? safeQuantity : null,
+    quantity: safeQuantity > 0 ? safeQuantity : null,
     factor: safeFactor,
     updated_by: updatedBy,
   };
@@ -3621,7 +3605,6 @@ async function saveEquipementReportRow(params: {
   }
 
   if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-    await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
     await loadEquipementReportableRows(sessionId);
   }
 }
@@ -3645,21 +3628,14 @@ async function saveAutresReportRow(params: {
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
-console.log("SAVE AUTRES →", {
-    sessionId,
-    groupNumber,
-    rowKey,
-    quantity: safeQuantity,
-    label
-  });
   const optimisticRow = {
     session_id: sessionId,
     group_number: groupNumber,
     theme: "autres_consommations",
     row_key: rowKey,
     label,
-    persons: safeQuantity,
-    quantity: safeQuantity,
+    persons: safeQuantity > 0 ? safeQuantity : null,
+    quantity: safeQuantity > 0 ? safeQuantity : null,
     factor: safeFactor,
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
@@ -3669,15 +3645,15 @@ console.log("SAVE AUTRES →", {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId || Number(groupNumber) !== Number(targetGroupNumber)) return rows;
+    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
         Number(row.group_number) === Number(groupNumber) &&
-        AUTRES_DB_THEMES.includes(String(row.theme ?? "") as typeof AUTRES_DB_THEMES[number]) &&
-        normalizeAutresRowKey(row.row_key) === normalizeAutresRowKey(rowKey)
+        normalizeReportTheme(row.theme) === "autres_consommations" &&
+        String(row.row_key) === rowKey
     );
 
     if (existingIndex >= 0) {
@@ -3738,7 +3714,7 @@ async function saveSalleReportRow(params: {
     const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
-  const safeFactor = rowKey === "ampoules" ? 0.004 : Math.max(0, Number(factor || 0));
+  const safeFactor = Math.max(0, Number(factor || 0));
 
   const optimisticRow = {
     session_id: sessionId,
@@ -3746,8 +3722,8 @@ async function saveSalleReportRow(params: {
     theme: "salle",
     row_key: rowKey,
     label,
-    persons: safeQuantity,
-    quantity: safeQuantity,
+    persons: safeQuantity > 0 ? safeQuantity : null,
+    quantity: safeQuantity > 0 ? safeQuantity : null,
     factor: safeFactor,
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
@@ -3757,15 +3733,15 @@ async function saveSalleReportRow(params: {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId || Number(groupNumber) !== Number(targetGroupNumber)) return rows;
+    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
         Number(row.group_number) === Number(groupNumber) &&
-        SALLE_DB_THEMES.includes(String(row.theme ?? "") as typeof SALLE_DB_THEMES[number]) &&
-        normalizeSalleRowKey(row.row_key) === normalizeSalleRowKey(rowKey)
+        normalizeReportTheme(row.theme) === "salle" &&
+        String(row.row_key) === rowKey
     );
 
     if (existingIndex >= 0) {
@@ -3799,8 +3775,8 @@ async function saveSalleReportRow(params: {
     return;
   }
 
-  // On garde la mise à jour optimiste à l'écran après sauvegarde.
-  // Un rechargement immédiat pouvait réécrire l'état local avec une réponse vide/stale et faire revenir la quantité à 0.
+  // L'état optimiste garde immédiatement la quantité saisie.
+  // Le refresh/intervalle relira ensuite la base.
 }
 
 
@@ -4605,11 +4581,17 @@ function removeTrip(index: number) {
     await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
     await loadAutresReportableRows(sessionId);
     await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
+    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
   }
 
 async function refreshStudentAnalysisData() {
   if (!studentSelectedSessionId) return false;
-  return await loadSessionAnalysisAccess(studentSelectedSessionId);
+
+  const unlocked = await loadSessionAnalysisAccess(studentSelectedSessionId);
+  if (!unlocked) return false;
+
+  await refreshStudentTransportData(studentSelectedSessionId);
+  return true;
 }
 
   async function refreshStudentSyntheseData() {
@@ -4771,13 +4753,6 @@ setDejeunerMessage("Questionnaire déjeuner enregistré.");
       ai_prep_minutes: Number(equipement.ai_prep_minutes || 0),
       ai_during_class_minutes: Number(equipement.ai_during_class_minutes || 0),
     };
-
-    console.log("DEBUG EQUIPEMENT", {
-  normalizedStudentEmail,
-  normalizedSessionCode,
-  studentSelectedSessionId,
-  equipement,
-});
 
     const { error } = await supabase.rpc("submit_equipement_response_student", {
       p_session_code: normalizedSessionCode,
@@ -7597,6 +7572,15 @@ onClick={() => {
       studentAutresReportableRows,
       "Aucune donnée autres consommations à reporter pour le moment. Les réponses validées apparaîtront ici automatiquement."
     )
+  ) : studentTheme === "salle" ? (
+    renderSalleAnalysisTable({
+      rows: studentSalleRows,
+      groupNumber: effectiveStudentGroupNumber,
+      sessionId: studentSelectedSessionId,
+      updatedBy: null,
+      readOnly: false,
+      onSave: saveSalleReportRow,
+    })
   ) : null)}
 
 {studentAnalysesTab === "report_des_donnees" && studentShowCarbonChart && openProposalGroup === null && studentTheme === "transport" && (
@@ -8429,6 +8413,14 @@ style={
       teacherAutresReportableRows,
       "Aucune donnée autres consommations à reporter pour le moment. Les réponses validées apparaîtront ici automatiquement."
     )
+  ) : teacherTheme === "salle" ? (
+    renderSalleAnalysisTable({
+      rows: teacherSalleRows,
+      groupNumber: teacherGroupNumber,
+      sessionId: selectedSessionId,
+      updatedBy: teacherUserId,
+      readOnly: true,
+    })
   ) : null
 )}
 
