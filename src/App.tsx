@@ -360,6 +360,48 @@ function buildEquipementRowsForGroup(
 }
 type AnalysisTheme = "transport" | "dejeuner" | "equipement" | "autres" | "salle";
 
+const AUTRES_DB_THEMES = ["autres_consommations", "autres"] as const;
+const SALLE_DB_THEMES = ["salle", "salle_de_cours"] as const;
+
+const AUTRES_CANONICAL_ROW_KEYS: Record<string, string> = {
+  cafe: "coffee",
+  "café": "coffee",
+  coffee: "coffee",
+  the: "tea",
+  "thé": "tea",
+  tea: "tea",
+  hot_chocolate: "milk_chocolate",
+  chocolat_chaud: "milk_chocolate",
+  chocolat_lait: "milk_chocolate",
+  milk_chocolate: "milk_chocolate",
+  chocolat_bar: "chocolate_bar",
+  barre_chocolatee: "chocolate_bar",
+  chocolate_bar: "chocolate_bar",
+  viennoiseries: "viennoiserie",
+  viennoiserie: "viennoiserie",
+  pomme: "apple",
+  apple: "apple",
+  raisin: "grapes",
+  grapes: "grapes",
+  poire: "pear",
+  pear: "pear",
+  banane: "banana",
+  banana: "banana",
+  ananas: "pineapple",
+  pineapple: "pineapple",
+  mangue: "mango",
+  mango: "mango",
+};
+
+function normalizeAutresRowKey(rowKey: string | null | undefined) {
+  const key = String(rowKey ?? "").trim();
+  return AUTRES_CANONICAL_ROW_KEYS[key] ?? key;
+}
+
+function normalizeSalleRowKey(rowKey: string | null | undefined) {
+  return String(rowKey ?? "").trim();
+}
+
 function buildAutresRowsForGroup(
   rowsDb: GroupReportRow[],
   groupNumber: number
@@ -381,9 +423,9 @@ function buildAutresRowsForGroup(
 
     const matchedRows = rowsDb.filter(
       (row) =>
-        row.group_number === groupNumber &&
-        row.theme === "autres_consommations" &&
-        candidateKeys.includes(String(row.row_key))
+        Number(row.group_number) === Number(groupNumber) &&
+        AUTRES_DB_THEMES.includes(String(row.theme ?? "") as typeof AUTRES_DB_THEMES[number]) &&
+        candidateKeys.includes(normalizeAutresRowKey(row.row_key))
     );
 
     const dbRow = matchedRows[0];
@@ -408,9 +450,9 @@ function buildSalleRowsForGroup(
   return SALLE_ANALYSIS_ROWS.map((baseRow) => {
     const matchedRows = rowsDb.filter(
       (row) =>
-        row.group_number === groupNumber &&
-        row.theme === "salle" &&
-        String(row.row_key) === baseRow.rowKey
+        Number(row.group_number) === Number(groupNumber) &&
+        SALLE_DB_THEMES.includes(String(row.theme ?? "") as typeof SALLE_DB_THEMES[number]) &&
+        normalizeSalleRowKey(row.row_key) === baseRow.rowKey
     );
 
     const dbRow = matchedRows[0];
@@ -887,11 +929,6 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       onChange={(e) => {
         const nextValue = e.target.value;
         setDraftValue(nextValue);
-
-        // Ne pas sauvegarder à chaque frappe : quand l'utilisateur efface temporairement
-        // le champ pour saisir une nouvelle valeur, React envoyait 0 en base puis
-        // le reload pouvait écraser la valeur saisie. La sauvegarde se fait maintenant
-        // à la perte de focus ou avec Entrée.
       }}
       onBlur={() => {
         setIsFocused(false);
@@ -3153,7 +3190,7 @@ async function loadAutresReportRows(
     .from("group_reports")
     .select("*")
     .eq("session_id", sessionId)
-    .eq("theme", "autres_consommations")
+    .in("theme", [...AUTRES_DB_THEMES])
     .order("group_number", { ascending: true })
     .order("row_key", { ascending: true });
 
@@ -3178,7 +3215,7 @@ async function loadSalleReportRows(
     .from("group_reports")
     .select("*")
     .eq("session_id", sessionId)
-    .eq("theme", "salle")
+    .in("theme", [...SALLE_DB_THEMES])
     .order("group_number", { ascending: true })
     .order("row_key", { ascending: true });
 
@@ -3532,8 +3569,8 @@ async function saveEquipementReportRow(params: {
     theme: "equipement",
     row_key: rowKey,
     label,
-    persons: safeQuantity > 0 ? safeQuantity : null,
-    quantity: safeQuantity > 0 ? safeQuantity : null,
+    persons: safeQuantity,
+    quantity: safeQuantity,
     factor: safeFactor,
     updated_by: updatedBy,
   };
@@ -3599,7 +3636,8 @@ async function saveAutresReportRow(params: {
   updatedBy: string | null;
 }) {
   if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
+      setMessage("Accès non autorisé à ce groupe.");
+      return;
     }
 
     const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
@@ -3620,8 +3658,8 @@ console.log("SAVE AUTRES →", {
     theme: "autres_consommations",
     row_key: rowKey,
     label,
-    persons: safeQuantity > 0 ? safeQuantity : null,
-    quantity: safeQuantity > 0 ? safeQuantity : null,
+    persons: safeQuantity,
+    quantity: safeQuantity,
     factor: safeFactor,
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
@@ -3631,15 +3669,15 @@ console.log("SAVE AUTRES →", {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+    if (sessionId !== targetSessionId || Number(groupNumber) !== Number(targetGroupNumber)) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === groupNumber &&
-        row.theme === "autres_consommations" &&
-        String(row.row_key) === rowKey
+        Number(row.group_number) === Number(groupNumber) &&
+        AUTRES_DB_THEMES.includes(String(row.theme ?? "") as typeof AUTRES_DB_THEMES[number]) &&
+        normalizeAutresRowKey(row.row_key) === normalizeAutresRowKey(rowKey)
     );
 
     if (existingIndex >= 0) {
@@ -3674,12 +3712,10 @@ console.log("SAVE AUTRES →", {
   }
 
   if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-    await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
     await loadAutresReportableRows(sessionId);
   }
 
   if (selectedSessionId && sessionId === selectedSessionId) {
-    await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
     await loadTeacherAutresReportableRows(sessionId);
   }
 }
@@ -3694,7 +3730,8 @@ async function saveSalleReportRow(params: {
   updatedBy: string | null;
 }) {
   if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
+      setMessage("Accès non autorisé à ce groupe.");
+      return;
     }
 
     const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
@@ -3709,8 +3746,8 @@ async function saveSalleReportRow(params: {
     theme: "salle",
     row_key: rowKey,
     label,
-    persons: safeQuantity > 0 ? safeQuantity : null,
-    quantity: safeQuantity > 0 ? safeQuantity : null,
+    persons: safeQuantity,
+    quantity: safeQuantity,
     factor: safeFactor,
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
@@ -3720,15 +3757,15 @@ async function saveSalleReportRow(params: {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+    if (sessionId !== targetSessionId || Number(groupNumber) !== Number(targetGroupNumber)) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === groupNumber &&
-        row.theme === "salle" &&
-        String(row.row_key) === rowKey
+        Number(row.group_number) === Number(groupNumber) &&
+        SALLE_DB_THEMES.includes(String(row.theme ?? "") as typeof SALLE_DB_THEMES[number]) &&
+        normalizeSalleRowKey(row.row_key) === normalizeSalleRowKey(rowKey)
     );
 
     if (existingIndex >= 0) {
@@ -3762,13 +3799,8 @@ async function saveSalleReportRow(params: {
     return;
   }
 
-  if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
-  }
-
-  if (selectedSessionId && sessionId === selectedSessionId) {
-    await loadSalleReportRows(sessionId, setTeacherSalleReportRowsDb);
-  }
+  // On garde la mise à jour optimiste à l'écran après sauvegarde.
+  // Un rechargement immédiat pouvait réécrire l'état local avec une réponse vide/stale et faire revenir la quantité à 0.
 }
 
 
