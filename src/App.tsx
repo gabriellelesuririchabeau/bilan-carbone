@@ -393,9 +393,13 @@ function buildAutresRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      // Les facteurs de la salle sont des facteurs fixes.
-      // Si une ancienne ligne DB contient factor = 0 ou null, on conserve le facteur de référence.
-      factor: Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
+      // On garde le facteur de référence si une ancienne ligne DB contient factor = 0/null.
+      factor:
+        baseRow.factor === 0
+          ? 0
+          : Number(dbRow?.factor ?? 0) > 0
+            ? Number(dbRow?.factor)
+            : baseRow.factor,
     };
   });
 }
@@ -418,7 +422,7 @@ function buildSalleRowsForGroup(
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
       // Les facteurs de la salle sont des facteurs fixes.
-      // Si une ancienne ligne DB contient factor = 0 ou null, on conserve le facteur de référence.
+      // Si une ancienne ligne DB contient factor = 0/null, on conserve le facteur de référence.
       factor: Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
     };
   });
@@ -2964,7 +2968,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
     }
 
     const { data, error } = await supabase
-      .from("group_reports").select("session_id,group_number,theme,row_key,label,persons,quantity,distance_total_km,factor,updated_by")
+      .from("group_reports").select("*")
       .eq("session_id", sessionId)
       .eq("theme", "transport")
       .order("group_number", { ascending: true })
@@ -2989,7 +2993,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
     }
 
     const { data, error } = await supabase
-      .from("group_reports").select("session_id,group_number,theme,row_key,label,persons,quantity,distance_total_km,factor,updated_by")
+      .from("group_reports").select("*")
       .eq("session_id", sessionId)
       .eq("theme", "dejeuner")
       .order("group_number", { ascending: true })
@@ -3013,7 +3017,7 @@ async function loadEquipementReportRows(
   }
 
   const { data, error } = await supabase
-    .from("group_reports").select("session_id,group_number,theme,row_key,label,persons,quantity,distance_total_km,factor,updated_by")
+    .from("group_reports").select("*")
     .eq("session_id", sessionId)
     .eq("theme", "equipement")
     .order("group_number", { ascending: true })
@@ -3126,7 +3130,7 @@ async function loadAutresReportRows(
   }
 
   const { data, error } = await supabase
-    .from("group_reports").select("session_id,group_number,theme,row_key,label,persons,quantity,distance_total_km,factor,updated_by")
+    .from("group_reports").select("*")
     .eq("session_id", sessionId)
     .eq("theme", "autres_consommations")
     .order("group_number", { ascending: true })
@@ -3150,7 +3154,7 @@ async function loadSalleReportRows(
   }
 
   const { data, error } = await supabase
-    .from("group_reports").select("session_id,group_number,theme,row_key,label,persons,quantity,distance_total_km,factor,updated_by")
+    .from("group_reports").select("*")
     .eq("session_id", sessionId)
     .eq("theme", "salle")
     .order("group_number", { ascending: true })
