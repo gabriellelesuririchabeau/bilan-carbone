@@ -858,24 +858,12 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
-  const latestSavedValueRef = useRef(String(value ?? 0));
-  const autosaveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isFocused) {
-      const nextValue = String(value ?? 0);
-      setDraftValue(nextValue);
-      latestSavedValueRef.current = nextValue;
+      setDraftValue(String(value ?? 0));
     }
   }, [value, isFocused]);
-
-  useEffect(() => {
-    return () => {
-      if (autosaveTimerRef.current !== null) {
-        window.clearTimeout(autosaveTimerRef.current);
-      }
-    };
-  }, []);
 
   function parseDraft(nextValue: string) {
     const cleanValue = String(nextValue ?? "").trim();
@@ -886,41 +874,18 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     return Math.max(min, numericValue);
   }
 
-  async function saveValue(numericValue: number) {
-    const savedAsString = String(numericValue);
-    latestSavedValueRef.current = savedAsString;
-    await onCommit(numericValue);
-  }
-
-  function scheduleAutosave(nextValue: string) {
-    if (autosaveTimerRef.current !== null) {
-      window.clearTimeout(autosaveTimerRef.current);
-    }
-
-    const numericValue = parseDraft(nextValue);
-
-    // Ne jamais transformer un champ temporairement vide en 0.
-    if (numericValue === null) return;
-
-    autosaveTimerRef.current = window.setTimeout(() => {
-      void saveValue(numericValue);
-    }, 250);
-  }
-
   async function commitValue(nextValue = draftValue) {
-    if (autosaveTimerRef.current !== null) {
-      window.clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = null;
-    }
-
     const numericValue = parseDraft(nextValue);
 
+    // Important : pendant la saisie, un input type="number" peut valoir "".
+    // On ne sauvegarde jamais ce vide comme 0, sinon une sauvegarde asynchrone
+    // tardive peut écraser la vraie valeur en base.
     if (numericValue === null) {
-      setDraftValue(latestSavedValueRef.current);
+      setDraftValue(String(value ?? 0));
       return;
     }
 
-    await saveValue(numericValue);
+    await onCommit(numericValue);
     setDraftValue(String(numericValue));
   }
 
@@ -934,7 +899,12 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       onChange={(e) => {
         const nextValue = e.target.value;
         setDraftValue(nextValue);
-        scheduleAutosave(nextValue);
+
+        // Autosave immédiat, mais sécurisé : un champ temporairement vide ne doit jamais
+        // être sauvegardé comme 0.
+        const numericValue = parseDraft(nextValue);
+        if (numericValue === null) return;
+        void onCommit(numericValue);
       }}
       onBlur={() => {
         setIsFocused(false);
@@ -3061,25 +3031,82 @@ async function loadGroupReportRowsWithFallback(
     return;
   }
 
-  // IMPORTANT : pas de fallback par code session.
-  // Le prof doit voir UNIQUEMENT les lignes de la session sélectionnée.
-  // Avant, si la session courante était vide, le fallback pouvait charger
-  // des reports d'une ancienne session avec le même code, donc des données obsolètes.
-  const { data, error } = await supabase
-    .from("group_reports")
-    .select("*")
-    .eq("session_id", sessionId)
-    .in("theme", themes)
-    .order("group_number", { ascending: true })
-    .order("row_key", { ascending: true });
+  const fetchRowsForSessionIds = async (sessionIds: string[]) => {
+    let query = supabase
+      .from("group_reports")
+      .select("*")
+      .in("theme", themes)
+      .order("group_number", { ascending: true })
+      .order("row_key", { ascending: true });
 
-  if (error) {
-    setMessage(`Erreur chargement report ${errorLabel} : ${error.message}`);
+    if (sessionIds.length === 1) {
+      query = query.eq("session_id", sessionIds[0]);
+    } else {
+      query = query.in("session_id", sessionIds);
+    }
+
+    return await query;
+  };
+
+  const direct = await fetchRowsForSessionIds([sessionId]);
+
+  if (direct.error) {
+    setMessage(`Erreur chargement report ${errorLabel} : ${direct.error.message}`);
     setRows([]);
     return;
   }
 
-  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
+  const directRows = normalizeGroupReportRows((direct.data ?? []) as GroupReportRow[]);
+
+  if (directRows.length > 0) {
+    setRows(directRows);
+    return;
+  }
+
+  const candidateCode = String(selectedSessionCode || studentSelectedSessionCode || studentCodeSession || "").trim();
+  if (!candidateCode) {
+    setRows([]);
+    return;
+  }
+
+  const { data: matchingSessions, error: sessionError } = await supabase
+    .from("sessions")
+    .select("id, session_code")
+    .ilike("session_code", candidateCode)
+    .limit(20);
+
+  if (sessionError) {
+    console.warn(`Fallback session_code impossible pour ${errorLabel}`, sessionError.message);
+    setRows([]);
+    return;
+  }
+
+  const matchingSessionIds = Array.from(
+    new Set((matchingSessions ?? []).map((session: any) => String(session.id)).filter(Boolean))
+  );
+
+  if (!matchingSessionIds.length || (matchingSessionIds.length === 1 && matchingSessionIds[0] === sessionId)) {
+    setRows([]);
+    return;
+  }
+
+  const fallback = await fetchRowsForSessionIds(matchingSessionIds);
+
+  if (fallback.error) {
+    setMessage(`Erreur chargement report ${errorLabel} : ${fallback.error.message}`);
+    setRows([]);
+    return;
+  }
+
+  const fallbackRows = normalizeGroupReportRows((fallback.data ?? []) as GroupReportRow[]);
+  if (fallbackRows.length > 0) {
+    console.warn(
+      `[DEBUG] Reports ${errorLabel} chargés via fallback session_code`,
+      { requestedSessionId: sessionId, candidateCode, matchingSessionIds, rows: fallbackRows.length }
+    );
+  }
+
+  setRows(fallbackRows);
 }
 
 async function loadEquipementReportRows(
@@ -3583,13 +3610,6 @@ async function saveEquipementReportRow(params: {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
     return;
   }
-
-  if (studentSelectedSessionId === sessionId) {
-    await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
-  }
-  if (selectedSessionId === sessionId) {
-    await loadEquipementReportRows(sessionId, setTeacherEquipementReportRowsDb);
-  }
 }
 
 async function saveAutresReportRow(params: {
@@ -3659,13 +3679,6 @@ async function saveAutresReportRow(params: {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
     return;
   }
-
-  if (studentSelectedSessionId === sessionId) {
-    await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-  }
-  if (selectedSessionId === sessionId) {
-    await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
-  }
 }
 
 async function saveSalleReportRow(params: {
@@ -3734,13 +3747,6 @@ async function saveSalleReportRow(params: {
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
     return;
-  }
-
-  if (studentSelectedSessionId === sessionId) {
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
-  }
-  if (selectedSessionId === sessionId) {
-    await loadSalleReportRows(sessionId, setTeacherSalleReportRowsDb);
   }
 }
 
@@ -4457,37 +4463,11 @@ async function handleStudentEnter() {
     return;
   }
 
-  // IMPORTANT : get_student_session_access peut renvoyer un ancien session_id si une session
-  // portant le même code a existé. Pour que l étudiant et le professeur lisent/écrivent
-  // exactement dans la même session, on recale toujours l id sur la session ouverte
-  // correspondant au code saisi. C est cette même source qui est utilisée côté professeur.
-  const { data: openSessionRows, error: openSessionError } = await supabase.rpc(
-    "get_open_session_by_code",
-    { p_session_code: normalizedSessionCode }
-  );
-
-  if (openSessionError) {
-    setMessage(`Erreur chargement session ouverte : `);
-    return;
-  }
-
-  const openSessionRow = Array.isArray(openSessionRows) ? openSessionRows[0] : openSessionRows;
-
-  if (!openSessionRow?.id) {
-    setMessage("Session introuvable ou fermée pour ce code.");
-    return;
-  }
-
-  const nextSessionId = String(openSessionRow.id);
-  const nextSessionCode = String(openSessionRow.session_code ?? accessRow.session_code ?? normalizedSessionCode);
-
-  if (String(accessRow.session_id) !== nextSessionId) {
-    console.warn("Session étudiant recalée sur la session ouverte", {
-      accessSessionId: String(accessRow.session_id),
-      openSessionId: nextSessionId,
-      code: normalizedSessionCode,
-    });
-  }
+  // Source de vérité côté étudiant : get_student_session_access.
+  // Ne pas rappeler get_open_session_by_code ici : ce RPC peut renvoyer zéro ligne selon les droits/RLS,
+  // ce qui affichait "Session introuvable" alors que la session existe côté professeur.
+  const nextSessionId = String(accessRow.session_id);
+  const nextSessionCode = String(accessRow.session_code ?? normalizedSessionCode);
 
   const assignedGroupNumber = Number(accessRow.assigned_group_number ?? 0);
   const hasAssignments = Boolean(accessRow.has_assignments);
@@ -4643,11 +4623,7 @@ async function refreshStudentAnalysisData() {
       return;
     }
 
-    const { data: sessionData } = await supabase.rpc("get_open_session_by_code", {
-      p_session_code: normalizedSessionCode,
-    });
-
-    const sessionId = sessionData?.[0]?.id;
+    const sessionId = studentSelectedSessionId;
     if (sessionId) {
       await refreshStudentTransportData(sessionId);
     }
