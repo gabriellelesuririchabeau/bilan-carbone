@@ -391,7 +391,14 @@ function buildAutresRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      factor: Number(dbRow?.factor ?? baseRow.factor),
+      // Si une ancienne ligne DB contient factor = 0/null, on conserve le facteur de référence.
+      // Exception : eau du robinet a volontairement un facteur à 0.
+      factor:
+        baseRow.factor === 0
+          ? 0
+          : Number(dbRow?.factor ?? 0) > 0
+            ? Number(dbRow?.factor)
+            : baseRow.factor,
     };
   });
 }
@@ -413,7 +420,9 @@ function buildSalleRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      factor: Number(dbRow?.factor ?? baseRow.factor),
+      // Les facteurs salle sont fixes : si une ancienne ligne DB contient factor = 0/null,
+      // on conserve le facteur de référence, notamment 0,004 pour les ampoules.
+      factor: Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
     };
   });
 }
@@ -3573,24 +3582,25 @@ async function saveAutresReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
-    }
+  if (
+    studentAssignedGroup &&
+    params.sessionId === studentSelectedSessionId &&
+    params.groupNumber !== studentAssignedGroup
+  ) {
+    setMessage("Accès non autorisé à ce groupe.");
+    return;
+  }
 
-    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
+  const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+  const groupNumber =
+    studentAssignedGroup && sessionId === studentSelectedSessionId
+      ? studentAssignedGroup
+      : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
-console.log("SAVE AUTRES →", {
-    sessionId,
-    groupNumber,
-    rowKey,
-    quantity: safeQuantity,
-    label
-  });
-  const optimisticRow = {
+
+  const payload = {
     session_id: sessionId,
     group_number: groupNumber,
     theme: "autres_consommations",
@@ -3607,13 +3617,13 @@ console.log("SAVE AUTRES →", {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId) return rows;
+    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === targetGroupNumber &&
+        row.group_number === groupNumber &&
         row.theme === "autres_consommations" &&
         String(row.row_key) === rowKey
     );
@@ -3621,12 +3631,12 @@ console.log("SAVE AUTRES →", {
     if (existingIndex >= 0) {
       nextRows[existingIndex] = {
         ...nextRows[existingIndex],
-        ...optimisticRow,
+        ...payload,
       } as GroupReportRow;
       return nextRows;
     }
 
-    nextRows.push(optimisticRow as unknown as GroupReportRow);
+    nextRows.push(payload as unknown as GroupReportRow);
     return nextRows;
   };
 
@@ -3638,14 +3648,13 @@ console.log("SAVE AUTRES →", {
   );
 
   const { error } = await supabase.from("group_reports").upsert(
-    optimisticRow,
+    payload,
     { onConflict: "session_id,group_number,theme,row_key" }
   );
 
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
     await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
     await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
     return;
   }
@@ -3670,18 +3679,25 @@ async function saveSalleReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
-    }
+  if (
+    studentAssignedGroup &&
+    params.sessionId === studentSelectedSessionId &&
+    params.groupNumber !== studentAssignedGroup
+  ) {
+    setMessage("Accès non autorisé à ce groupe.");
+    return;
+  }
 
-    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
+  const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
+  const groupNumber =
+    studentAssignedGroup && sessionId === studentSelectedSessionId
+      ? studentAssignedGroup
+      : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
 
-  const optimisticRow = {
+  const payload = {
     session_id: sessionId,
     group_number: groupNumber,
     theme: "salle",
@@ -3698,13 +3714,13 @@ async function saveSalleReportRow(params: {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId) return rows;
+    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === targetGroupNumber &&
+        row.group_number === groupNumber &&
         row.theme === "salle" &&
         String(row.row_key) === rowKey
     );
@@ -3712,12 +3728,12 @@ async function saveSalleReportRow(params: {
     if (existingIndex >= 0) {
       nextRows[existingIndex] = {
         ...nextRows[existingIndex],
-        ...optimisticRow,
+        ...payload,
       } as GroupReportRow;
       return nextRows;
     }
 
-    nextRows.push(optimisticRow as unknown as GroupReportRow);
+    nextRows.push(payload as unknown as GroupReportRow);
     return nextRows;
   };
 
@@ -3729,7 +3745,7 @@ async function saveSalleReportRow(params: {
   );
 
   const { error } = await supabase.from("group_reports").upsert(
-    optimisticRow,
+    payload,
     { onConflict: "session_id,group_number,theme,row_key" }
   );
 
@@ -5840,18 +5856,16 @@ function renderSalleAnalysisTable(params: {
                         <option value={1}>Oui</option>
                       </select>
                     ) : (
-                      <input
-                        type="number"
-                        min="0"
+                      <DraftNumberInput
                         value={row.quantity}
                         style={styles.input}
-                        onChange={async (e) => {
+                        onCommit={async (value) => {
                           await onSave?.({
                             sessionId,
                             groupNumber,
                             rowKey: row.rowKey,
                             label: row.label,
-                            quantity: Number(e.target.value || 0),
+                            quantity: value,
                             factor: row.factor,
                             updatedBy,
                           });
@@ -7641,6 +7655,8 @@ onClick={() => {
                 Le tableau de calcul de cette thématique reste à implémenter.
               </div>
             )}
+
+            {message ? <div style={styles.infoMessage}>{message}</div> : null}
           </section>
         </main>
       </div>
