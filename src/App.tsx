@@ -4456,8 +4456,38 @@ async function handleStudentEnter() {
     return;
   }
 
-  const nextSessionId = String(accessRow.session_id);
-  const nextSessionCode = String(accessRow.session_code ?? normalizedSessionCode);
+  // IMPORTANT : get_student_session_access peut renvoyer un ancien session_id si une session
+  // portant le même code a existé. Pour que l étudiant et le professeur lisent/écrivent
+  // exactement dans la même session, on recale toujours l id sur la session ouverte
+  // correspondant au code saisi. C est cette même source qui est utilisée côté professeur.
+  const { data: openSessionRows, error: openSessionError } = await supabase.rpc(
+    "get_open_session_by_code",
+    { p_session_code: normalizedSessionCode }
+  );
+
+  if (openSessionError) {
+    setMessage(`Erreur chargement session ouverte : `);
+    return;
+  }
+
+  const openSessionRow = Array.isArray(openSessionRows) ? openSessionRows[0] : openSessionRows;
+
+  if (!openSessionRow?.id) {
+    setMessage("Session introuvable ou fermée pour ce code.");
+    return;
+  }
+
+  const nextSessionId = String(openSessionRow.id);
+  const nextSessionCode = String(openSessionRow.session_code ?? accessRow.session_code ?? normalizedSessionCode);
+
+  if (String(accessRow.session_id) !== nextSessionId) {
+    console.warn("Session étudiant recalée sur la session ouverte", {
+      accessSessionId: String(accessRow.session_id),
+      openSessionId: nextSessionId,
+      code: normalizedSessionCode,
+    });
+  }
+
   const assignedGroupNumber = Number(accessRow.assigned_group_number ?? 0);
   const hasAssignments = Boolean(accessRow.has_assignments);
 
