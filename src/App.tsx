@@ -391,7 +391,12 @@ function buildAutresRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      factor: Number(dbRow?.factor ?? baseRow.factor),
+      factor:
+        baseRow.factor === 0
+          ? 0
+          : Number(dbRow?.factor ?? 0) > 0
+            ? Number(dbRow?.factor)
+            : baseRow.factor,
     };
   });
 }
@@ -413,7 +418,7 @@ function buildSalleRowsForGroup(
     return {
       ...baseRow,
       quantity: matchedRows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0),
-      factor: Number(dbRow?.factor ?? baseRow.factor),
+      factor: Number(dbRow?.factor ?? 0) > 0 ? Number(dbRow?.factor) : baseRow.factor,
     };
   });
 }
@@ -3573,23 +3578,28 @@ async function saveAutresReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
-    }
+  const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
 
-    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
+  const isStudentAssignedSession =
+    currentUserRole === "student" &&
+    Boolean(studentAssignedGroup) &&
+    sessionId === studentSelectedSessionId;
+
+  if (
+    isStudentAssignedSession &&
+    studentAssignedGroup &&
+    params.groupNumber !== studentAssignedGroup
+  ) {
+    setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
+  }
+
+  const groupNumber =
+    isStudentAssignedSession && studentAssignedGroup
+      ? studentAssignedGroup
+      : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
-console.log("SAVE AUTRES →", {
-    sessionId,
-    groupNumber,
-    rowKey,
-    quantity: safeQuantity,
-    label
-  });
   const optimisticRow = {
     session_id: sessionId,
     group_number: groupNumber,
@@ -3607,13 +3617,13 @@ console.log("SAVE AUTRES →", {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId) return rows;
+    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === targetGroupNumber &&
+        row.group_number === groupNumber &&
         row.theme === "autres_consommations" &&
         String(row.row_key) === rowKey
     );
@@ -3645,7 +3655,6 @@ console.log("SAVE AUTRES →", {
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
     await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-    await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
     await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
     return;
   }
@@ -3670,13 +3679,25 @@ async function saveSalleReportRow(params: {
   factor: number;
   updatedBy: string | null;
 }) {
-  if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage("Accès non autorisé à ce groupe.");
-      return;
-    }
+  const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
 
-    const { sessionId, rowKey, label, quantity, factor, updatedBy } = params;
-    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
+  const isStudentAssignedSession =
+    currentUserRole === "student" &&
+    Boolean(studentAssignedGroup) &&
+    sessionId === studentSelectedSessionId;
+
+  if (
+    isStudentAssignedSession &&
+    studentAssignedGroup &&
+    params.groupNumber !== studentAssignedGroup
+  ) {
+    setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
+  }
+
+  const groupNumber =
+    isStudentAssignedSession && studentAssignedGroup
+      ? studentAssignedGroup
+      : params.groupNumber;
 
   const safeQuantity = Math.max(0, Number(quantity || 0));
   const safeFactor = Math.max(0, Number(factor || 0));
@@ -3698,13 +3719,13 @@ async function saveSalleReportRow(params: {
     targetSessionId: string,
     targetGroupNumber: number
   ) => {
-    if (sessionId !== targetSessionId) return rows;
+    if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
 
     const nextRows = [...rows];
     const existingIndex = nextRows.findIndex(
       (row) =>
         row.session_id === sessionId &&
-        row.group_number === targetGroupNumber &&
+        row.group_number === groupNumber &&
         row.theme === "salle" &&
         String(row.row_key) === rowKey
     );
@@ -5840,18 +5861,16 @@ function renderSalleAnalysisTable(params: {
                         <option value={1}>Oui</option>
                       </select>
                     ) : (
-                      <input
-                        type="number"
-                        min="0"
+                      <DraftNumberInput
                         value={row.quantity}
                         style={styles.input}
-                        onChange={async (e) => {
+                        onCommit={async (value) => {
                           await onSave?.({
                             sessionId,
                             groupNumber,
                             rowKey: row.rowKey,
                             label: row.label,
-                            quantity: Number(e.target.value || 0),
+                            quantity: value,
                             factor: row.factor,
                             updatedBy,
                           });
