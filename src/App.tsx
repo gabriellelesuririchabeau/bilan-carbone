@@ -892,15 +892,13 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
-  const lastLocalValueRef = useRef(String(value ?? 0));
 
   useEffect(() => {
-    // Ne jamais écraser une saisie en cours avec une ancienne valeur venue du state parent.
-    if (isFocused) return;
-
-    const nextValue = String(value ?? 0);
-    setDraftValue(nextValue);
-    lastLocalValueRef.current = nextValue;
+    // Ne jamais réécrire le champ pendant que l'utilisateur est en train de saisir :
+    // c'est ce qui faisait revenir le transport à 0 après un re-render.
+    if (!isFocused) {
+      setDraftValue(String(value ?? 0));
+    }
   }, [value, isFocused]);
 
   function parseDraft(nextValue: string) {
@@ -914,10 +912,14 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
 
   async function commitValue(nextValue = draftValue) {
     const numericValue = parseDraft(nextValue);
-    if (numericValue === null) return;
 
-    lastLocalValueRef.current = String(numericValue);
+    if (numericValue === null) {
+      setDraftValue(String(value ?? 0));
+      return;
+    }
+
     await onCommit(numericValue);
+    setDraftValue(String(numericValue));
   }
 
   return (
@@ -934,103 +936,8 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
         const numericValue = parseDraft(nextValue);
         if (numericValue === null) return;
 
-        lastLocalValueRef.current = String(numericValue);
+        // Sauvegarde immédiate et calcul immédiat, sans touche Entrée.
         void onCommit(numericValue);
-      }}
-      onBlur={() => {
-        setIsFocused(false);
-
-        const numericValue = parseDraft(draftValue);
-        if (numericValue === null) {
-          setDraftValue(String(value ?? 0));
-          return;
-        }
-
-        setDraftValue(String(numericValue));
-        void commitValue(String(numericValue));
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          void commitValue(e.currentTarget.value);
-          e.currentTarget.blur();
-        }
-      }}
-    />
-  );
-}: DraftNumberInputProps) {
-  const [draftValue, setDraftValue] = useState(String(value ?? 0));
-  const [isFocused, setIsFocused] = useState(false);
-  const lastCommittedRef = useRef<string>(String(value ?? 0));
-  const debounceRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!isFocused) {
-      const nextValue = String(value ?? 0);
-      setDraftValue(nextValue);
-      lastCommittedRef.current = nextValue;
-    }
-  }, [value, isFocused]);
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current !== null) {
-        window.clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
-
-  function parseDraft(nextValue: string) {
-    const cleanValue = String(nextValue ?? "").trim();
-    if (cleanValue === "") return null;
-
-    const numericValue = Number(cleanValue.replace(",", "."));
-    if (!Number.isFinite(numericValue)) return null;
-    return Math.max(min, numericValue);
-  }
-
-  async function commitValue(nextValue = draftValue, normalizeAfterSave = true) {
-    const numericValue = parseDraft(nextValue);
-
-    if (numericValue === null) {
-      return;
-    }
-
-    const commitKey = String(numericValue);
-    lastCommittedRef.current = commitKey;
-    await onCommit(numericValue);
-
-    if (normalizeAfterSave && lastCommittedRef.current === commitKey) {
-      setDraftValue(commitKey);
-    }
-  }
-
-  function scheduleCommit(nextValue: string) {
-    const numericValue = parseDraft(nextValue);
-    if (numericValue === null) return;
-
-    // Mise à jour immédiate des calculs locaux.
-    void onCommit(numericValue);
-
-    if (debounceRef.current !== null) {
-      window.clearTimeout(debounceRef.current);
-    }
-
-    debounceRef.current = window.setTimeout(() => {
-      void commitValue(nextValue, false);
-    }, 250);
-  }
-
-  return (
-    <input
-      type="number"
-      min={min}
-      value={draftValue}
-      style={style}
-      onFocus={() => setIsFocused(true)}
-      onChange={(e) => {
-        const nextValue = e.target.value;
-        setDraftValue(nextValue);
-        scheduleCommit(nextValue);
       }}
       onBlur={() => {
         setIsFocused(false);
@@ -1038,7 +945,6 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
-          void commitValue(e.currentTarget.value);
           e.currentTarget.blur();
         }
       }}
@@ -3499,7 +3405,7 @@ async function toggleStudentAnalysisAccess() {
     );
   }
 
-  async async function saveTransportReportRow(params: {
+  async function saveTransportReportRow(params: {
     sessionId: string;
     groupNumber: number;
     rowKey: string;
@@ -3536,6 +3442,14 @@ async function toggleStudentAnalysisAccess() {
       updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
     };
 
+    const optimisticRow = {
+      ...payload,
+      persons: safePersons,
+      quantity: safeDistanceTotalKm,
+      distance_total_km: safeDistanceTotalKm,
+      distanceTotalKm: safeDistanceTotalKm,
+    } as unknown as GroupReportRow & { distanceTotalKm: number };
+
     const applyOptimisticUpdate = (
       rows: GroupReportRow[],
       targetSessionId: string,
@@ -3543,7 +3457,7 @@ async function toggleStudentAnalysisAccess() {
     ) => {
       if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
 
-      const nextRows = normalizeGroupReportRows(rows);
+      const nextRows = normalizeGroupReportRows([...rows]);
       const existingIndex = nextRows.findIndex(
         (row) =>
           String(row.session_id) === sessionId &&
@@ -3552,21 +3466,15 @@ async function toggleStudentAnalysisAccess() {
           String(row.row_key) === rowKey
       );
 
-      const nextRow = {
-        ...(existingIndex >= 0 ? nextRows[existingIndex] : {}),
-        ...payload,
-        persons: safePersons,
-        quantity: safeDistanceTotalKm,
-        distance_total_km: safeDistanceTotalKm,
-        distanceTotalKm: safeDistanceTotalKm,
-      } as GroupReportRow & { distanceTotalKm: number };
-
       if (existingIndex >= 0) {
-        nextRows[existingIndex] = nextRow;
+        nextRows[existingIndex] = {
+          ...nextRows[existingIndex],
+          ...optimisticRow,
+        } as GroupReportRow;
         return nextRows;
       }
 
-      nextRows.push(nextRow);
+      nextRows.push(optimisticRow as GroupReportRow);
       return nextRows;
     };
 
@@ -3584,101 +3492,22 @@ async function toggleStudentAnalysisAccess() {
 
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
+      if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
+        await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
+      }
       return;
     }
 
     notifyTransportReportChanged(sessionId);
 
+    // Rechargement ciblé, uniquement transport, pour confirmer la valeur DB.
+    // Pas de polling global : l'egress reste maîtrisé.
     if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
       await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
     }
 
     if (selectedSessionId && sessionId === selectedSessionId) {
       await loadTransportReportRows(sessionId, setTeacherTransportReportRowsDb);
-    }
-  }) {
-    const { sessionId, rowKey, persons, distanceTotalKm, factor, updatedBy } = params;
-    const groupNumber =
-      studentAssignedGroup && sessionId === studentSelectedSessionId
-        ? studentAssignedGroup
-        : params.groupNumber;
-
-    if (!sessionId || !groupNumber || !rowKey) return;
-
-    const safePersons = Math.max(0, Number(persons || 0));
-    const safeDistanceTotalKm = Math.max(0, Number(distanceTotalKm || 0));
-    const safeFactor = Math.max(0, Number(factor || 0));
-    const safeLabel = getTransportLabelFr(rowKey, params.label);
-
-    const payload = {
-      session_id: sessionId,
-      group_number: groupNumber,
-      theme: "transport",
-      row_key: rowKey,
-      label: safeLabel,
-      persons: safePersons,
-      quantity: safeDistanceTotalKm,
-      distance_total_km: safeDistanceTotalKm,
-      factor: safeFactor,
-      updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
-    };
-
-    const applyTransportRow = (rows: GroupReportRow[]) => {
-      const nextRows = normalizeGroupReportRows(rows);
-      const existingIndex = nextRows.findIndex(
-        (row) =>
-          String(row.session_id) === sessionId &&
-          Number(row.group_number) === groupNumber &&
-          normalizeGroupReportTheme(row.theme) === "transport" &&
-          String(row.row_key) === rowKey
-      );
-
-      const nextRow = {
-        ...(existingIndex >= 0 ? nextRows[existingIndex] : {}),
-        ...payload,
-        distanceTotalKm: safeDistanceTotalKm,
-      } as GroupReportRow & { distanceTotalKm: number };
-
-      if (existingIndex >= 0) {
-        nextRows[existingIndex] = nextRow;
-      } else {
-        nextRows.push(nextRow);
-      }
-
-      return nextRows;
-    };
-
-    if (studentSelectedSessionId === sessionId) {
-      setStudentTransportReportRowsDb((prev) => applyTransportRow(prev));
-    }
-
-    if (selectedSessionId === sessionId) {
-      setTeacherTransportReportRowsDb((prev) => applyTransportRow(prev));
-    }
-
-    const { error } = await supabase.from("group_reports").upsert(payload, {
-      onConflict: "session_id,group_number,theme,row_key",
-    });
-
-    if (error) {
-      setMessage(`Erreur sauvegarde report transport : ${error.message}`);
-      if (studentSelectedSessionId === sessionId) {
-        window.setTimeout(() => {
-          void loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
-        }, 300);
-      }
-      return;
-    }
-
-    notifyTransportReportChanged(sessionId);
-
-    // Pas de reload immédiat côté étudiant : cela évite qu'une réponse réseau plus ancienne
-    // remette l'ancienne valeur pendant la frappe. Le prof est rafraîchi par Realtime
-    // ou par l'événement localStorage entre fenêtres du même navigateur.
-    if (selectedSessionId === sessionId) {
-      window.setTimeout(() => {
-        void loadTransportReportRows(sessionId, setTeacherTransportReportRowsDb);
-      }, 300);
     }
   }
 
@@ -4136,41 +3965,6 @@ async function saveSalleReportRow(params: {
       window.removeEventListener("storage", handleStorageGroupReportChange);
     };
   }, [selectedSessionId]);
-
-
-  // FIX TRANSPORT PROF TARGETED POLLING :
-  // Supabase Realtime n'est pas toujours actif côté projet. Ce polling très ciblé
-  // ne tourne que lorsque le professeur regarde le report transport d'une session ouverte.
-  useEffect(() => {
-    if (screen !== "teacher_dashboard" && screen !== "teacher_session_settings") return;
-    if (teacherMenu !== "session_open") return;
-    if (teacherSessionTab !== "analyses") return;
-    if (teacherAnalysesTab !== "donnees_a_reporter") return;
-    if (teacherTheme !== "transport") return;
-    if (!selectedSessionId) return;
-
-    let active = true;
-
-    const refreshTransportForTeacher = async () => {
-      if (!active) return;
-      await loadTransportReportRows(selectedSessionId, setTeacherTransportReportRowsDb);
-    };
-
-    void refreshTransportForTeacher();
-    const intervalId = window.setInterval(refreshTransportForTeacher, 2000);
-
-    return () => {
-      active = false;
-      window.clearInterval(intervalId);
-    };
-  }, [
-    screen,
-    teacherMenu,
-    teacherSessionTab,
-    teacherAnalysesTab,
-    teacherTheme,
-    selectedSessionId,
-  ]);
 
   useEffect(() => {
     if (screen !== "student_analyses" || !studentSelectedSessionId) return;
