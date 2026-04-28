@@ -142,7 +142,7 @@ type TeacherVoteResult = {
   rank3Count: number;
 };
 
-type AssignmentMode = "emails" | "groups";
+type AssignmentMode = "groups";
 type AssignmentMethod = "import" | "random";
 
 type StudentAssignmentDraft = {
@@ -1513,7 +1513,7 @@ const [quickSessionSuffix, setQuickSessionSuffix] = useState("");  const [teache
   const [userSearch, setUserSearch] = useState("");
   const [assignmentSearch, setAssignmentSearch] = useState("");
 
-const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("emails");
+const [, setAssignmentMode] = useState<AssignmentMode>("groups");
 const [assignmentMethod, setAssignmentMethod] = useState<AssignmentMethod>("import");
 const [assignmentRawText, setAssignmentRawText] = useState("");
 const [newStudentEmail, setNewStudentEmail] = useState("");
@@ -1836,38 +1836,22 @@ const studentSyntheseData = useMemo(
   [studentSyntheseSourceRows, studentAssignedGroup]
 );
 
-  const sortedFilteredEmails = useMemo(() => {
-    return settingsAllowedEmailsText
-      .split("\n")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b))
-      .filter((email) => email.includes(userSearch.toLowerCase()));
-  }, [settingsAllowedEmailsText, userSearch]);
-
   const parsedStudentAssignments = useMemo(() => {
-  if (assignmentMode !== "groups") return [];
   return parseStudentAssignments(assignmentRawText);
-}, [assignmentMode, assignmentRawText]);
+}, [assignmentRawText]);
 
   const randomStudentAssignments = useMemo(() => {
-    if (assignmentMode !== "groups" || assignmentMethod !== "random") return [];
+    if (assignmentMethod !== "random") return [];
     return generateRandomAssignments(settingsAllowedEmailsText);
-  }, [assignmentMode, assignmentMethod, settingsAllowedEmailsText]);
+  }, [assignmentMethod, settingsAllowedEmailsText]);
 
   const activeStudentAssignments = useMemo(() => {
-    if (assignmentMode !== "groups") return [];
     return assignmentMethod === "random" ? randomStudentAssignments : parsedStudentAssignments;
-  }, [assignmentMode, assignmentMethod, parsedStudentAssignments, randomStudentAssignments]);
+  }, [assignmentMethod, parsedStudentAssignments, randomStudentAssignments]);
 
   const displayedStudentAssignments = useMemo(() => {
-    if (activeStudentAssignments.length > 0) return activeStudentAssignments;
-
-    const parsedFromAllowedEmails = parseStudentAssignments(settingsAllowedEmailsText);
-    if (parsedFromAllowedEmails.length > 0) return parsedFromAllowedEmails;
-
-    return [];
-  }, [activeStudentAssignments, settingsAllowedEmailsText]);
+    return activeStudentAssignments;
+  }, [activeStudentAssignments]);
 
   const filteredAdminTeachers = useMemo(() => {
     const q = teacherSearch.trim().toLowerCase();
@@ -4355,13 +4339,8 @@ async function handleCreateSessionQuick() {
   setSettingsTitle(normalizedCode);
   setSettingsCampus("");
 
-  if (assignmentMode === "emails") {
-    setSettingsAllowedEmailsText(teacherUserEmail || "");
-  } else {
-    setSettingsAllowedEmailsText("");
-  }
-
-  setAssignmentMethod("import");
+  setAssignmentMode("groups");
+  setSettingsAllowedEmailsText("");
   setAssignmentRawText("");
   setQuickSessionCampus("");
   setQuickSessionProgramme("");
@@ -4414,18 +4393,13 @@ async function handleOpenSession(session: SessionRow) {
       assignmentData.map((student: any) => normalizeEmail(String(student.email ?? ""))).join("\n")
     );
   } else {
-    const recoveredAssignments = parseStudentAssignments(allowedEmailText);
-
-    if (recoveredAssignments.length > 0) {
-      setAssignmentMode("groups");
-      setAssignmentMethod("import");
-      setAssignmentRawText(serializeStudentAssignments(recoveredAssignments));
-      setSettingsAllowedEmailsText(recoveredAssignments.map((student) => student.email).join("\n"));
-    } else {
-      setAssignmentMode("emails");
-      setAssignmentMethod("import");
-      setAssignmentRawText("");
-    }
+    // Version 2 : plus de session en liste simple.
+    // Si une ancienne session sans assignation est ouverte, elle reste visible,
+    // mais il faut enregistrer une assignation prédéfinie ou aléatoire avant usage étudiant.
+    setAssignmentMode("groups");
+    setAssignmentMethod("import");
+    setAssignmentRawText("");
+    setSettingsAllowedEmailsText(allowedEmailText);
   }
 
 
@@ -4463,7 +4437,7 @@ async function handleOpenSession(session: SessionRow) {
       setSelectedSessionCode("");
       setSettingsTitle("");
       setSettingsCampus("");
-setAssignmentMode("emails");
+setAssignmentMode("groups");
 setAssignmentMethod("import");
 setAssignmentRawText("");
       setSettingsAllowedEmailsText("");
@@ -4515,23 +4489,6 @@ setAssignmentRawText("");
 
     if (!normalizedNewEmail || !normalizedNewEmail.includes("@")) {
       setMessage("Ajout impossible : l'email de l'étudiant est obligatoire.");
-      return;
-    }
-
-    if (assignmentMode === "emails") {
-      const emails = settingsAllowedEmailsText
-        .split("\n")
-        .map((value) => normalizeEmail(value))
-        .filter(Boolean);
-
-      if (emails.includes(normalizedNewEmail)) {
-        setMessage("Cet étudiant est déjà présent dans la liste des emails autorisés.");
-        return;
-      }
-
-      setSettingsAllowedEmailsText([...emails, normalizedNewEmail].join("\n"));
-      resetNewStudentForm();
-      setMessage("Étudiant ajouté à la liste. Pensez à enregistrer les paramètres.");
       return;
     }
 
@@ -4615,15 +4572,18 @@ setAssignmentRawText("");
       return;
     }
 
-const assignmentsToSave = assignmentMode === "groups" ? activeStudentAssignments : [];
+const assignmentsToSave = activeStudentAssignments;
 
-const allowedEmails =
-  assignmentMode === "groups"
-    ? assignmentsToSave.map((student) => student.email)
-    : settingsAllowedEmailsText
-        .split("\n")
-        .map((v) => normalizeEmail(v))
-        .filter(Boolean);
+if (assignmentsToSave.length === 0) {
+  setMessage(
+    assignmentMethod === "random"
+      ? "Aucun email valide détecté pour l'assignation aléatoire. Ajoutez une liste d'emails, un par ligne."
+      : "Aucune assignation valide détectée. Vérifiez le format : email;prenom;nom;groupe."
+  );
+  return;
+}
+
+const allowedEmails = assignmentsToSave.map((student) => student.email);
 
             const { error } = await supabase.rpc("update_session_settings", {
       p_session_id: selectedSessionId,
@@ -4643,15 +4603,9 @@ const allowedEmails =
   .eq("session_id", selectedSessionId);
 
 if (deleteAssignmentsError) {
-  setMessage(`Paramètres emails enregistrés, mais erreur suppression assignations : ${deleteAssignmentsError.message}`);
+  setMessage(`Paramètres enregistrés, mais erreur suppression assignations : ${deleteAssignmentsError.message}`);
   return;
 }
-
-if (assignmentMode === "groups") {
-  if (assignmentsToSave.length === 0) {
-    setMessage("Aucune assignation valide détectée. Vérifiez le format : email;prenom;nom;groupe.");
-    return;
-  }
 
   const { error: insertAssignmentsError } = await supabase
     .from("session_student_assignments")
@@ -4666,7 +4620,7 @@ if (assignmentMode === "groups") {
     );
 
   if (insertAssignmentsError) {
-    setMessage(`Paramètres emails enregistrés, mais erreur assignations : ${insertAssignmentsError.message}`);
+    setMessage(`Paramètres enregistrés, mais erreur assignations : ${insertAssignmentsError.message}`);
     return;
   }
 
@@ -4674,7 +4628,6 @@ if (assignmentMode === "groups") {
   setAssignmentMethod("import");
   setAssignmentRawText(serializeStudentAssignments(assignmentsToSave));
   setSettingsAllowedEmailsText(assignmentsToSave.map((student) => student.email).join("\n"));
-}
 
     await loadTeacherSessions(teacherUserId);
    setMessage(`Paramètres enregistrés pour ${formatSessionCode(selectedSessionCode)}`);
@@ -7447,14 +7400,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
               <label style={styles.label}>Mode d'accès étudiant</label>
               <div style={{ ...styles.emptyText, marginBottom: 16 }}>
-                {assignmentMode === "groups"
-                  ? "Assignation des étudiants à un groupe"
-                  : "Liste simple d'emails autorisés"}
+                Assignation obligatoire des étudiants à un groupe. Le mode "liste simple d'emails autorisés" est désactivé dans cette version.
               </div>
 
-              {assignmentMode === "groups" && (
-                <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
-                  <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
+              <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
+                <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
 
                 <label style={styles.label}>Email</label>
                 <input
@@ -7464,83 +7414,97 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   placeholder="email@exemple.com"
                 />
 
-                {assignmentMode === "groups" && (
+                <label style={styles.label}>Nom</label>
+                <input
+                  style={styles.input}
+                  value={newStudentLastName}
+                  onChange={(e) => setNewStudentLastName(e.target.value)}
+                  placeholder="Nom"
+                />
+
+                <label style={styles.label}>Prénom</label>
+                <input
+                  style={styles.input}
+                  value={newStudentFirstName}
+                  onChange={(e) => setNewStudentFirstName(e.target.value)}
+                  placeholder="Prénom"
+                />
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
+                  <input
+                    type="checkbox"
+                    checked={autoAssignNewStudentGroup}
+                    onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
+                  />
+                  <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
+                </div>
+
+                {!autoAssignNewStudentGroup && (
                   <>
-                    <label style={styles.label}>Nom</label>
-                    <input
+                    <label style={styles.label}>Groupe</label>
+                    <select
                       style={styles.input}
-                      value={newStudentLastName}
-                      onChange={(e) => setNewStudentLastName(e.target.value)}
-                      placeholder="Nom"
-                    />
-
-                    <label style={styles.label}>Prénom</label>
-                    <input
-                      style={styles.input}
-                      value={newStudentFirstName}
-                      onChange={(e) => setNewStudentFirstName(e.target.value)}
-                      placeholder="Prénom"
-                    />
-
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
-                      <input
-                        type="checkbox"
-                        checked={autoAssignNewStudentGroup}
-                        onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
-                      />
-                      <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
-                    </div>
-
-                    {!autoAssignNewStudentGroup && (
-                      <>
-                        <label style={styles.label}>Groupe</label>
-                        <select
-                          style={styles.input}
-                          value={newStudentGroupNumber}
-                          onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
-                        >
-                          {studentGroups.map((group) => (
-                            <option key={group} value={group}>
-                              Groupe {group}
-                            </option>
-                          ))}
-                        </select>
-                      </>
-                    )}
+                      value={newStudentGroupNumber}
+                      onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
+                    >
+                      {studentGroups.map((group) => (
+                        <option key={group} value={group}>
+                          Groupe {group}
+                        </option>
+                      ))}
+                    </select>
                   </>
                 )}
 
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                    <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
-                      Ajouter l'étudiant
-                    </button>
-                  </div>
+                <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                  <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
+                    Ajouter l'étudiant
+                  </button>
                 </div>
-              )}
+              </div>
 
-              {assignmentMode === "emails" ? (
+              <label style={styles.label}>Méthode d'assignation</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                <label>
+                  <input
+                    type="radio"
+                    checked={assignmentMethod === "import"}
+                    onChange={() => setAssignmentMethod("import")}
+                  />{" "}
+                  Assignation prédéfinie
+                </label>
+
+                <label>
+                  <input
+                    type="radio"
+                    checked={assignmentMethod === "random"}
+                    onChange={() => setAssignmentMethod("random")}
+                  />{" "}
+                  Assignation aléatoire
+                </label>
+              </div>
+
+              {assignmentMethod === "random" ? (
                 <>
-                  <label style={styles.label}>Emails autorisés (un par ligne)</label>
+                  <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
+                    Emails à répartir aléatoirement
+                  </label>
+
                   <textarea
-                    style={{ ...styles.input, minHeight: 180 } as React.CSSProperties}
+                    style={{ ...styles.input, minHeight: 170 } as React.CSSProperties}
                     value={settingsAllowedEmailsText}
                     onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
-                    placeholder="Un email par ligne"
+                    placeholder={"Un email par ligne\netudiant1@exemple.com\netudiant2@exemple.com"}
                   />
 
                   <div style={{ ...styles.emptyText, marginTop: 10 }}>
-                    {
-                      settingsAllowedEmailsText
-                        .split("\n")
-                        .map((value) => normalizeEmail(value))
-                        .filter(Boolean).length
-                    } email(s) autorisé(s).
+                    {activeStudentAssignments.length} assignation(s) aléatoire(s) valide(s) détectée(s).
                   </div>
                 </>
               ) : (
                 <>
                   <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
-                    Liste avec assignation
+                    Liste avec assignation prédéfinie
                   </label>
 
                   <textarea
@@ -7553,33 +7517,33 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   <div style={{ ...styles.emptyText, marginTop: 10 }}>
                     {activeStudentAssignments.length} assignation(s) valide(s) détectée(s).
                   </div>
-
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                    <button
-                      type="button"
-                      style={styles.primaryButton}
-                      onClick={downloadAssignmentExport}
-                    >
-                      Exporter l'assignation
-                    </button>
-                  </div>
-
-                  <input
-                    type="text"
-                    placeholder="Rechercher par nom, prénom, groupe ou email..."
-                    value={assignmentSearch}
-                    onChange={(e) => setAssignmentSearch(e.target.value)}
-                    style={{ ...styles.input, marginTop: 14 }}
-                  />
-
-                  {activeStudentAssignments.length > 0 ? (
-                    renderAssignmentsTable(activeStudentAssignments, assignmentSearch)
-                  ) : (
-                    <div style={{ ...styles.emptyText, marginTop: 12 }}>
-                      Aucune assignation valide détectée.
-                    </div>
-                  )}
                 </>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                <button
+                  type="button"
+                  style={styles.primaryButton}
+                  onClick={downloadAssignmentExport}
+                >
+                  Exporter l'assignation
+                </button>
+              </div>
+
+              <input
+                type="text"
+                placeholder="Rechercher par nom, prénom, groupe ou email..."
+                value={assignmentSearch}
+                onChange={(e) => setAssignmentSearch(e.target.value)}
+                style={{ ...styles.input, marginTop: 14 }}
+              />
+
+              {activeStudentAssignments.length > 0 ? (
+                renderAssignmentsTable(activeStudentAssignments, assignmentSearch)
+              ) : (
+                <div style={{ ...styles.emptyText, marginTop: 12 }}>
+                  Aucune assignation valide détectée.
+                </div>
               )}
 
               <div style={styles.row}>
@@ -8284,24 +8248,28 @@ if (screen === "student_vote") {
 
 <div style={{ marginTop: 16 }}>
   <label style={styles.label}>Mode d'accès étudiant</label>
+  <div style={{ ...styles.emptyText, marginBottom: 10 }}>
+    Assignation obligatoire des étudiants à un groupe.
+  </div>
 
+  <label style={styles.label}>Méthode d'assignation</label>
   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
     <label>
       <input
         type="radio"
-        checked={assignmentMode === "emails"}
-        onChange={() => setAssignmentMode("emails")}
+        checked={assignmentMethod === "import"}
+        onChange={() => setAssignmentMethod("import")}
       />{" "}
-      Liste simple d'emails autorisés
+      Assignation prédéfinie
     </label>
 
     <label>
       <input
         type="radio"
-        checked={assignmentMode === "groups"}
-        onChange={() => setAssignmentMode("groups")}
+        checked={assignmentMethod === "random"}
+        onChange={() => setAssignmentMethod("random")}
       />{" "}
-      Assignation des étudiants à un groupe
+      Assignation aléatoire
     </label>
   </div>
 </div>
@@ -8456,36 +8424,9 @@ if (screen === "student_vote") {
 
                   {displayedStudentAssignments.length > 0 ? (
                     renderAssignmentsTable(displayedStudentAssignments, userSearch)
-                  ) : !sortedFilteredEmails.length ? (
-                    <div style={{ ...styles.emptyText, marginTop: 12 }}>
-                      Aucun email trouvé.
-                    </div>
                   ) : (
-                    <div
-                      style={{
-                        maxHeight: 360,
-                        overflowY: "auto",
-                        overflowX: "auto",
-                        marginTop: 12,
-                        border: "1px solid #d8e0ec",
-                        borderRadius: 14,
-                        background: "#fff",
-                      }}
-                    >
-                      <table style={{ ...styles.reportTable, marginTop: 0 }}>
-                        <thead>
-                          <tr>
-                            <th style={{ ...styles.reportTh, position: "sticky", top: 0, zIndex: 2 }}>Email</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sortedFilteredEmails.map((email) => (
-                            <tr key={email}>
-                              <td style={styles.reportTd}>{email}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div style={{ ...styles.emptyText, marginTop: 12 }}>
+                      Aucune assignation trouvée pour cette session.
                     </div>
                   )}
 
