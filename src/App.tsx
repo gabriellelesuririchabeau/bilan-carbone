@@ -3608,8 +3608,6 @@ async function toggleStudentAnalysisAccess() {
 
     notifyTransportReportChanged(sessionId);
 
-    // Rechargement ciblé, uniquement transport, pour confirmer la valeur DB.
-    // Pas de polling global : l'egress reste maîtrisé.
     if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
       await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
     }
