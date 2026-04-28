@@ -15,15 +15,15 @@ export function buildTransportRowsForGroup(
   return transportReportTemplate.map((templateRow) => {
     const existing = rowsFromDb.find(
       (row) =>
-        row.theme === "transport" &&
-        row.group_number === groupNumber &&
-        row.row_key === templateRow.rowKey
+        String(row.theme) === "transport" &&
+        Number(row.group_number) === groupNumber &&
+        String(row.row_key) === templateRow.rowKey
     );
 
     return {
       id: existing?.id ?? null,
-      rowKey: templateRow.rowKey,
-      label: templateRow.label,
+      rowKey: String(existing?.row_key ?? templateRow.rowKey),
+      label: String(existing?.label ?? templateRow.label),
       factor: Number(existing?.factor ?? templateRow.factor),
       persons: Number(existing?.persons ?? 0),
       distanceTotalKm: Number(existing?.quantity ?? 0),

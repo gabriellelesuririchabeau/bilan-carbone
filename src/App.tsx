@@ -1506,9 +1506,8 @@ const [autoAssignNewStudentGroup, setAutoAssignNewStudentGroup] = useState(true)
   const [message, setMessage] = useState("");
   const [teacherTransportReportRowsDb, setTeacherTransportReportRowsDb] = useState<GroupReportRow[]>([]);
   const [studentTransportReportRowsDb, setStudentTransportReportRowsDb] = useState<GroupReportRow[]>([]);
-  const [teacherTransportReportableRows, setTeacherTransportReportableRows] = useState<ReportableRow[]>([]);
-  const [studentTransportReportableRows, setStudentTransportReportableRows] = useState<ReportableRow[]>([]);
-  const [teacherDejeunerReportableRows, setTeacherDejeunerReportableRows] = useState<DejeunerReportableRowRpc[]>([]);
+const [, setTeacherTransportReportableRows] = useState<ReportableRow[]>([]);
+const [, setStudentTransportReportableRows] = useState<ReportableRow[]>([]);  const [teacherDejeunerReportableRows, setTeacherDejeunerReportableRows] = useState<DejeunerReportableRowRpc[]>([]);
   const [studentDejeunerReportableRows, setStudentDejeunerReportableRows] = useState<DejeunerReportableRowRpc[]>([]);
   const [teacherDejeunerReportRowsDb, setTeacherDejeunerReportRowsDb] = useState<GroupReportRow[]>([]);
   const [studentDejeunerReportRowsDb, setStudentDejeunerReportRowsDb] = useState<GroupReportRow[]>([]);
@@ -1633,8 +1632,27 @@ const studentEquipementRows = useMemo(
   const teacherTheme = getThemeForGroup(teacherGroupNumber);
   const studentTheme = getThemeForGroup(effectiveStudentGroupNumber);
 
-  const teacherDisplayedTransportReportableRows = teacherTransportReportableRows;
-  const studentDisplayedTransportReportableRows = studentTransportReportableRows;
+  const teacherDisplayedTransportReportableRows = useMemo(
+    () =>
+      teacherTransportRows.map((row) => ({
+        rowKey: row.rowKey,
+        label: row.label,
+        persons: Number(row.persons ?? 0),
+        quantity: Number(row.distanceTotalKm ?? 0),
+      })),
+    [teacherTransportRows]
+  );
+
+  const studentDisplayedTransportReportableRows = useMemo(
+    () =>
+      studentTransportRows.map((row) => ({
+        rowKey: row.rowKey,
+        label: row.label,
+        persons: Number(row.persons ?? 0),
+        quantity: Number(row.distanceTotalKm ?? 0),
+      })),
+    [studentTransportRows]
+  );
 
 const teacherTransportChartRows = useMemo(
   () =>
@@ -3063,12 +3081,8 @@ function normalizeGroupReportTheme(theme: string | null | undefined) {
 function normalizeGroupReportRows(rows: GroupReportRow[]) {
   return rows.map((row) => {
     const normalizedTheme = normalizeGroupReportTheme(row.theme);
-    const rawDistance =
-      (row as any).distance_total_km ??
-      (row as any).distanceTotalKm ??
-      row.quantity ??
-      0;
-    const distanceTotalKm = Number(rawDistance ?? 0);
+    const numericQuantity = row.quantity === null || row.quantity === undefined ? 0 : Number(row.quantity);
+    const distanceTotalKm = normalizedTheme === "transport" ? numericQuantity : 0;
 
     return {
       ...row,
@@ -3078,12 +3092,11 @@ function normalizeGroupReportRows(rows: GroupReportRow[]) {
         normalizedTheme === "transport"
           ? getTransportLabelFr(row.row_key, row.label)
           : row.label,
-      quantity: row.quantity === null || row.quantity === undefined ? 0 : Number(row.quantity),
+      quantity: Number.isFinite(numericQuantity) ? numericQuantity : 0,
       persons: row.persons === null || row.persons === undefined ? 0 : Number(row.persons),
       factor: row.factor === null || row.factor === undefined ? 0 : Number(row.factor),
-      distance_total_km: Number.isFinite(distanceTotalKm) ? distanceTotalKm : 0,
       distanceTotalKm: Number.isFinite(distanceTotalKm) ? distanceTotalKm : 0,
-    } as GroupReportRow & { distance_total_km: number; distanceTotalKm: number };
+    } as GroupReportRow & { distanceTotalKm: number };
   }) as GroupReportRow[];
 }
 
@@ -3435,18 +3448,14 @@ async function toggleStudentAnalysisAccess() {
       theme: "transport",
       row_key: rowKey,
       label: safeLabel,
-      persons: safePersons > 0 ? safePersons : null,
-      quantity: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
-      distance_total_km: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
+      persons: safePersons,
+      quantity: safeDistanceTotalKm,
       factor: safeFactor,
       updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
     };
 
     const optimisticRow = {
       ...payload,
-      persons: safePersons,
-      quantity: safeDistanceTotalKm,
-      distance_total_km: safeDistanceTotalKm,
       distanceTotalKm: safeDistanceTotalKm,
     } as unknown as GroupReportRow & { distanceTotalKm: number };
 
