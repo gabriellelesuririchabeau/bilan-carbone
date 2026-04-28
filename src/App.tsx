@@ -1506,8 +1506,9 @@ const [autoAssignNewStudentGroup, setAutoAssignNewStudentGroup] = useState(true)
   const [message, setMessage] = useState("");
   const [teacherTransportReportRowsDb, setTeacherTransportReportRowsDb] = useState<GroupReportRow[]>([]);
   const [studentTransportReportRowsDb, setStudentTransportReportRowsDb] = useState<GroupReportRow[]>([]);
-const [, setTeacherTransportReportableRows] = useState<ReportableRow[]>([]);
-const [, setStudentTransportReportableRows] = useState<ReportableRow[]>([]);  const [teacherDejeunerReportableRows, setTeacherDejeunerReportableRows] = useState<DejeunerReportableRowRpc[]>([]);
+  const [, setTeacherTransportReportableRows] = useState<ReportableRow[]>([]);
+  const [, setStudentTransportReportableRows] = useState<ReportableRow[]>([]);
+  const [teacherDejeunerReportableRows, setTeacherDejeunerReportableRows] = useState<DejeunerReportableRowRpc[]>([]);
   const [studentDejeunerReportableRows, setStudentDejeunerReportableRows] = useState<DejeunerReportableRowRpc[]>([]);
   const [teacherDejeunerReportRowsDb, setTeacherDejeunerReportRowsDb] = useState<GroupReportRow[]>([]);
   const [studentDejeunerReportRowsDb, setStudentDejeunerReportRowsDb] = useState<GroupReportRow[]>([]);
@@ -3081,8 +3082,10 @@ function normalizeGroupReportTheme(theme: string | null | undefined) {
 function normalizeGroupReportRows(rows: GroupReportRow[]) {
   return rows.map((row) => {
     const normalizedTheme = normalizeGroupReportTheme(row.theme);
-    const numericQuantity = row.quantity === null || row.quantity === undefined ? 0 : Number(row.quantity);
-    const distanceTotalKm = normalizedTheme === "transport" ? numericQuantity : 0;
+    const distanceTotalKm =
+      normalizedTheme === "transport"
+        ? Number(row.quantity ?? 0)
+        : Number((row as any).distanceTotalKm ?? row.quantity ?? 0);
 
     return {
       ...row,
@@ -3092,7 +3095,7 @@ function normalizeGroupReportRows(rows: GroupReportRow[]) {
         normalizedTheme === "transport"
           ? getTransportLabelFr(row.row_key, row.label)
           : row.label,
-      quantity: Number.isFinite(numericQuantity) ? numericQuantity : 0,
+      quantity: row.quantity === null || row.quantity === undefined ? 0 : Number(row.quantity),
       persons: row.persons === null || row.persons === undefined ? 0 : Number(row.persons),
       factor: row.factor === null || row.factor === undefined ? 0 : Number(row.factor),
       distanceTotalKm: Number.isFinite(distanceTotalKm) ? distanceTotalKm : 0,
@@ -3456,6 +3459,8 @@ async function toggleStudentAnalysisAccess() {
 
     const optimisticRow = {
       ...payload,
+      persons: safePersons,
+      quantity: safeDistanceTotalKm,
       distanceTotalKm: safeDistanceTotalKm,
     } as unknown as GroupReportRow & { distanceTotalKm: number };
 

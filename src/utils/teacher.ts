@@ -16,8 +16,8 @@ export function buildTransportRowsForGroup(
     const existing = rowsFromDb.find(
       (row) =>
         String(row.theme) === "transport" &&
-        Number(row.group_number) === groupNumber &&
-        String(row.row_key) === templateRow.rowKey
+        Number(row.group_number) === Number(groupNumber) &&
+        String(row.row_key) === String(templateRow.rowKey)
     );
 
     return {
