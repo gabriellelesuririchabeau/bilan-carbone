@@ -858,12 +858,10 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
-  const autoSaveTimerRef = useRef<number | null>(null);
-  const latestDraftValueRef = useRef(String(value ?? 0));
-  const commitVersionRef = useRef(0);
+  const lastCommittedValueRef = useRef<number | null>(null);
+  const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
-    latestDraftValueRef.current = String(value ?? 0);
     if (!isFocused) {
       setDraftValue(String(value ?? 0));
     }
@@ -871,8 +869,8 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
 
   useEffect(() => {
     return () => {
-      if (autoSaveTimerRef.current !== null) {
-        window.clearTimeout(autoSaveTimerRef.current);
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
       }
     };
   }, []);
@@ -886,50 +884,47 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     return Math.max(min, numericValue);
   }
 
-  async function commitValue(
-    nextValue = latestDraftValueRef.current,
-    options: { syncInputAfterSave?: boolean } = {}
-  ) {
+  function scheduleCommit(nextValue: string, delay = 120) {
     const numericValue = parseDraft(nextValue);
 
     // Important : pendant la saisie, un input type="number" peut valoir "".
     // On ne sauvegarde jamais ce vide comme 0, sinon une sauvegarde asynchrone
     // tardive peut écraser la vraie valeur en base.
+    if (numericValue === null) return;
+
+    // 1) Mise à jour immédiate du state parent : les totaux étudiant changent sans Entrée.
+    // 2) Petit debounce pour éviter que plusieurs upserts (ex : 1 -> 10 -> 100) arrivent
+    //    en base dans le désordre et réécrasent la dernière valeur.
+    if (lastCommittedValueRef.current !== numericValue) {
+      lastCommittedValueRef.current = numericValue;
+      void onCommit(numericValue);
+    }
+
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = window.setTimeout(() => {
+      void onCommit(numericValue);
+    }, delay);
+  }
+
+  async function commitValue(nextValue = draftValue) {
+    const numericValue = parseDraft(nextValue);
+
     if (numericValue === null) {
-      if (options.syncInputAfterSave !== false) {
-        setDraftValue(String(value ?? 0));
-        latestDraftValueRef.current = String(value ?? 0);
-      }
+      setDraftValue(String(value ?? 0));
       return;
     }
 
-    const currentCommitVersion = commitVersionRef.current + 1;
-    commitVersionRef.current = currentCommitVersion;
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
 
+    lastCommittedValueRef.current = numericValue;
     await onCommit(numericValue);
-
-    // Si une saisie plus récente a déjà déclenché une autre sauvegarde,
-    // on ne réécrit pas l'input avec une ancienne valeur.
-    if (commitVersionRef.current !== currentCommitVersion) return;
-
-    if (options.syncInputAfterSave !== false && !isFocused) {
-      setDraftValue(String(numericValue));
-      latestDraftValueRef.current = String(numericValue);
-    }
-  }
-
-  function scheduleAutoSave(nextValue: string) {
-    if (autoSaveTimerRef.current !== null) {
-      window.clearTimeout(autoSaveTimerRef.current);
-    }
-
-    // Ne pas enregistrer un champ temporairement vide.
-    if (parseDraft(nextValue) === null) return;
-
-    autoSaveTimerRef.current = window.setTimeout(() => {
-      autoSaveTimerRef.current = null;
-      void commitValue(latestDraftValueRef.current, { syncInputAfterSave: false });
-    }, 300);
+    setDraftValue(String(numericValue));
   }
 
   return (
@@ -942,24 +937,14 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       onChange={(e) => {
         const nextValue = e.target.value;
         setDraftValue(nextValue);
-        latestDraftValueRef.current = nextValue;
-        scheduleAutoSave(nextValue);
+        scheduleCommit(nextValue);
       }}
       onBlur={() => {
         setIsFocused(false);
-        if (autoSaveTimerRef.current !== null) {
-          window.clearTimeout(autoSaveTimerRef.current);
-          autoSaveTimerRef.current = null;
-        }
-        void commitValue(latestDraftValueRef.current);
+        void commitValue();
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
-          if (autoSaveTimerRef.current !== null) {
-            window.clearTimeout(autoSaveTimerRef.current);
-            autoSaveTimerRef.current = null;
-          }
-          latestDraftValueRef.current = e.currentTarget.value;
           void commitValue(e.currentTarget.value);
           e.currentTarget.blur();
         }
@@ -3623,16 +3608,31 @@ async function saveEquipementReportRow(params: {
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const reloadRows = async () => {
-    if (studentSelectedSessionId === sessionId) {
-      await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
-      await loadEquipementReportableRows(sessionId);
+  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
+    const nextRows = normalizeGroupReportRows(rows);
+    const existingIndex = nextRows.findIndex(
+      (row) =>
+        row.session_id === sessionId &&
+        Number(row.group_number) === groupNumber &&
+        normalizeGroupReportTheme(row.theme) === "equipement" &&
+        String(row.row_key) === rowKey
+    );
+
+    if (existingIndex >= 0) {
+      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
+      return nextRows;
     }
-    if (selectedSessionId === sessionId) {
-      await loadEquipementReportRows(sessionId, setTeacherEquipementReportRowsDb);
-      await loadTeacherEquipementReportableRows(sessionId);
-    }
+
+    nextRows.push(payload as unknown as GroupReportRow);
+    return nextRows;
   };
+
+  if (studentSelectedSessionId === sessionId) {
+    setStudentEquipementReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
+  if (selectedSessionId === sessionId) {
+    setTeacherEquipementReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
 
   const { error } = await supabase.from("group_reports").upsert(
     payload,
@@ -3641,11 +3641,8 @@ async function saveEquipementReportRow(params: {
 
   if (error) {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
-    await reloadRows();
     return;
   }
-
-  await reloadRows();
 }
 
 async function saveAutresReportRow(params: {
@@ -3680,16 +3677,31 @@ async function saveAutresReportRow(params: {
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const reloadRows = async () => {
-    if (studentSelectedSessionId === sessionId) {
-      await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-      await loadAutresReportableRows(sessionId);
+  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
+    const nextRows = normalizeGroupReportRows(rows);
+    const existingIndex = nextRows.findIndex(
+      (row) =>
+        row.session_id === sessionId &&
+        Number(row.group_number) === groupNumber &&
+        normalizeGroupReportTheme(row.theme) === "autres_consommations" &&
+        String(row.row_key) === rowKey
+    );
+
+    if (existingIndex >= 0) {
+      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
+      return nextRows;
     }
-    if (selectedSessionId === sessionId) {
-      await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
-      await loadTeacherAutresReportableRows(sessionId);
-    }
+
+    nextRows.push(payload as unknown as GroupReportRow);
+    return nextRows;
   };
+
+  if (studentSelectedSessionId === sessionId) {
+    setStudentAutresReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
+  if (selectedSessionId === sessionId) {
+    setTeacherAutresReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
 
   const { error } = await supabase.from("group_reports").upsert(
     payload,
@@ -3698,11 +3710,8 @@ async function saveAutresReportRow(params: {
 
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
-    await reloadRows();
     return;
   }
-
-  await reloadRows();
 }
 
 async function saveSalleReportRow(params: {
@@ -3737,14 +3746,31 @@ async function saveSalleReportRow(params: {
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const reloadRows = async () => {
-    if (studentSelectedSessionId === sessionId) {
-      await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
+  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
+    const nextRows = normalizeGroupReportRows(rows);
+    const existingIndex = nextRows.findIndex(
+      (row) =>
+        row.session_id === sessionId &&
+        Number(row.group_number) === groupNumber &&
+        normalizeGroupReportTheme(row.theme) === "salle" &&
+        String(row.row_key) === rowKey
+    );
+
+    if (existingIndex >= 0) {
+      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
+      return nextRows;
     }
-    if (selectedSessionId === sessionId) {
-      await loadSalleReportRows(sessionId, setTeacherSalleReportRowsDb);
-    }
+
+    nextRows.push(payload as unknown as GroupReportRow);
+    return nextRows;
   };
+
+  if (studentSelectedSessionId === sessionId) {
+    setStudentSalleReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
+  if (selectedSessionId === sessionId) {
+    setTeacherSalleReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
 
   const { error } = await supabase.from("group_reports").upsert(
     payload,
@@ -3753,11 +3779,8 @@ async function saveSalleReportRow(params: {
 
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
-    await reloadRows();
     return;
   }
-
-  await reloadRows();
 }
 
   useEffect(() => {
@@ -3864,13 +3887,41 @@ async function saveSalleReportRow(params: {
       void loadTeacherGroupProposals(selectedSessionId);
       void loadConsolidatedProposals(selectedSessionId);
       void loadTeacherVoteRows(selectedSessionId);
-    }, 2000);
+    }, 500);
 
     return () => {
       window.clearTimeout(timeoutId);
       window.clearInterval(intervalId);
     };
   }, [screen, selectedSessionId, teacherMenu]);
+
+  useEffect(() => {
+    if (!selectedSessionId) return;
+
+    const channel = supabase
+      .channel(`group_reports_teacher_${selectedSessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "group_reports",
+          filter: `session_id=eq.${selectedSessionId}`,
+        },
+        () => {
+          void loadTransportReportRows(selectedSessionId, setTeacherTransportReportRowsDb);
+          void loadDejeunerReportRows(selectedSessionId, setTeacherDejeunerReportRowsDb);
+          void loadEquipementReportRows(selectedSessionId, setTeacherEquipementReportRowsDb);
+          void loadAutresReportRows(selectedSessionId, setTeacherAutresReportRowsDb);
+          void loadSalleReportRows(selectedSessionId, setTeacherSalleReportRowsDb);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [selectedSessionId]);
 
   useEffect(() => {
     if (screen !== "student_analyses" || !studentSelectedSessionId) return;
