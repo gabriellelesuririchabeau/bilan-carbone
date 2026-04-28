@@ -1506,8 +1506,8 @@ const [autoAssignNewStudentGroup, setAutoAssignNewStudentGroup] = useState(true)
   const [message, setMessage] = useState("");
   const [teacherTransportReportRowsDb, setTeacherTransportReportRowsDb] = useState<GroupReportRow[]>([]);
   const [studentTransportReportRowsDb, setStudentTransportReportRowsDb] = useState<GroupReportRow[]>([]);
-  const [, setTeacherTransportReportableRows] = useState<ReportableRow[]>([]);
-  const [, setStudentTransportReportableRows] = useState<ReportableRow[]>([]);
+  const [teacherTransportReportableRows, setTeacherTransportReportableRows] = useState<ReportableRow[]>([]);
+  const [studentTransportReportableRows, setStudentTransportReportableRows] = useState<ReportableRow[]>([]);
   const [teacherDejeunerReportableRows, setTeacherDejeunerReportableRows] = useState<DejeunerReportableRowRpc[]>([]);
   const [studentDejeunerReportableRows, setStudentDejeunerReportableRows] = useState<DejeunerReportableRowRpc[]>([]);
   const [teacherDejeunerReportRowsDb, setTeacherDejeunerReportRowsDb] = useState<GroupReportRow[]>([]);
@@ -1633,27 +1633,8 @@ const studentEquipementRows = useMemo(
   const teacherTheme = getThemeForGroup(teacherGroupNumber);
   const studentTheme = getThemeForGroup(effectiveStudentGroupNumber);
 
-  const teacherDisplayedTransportReportableRows = useMemo(
-    () =>
-      teacherTransportRows.map((row) => ({
-        rowKey: row.rowKey,
-        label: row.label,
-        persons: Number(row.persons ?? 0),
-        quantity: Number(row.distanceTotalKm ?? 0),
-      })),
-    [teacherTransportRows]
-  );
-
-  const studentDisplayedTransportReportableRows = useMemo(
-    () =>
-      studentTransportRows.map((row) => ({
-        rowKey: row.rowKey,
-        label: row.label,
-        persons: Number(row.persons ?? 0),
-        quantity: Number(row.distanceTotalKm ?? 0),
-      })),
-    [studentTransportRows]
-  );
+  const teacherDisplayedTransportReportableRows = teacherTransportReportableRows;
+  const studentDisplayedTransportReportableRows = studentTransportReportableRows;
 
 const teacherTransportChartRows = useMemo(
   () =>
