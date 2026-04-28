@@ -858,23 +858,17 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
-  const lastSentValueRef = useRef<number | null>(null);
-  const saveTimerRef = useRef<number | null>(null);
+  const latestDraftRef = useRef(String(value ?? 0));
 
   useEffect(() => {
+    // Quand le champ est en cours d'édition, on ne laisse pas un reload DB
+    // réécrire l'ancienne valeur par-dessus la saisie de l'étudiant.
     if (!isFocused) {
-      setDraftValue(String(value ?? 0));
-      lastSentValueRef.current = Number(value ?? 0);
+      const nextValue = String(value ?? 0);
+      latestDraftRef.current = nextValue;
+      setDraftValue(nextValue);
     }
   }, [value, isFocused]);
-
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current !== null) {
-        window.clearTimeout(saveTimerRef.current);
-      }
-    };
-  }, []);
 
   function parseDraft(nextValue: string) {
     const cleanValue = String(nextValue ?? "").trim();
@@ -885,45 +879,15 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     return Math.max(min, numericValue);
   }
 
-  function saveImmediately(nextValue: string) {
+  async function commitValue(nextValue = latestDraftRef.current) {
     const numericValue = parseDraft(nextValue);
 
-    // Ne jamais transformer un champ temporairement vide en 0.
-    if (numericValue === null) return;
-
-    // Mise à jour immédiate du state parent : les totaux côté étudiant changent sans Entrée.
-    if (lastSentValueRef.current !== numericValue) {
-      lastSentValueRef.current = numericValue;
-      void onCommit(numericValue);
-    }
-
-    // Sauvegarde de sécurité après une courte pause : garantit que la dernière valeur tapée
-    // est bien celle qui reste en base, même si une requête précédente arrive en retard.
-    if (saveTimerRef.current !== null) {
-      window.clearTimeout(saveTimerRef.current);
-    }
-
-    saveTimerRef.current = window.setTimeout(() => {
-      void onCommit(numericValue);
-    }, 250);
-  }
-
-  async function commitValue(nextValue = draftValue) {
-    const numericValue = parseDraft(nextValue);
-
+    // Ne jamais convertir un champ temporairement vide en 0.
     if (numericValue === null) {
-      setDraftValue(String(value ?? 0));
       return;
     }
 
-    if (saveTimerRef.current !== null) {
-      window.clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
-
-    lastSentValueRef.current = numericValue;
     await onCommit(numericValue);
-    setDraftValue(String(numericValue));
   }
 
   return (
@@ -935,8 +899,13 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       onFocus={() => setIsFocused(true)}
       onChange={(e) => {
         const nextValue = e.target.value;
+        latestDraftRef.current = nextValue;
         setDraftValue(nextValue);
-        saveImmediately(nextValue);
+
+        // Mise à jour immédiate : calcul étudiant + sauvegarde DB sans Entrée.
+        const numericValue = parseDraft(nextValue);
+        if (numericValue === null) return;
+        void onCommit(numericValue);
       }}
       onBlur={() => {
         setIsFocused(false);
@@ -3488,6 +3457,10 @@ console.log("SAVE REPORT ERROR", error);
       return;
     }
 
+    if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
+      await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
+      await loadTransportReportableRows(sessionId, setStudentTransportReportableRows);
+    }
   }
 
   async function saveDejeunerReportRow(params: {
@@ -3566,6 +3539,10 @@ console.log("SAVE REPORT ERROR", error);
       return;
     }
 
+    if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
+      await loadDejeunerReportRows(sessionId, setStudentDejeunerReportRowsDb);
+      await loadDejeunerReportableRows(sessionId);
+    }
   }
 async function saveEquipementReportRow(params: {
   sessionId: string;
@@ -3599,16 +3576,31 @@ async function saveEquipementReportRow(params: {
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const reloadRows = async () => {
-    if (studentSelectedSessionId === sessionId) {
-      await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
-      await loadEquipementReportableRows(sessionId);
+  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
+    const nextRows = normalizeGroupReportRows(rows);
+    const existingIndex = nextRows.findIndex(
+      (row) =>
+        row.session_id === sessionId &&
+        Number(row.group_number) === groupNumber &&
+        normalizeGroupReportTheme(row.theme) === "equipement" &&
+        String(row.row_key) === rowKey
+    );
+
+    if (existingIndex >= 0) {
+      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
+      return nextRows;
     }
-    if (selectedSessionId === sessionId) {
-      await loadEquipementReportRows(sessionId, setTeacherEquipementReportRowsDb);
-      await loadTeacherEquipementReportableRows(sessionId);
-    }
+
+    nextRows.push(payload as unknown as GroupReportRow);
+    return nextRows;
   };
+
+  if (studentSelectedSessionId === sessionId) {
+    setStudentEquipementReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
+  if (selectedSessionId === sessionId) {
+    setTeacherEquipementReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
 
   const { error } = await supabase.from("group_reports").upsert(
     payload,
@@ -3617,11 +3609,8 @@ async function saveEquipementReportRow(params: {
 
   if (error) {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
-    await reloadRows();
     return;
   }
-
-  await reloadRows();
 }
 
 async function saveAutresReportRow(params: {
@@ -3656,16 +3645,31 @@ async function saveAutresReportRow(params: {
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const reloadRows = async () => {
-    if (studentSelectedSessionId === sessionId) {
-      await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
-      await loadAutresReportableRows(sessionId);
+  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
+    const nextRows = normalizeGroupReportRows(rows);
+    const existingIndex = nextRows.findIndex(
+      (row) =>
+        row.session_id === sessionId &&
+        Number(row.group_number) === groupNumber &&
+        normalizeGroupReportTheme(row.theme) === "autres_consommations" &&
+        String(row.row_key) === rowKey
+    );
+
+    if (existingIndex >= 0) {
+      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
+      return nextRows;
     }
-    if (selectedSessionId === sessionId) {
-      await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
-      await loadTeacherAutresReportableRows(sessionId);
-    }
+
+    nextRows.push(payload as unknown as GroupReportRow);
+    return nextRows;
   };
+
+  if (studentSelectedSessionId === sessionId) {
+    setStudentAutresReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
+  if (selectedSessionId === sessionId) {
+    setTeacherAutresReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
 
   const { error } = await supabase.from("group_reports").upsert(
     payload,
@@ -3674,11 +3678,8 @@ async function saveAutresReportRow(params: {
 
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
-    await reloadRows();
     return;
   }
-
-  await reloadRows();
 }
 
 async function saveSalleReportRow(params: {
@@ -3713,14 +3714,31 @@ async function saveSalleReportRow(params: {
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const reloadRows = async () => {
-    if (studentSelectedSessionId === sessionId) {
-      await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
+  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
+    const nextRows = normalizeGroupReportRows(rows);
+    const existingIndex = nextRows.findIndex(
+      (row) =>
+        row.session_id === sessionId &&
+        Number(row.group_number) === groupNumber &&
+        normalizeGroupReportTheme(row.theme) === "salle" &&
+        String(row.row_key) === rowKey
+    );
+
+    if (existingIndex >= 0) {
+      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
+      return nextRows;
     }
-    if (selectedSessionId === sessionId) {
-      await loadSalleReportRows(sessionId, setTeacherSalleReportRowsDb);
-    }
+
+    nextRows.push(payload as unknown as GroupReportRow);
+    return nextRows;
   };
+
+  if (studentSelectedSessionId === sessionId) {
+    setStudentSalleReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
+  if (selectedSessionId === sessionId) {
+    setTeacherSalleReportRowsDb((prev) => applyOptimisticUpdate(prev));
+  }
 
   const { error } = await supabase.from("group_reports").upsert(
     payload,
@@ -3729,11 +3747,8 @@ async function saveSalleReportRow(params: {
 
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
-    await reloadRows();
     return;
   }
-
-  await reloadRows();
 }
 
   useEffect(() => {
@@ -3840,7 +3855,7 @@ async function saveSalleReportRow(params: {
       void loadTeacherGroupProposals(selectedSessionId);
       void loadConsolidatedProposals(selectedSessionId);
       void loadTeacherVoteRows(selectedSessionId);
-    }, 500);
+    }, 2000);
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -3848,9 +3863,9 @@ async function saveSalleReportRow(params: {
     };
   }, [screen, selectedSessionId, teacherMenu]);
 
-
-
   useEffect(() => {
+    if (screen !== "teacher_dashboard" && screen !== "teacher_session_settings") return;
+    if (teacherMenu !== "session_open") return;
     if (!selectedSessionId) return;
 
     const refreshTeacherReports = () => {
@@ -3866,7 +3881,7 @@ async function saveSalleReportRow(params: {
     };
 
     const channel = supabase
-      .channel(`group_reports_teacher_live_${selectedSessionId}`)
+      .channel(`teacher-group-reports-${selectedSessionId}`)
       .on(
         "postgres_changes",
         {
@@ -3875,14 +3890,20 @@ async function saveSalleReportRow(params: {
           table: "group_reports",
           filter: `session_id=eq.${selectedSessionId}`,
         },
-        refreshTeacherReports
+        () => {
+          refreshTeacherReports();
+        }
       )
       .subscribe();
 
+    // Fallback léger si Realtime n'est pas activé sur la table.
+    const fallbackIntervalId = window.setInterval(refreshTeacherReports, 2000);
+
     return () => {
+      window.clearInterval(fallbackIntervalId);
       void supabase.removeChannel(channel);
     };
-  }, [selectedSessionId]);
+  }, [screen, selectedSessionId, teacherMenu]);
 
   useEffect(() => {
     if (screen !== "student_analyses" || !studentSelectedSessionId) return;
