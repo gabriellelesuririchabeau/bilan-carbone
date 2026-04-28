@@ -4047,6 +4047,57 @@ async function saveSalleReportRow(params: {
       }
     }
 
+    function applyRealtimeGroupReportPayload(payload: any) {
+      const nextRow = payload?.new as GroupReportRow | undefined;
+      const oldRow = payload?.old as GroupReportRow | undefined;
+      const sourceRow = nextRow ?? oldRow;
+      const normalizedTheme = normalizeGroupReportTheme(sourceRow?.theme);
+
+      if (!sourceRow || normalizedTheme !== "transport") {
+        reloadChangedTheme(sourceRow?.theme);
+        return;
+      }
+
+      if (String(sourceRow.session_id) !== selectedSessionId) return;
+
+      if (payload.eventType === "DELETE") {
+        setTeacherTransportReportRowsDb((prev) =>
+          prev.filter(
+            (row) =>
+              !(
+                String(row.session_id) === selectedSessionId &&
+                Number(row.group_number) === Number(sourceRow.group_number) &&
+                normalizeGroupReportTheme(row.theme) === "transport" &&
+                String(row.row_key) === String(sourceRow.row_key)
+              )
+          )
+        );
+        return;
+      }
+
+      if (!nextRow) return;
+
+      const normalizedRow = normalizeGroupReportRows([nextRow])[0];
+
+      setTeacherTransportReportRowsDb((prev) => {
+        const nextRows = normalizeGroupReportRows(prev);
+        const existingIndex = nextRows.findIndex(
+          (row) =>
+            String(row.session_id) === selectedSessionId &&
+            Number(row.group_number) === Number(normalizedRow.group_number) &&
+            normalizeGroupReportTheme(row.theme) === "transport" &&
+            String(row.row_key) === String(normalizedRow.row_key)
+        );
+
+        if (existingIndex >= 0) {
+          nextRows[existingIndex] = normalizedRow;
+          return nextRows;
+        }
+
+        return [...nextRows, normalizedRow];
+      });
+    }
+
     const channel = supabase
       .channel(`teacher-group-reports-${selectedSessionId}`)
       .on(
@@ -4057,12 +4108,13 @@ async function saveSalleReportRow(params: {
           table: "group_reports",
           filter: `session_id=eq.${selectedSessionId}`,
         },
-        (payload) => {
-          const nextRow = ((payload as any).new ?? (payload as any).old) as GroupReportRow | undefined;
-          reloadChangedTheme(nextRow?.theme);
-        }
+        applyRealtimeGroupReportPayload
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          setMessage("Realtime Supabase indisponible pour group_reports. Vérifiez que la table est activée dans la publication supabase_realtime.");
+        }
+      });
 
     window.addEventListener("group_reports_changed_local", handleLocalGroupReportChange as EventListener);
     window.addEventListener("storage", handleStorageGroupReportChange);
