@@ -248,6 +248,40 @@ const SALLE_ANALYSIS_ROWS: SalleAnalysisRow[] = [
   { rowKey: "ecran_fixe", label: "Écran fixe", factor: 137, quantity: 0 },
 ];
 
+const TRANSPORT_LABELS_FR: Record<string, string> = {
+  walking: "Marche à pied",
+  walk: "Marche à pied",
+  marche: "Marche à pied",
+  marche_a_pied: "Marche à pied",
+  bus: "Bus",
+  metro_tram_train: "Métro, tramway, train",
+  metro_tramway_train: "Métro, tramway, train",
+  metro: "Métro, tramway, train",
+  train: "Métro, tramway, train",
+  electric_scooter: "Trottinette électrique",
+  trottinette_electrique: "Trottinette électrique",
+  bike: "Vélo",
+  velo: "Vélo",
+  electric_bike: "Vélo électrique",
+  velo_electrique: "Vélo électrique",
+  motorcycle: "2 roues thermique",
+  deux_roues_thermique: "2 roues thermique",
+  electric_car: "Voiture électrique",
+  voiture_electrique: "Voiture électrique",
+  hybrid_car: "Voiture hybride",
+  voiture_hybride: "Voiture hybride",
+  diesel_car: "Voiture diesel",
+  voiture_diesel: "Voiture diesel",
+  gasoline_car: "Voiture essence",
+  essence_car: "Voiture essence",
+  voiture_essence: "Voiture essence",
+};
+
+function getTransportLabelFr(rowKey: string | null | undefined, fallbackLabel: string | null | undefined) {
+  const key = String(rowKey ?? "").trim();
+  return TRANSPORT_LABELS_FR[key] ?? String(fallbackLabel ?? key);
+}
+
 const AUTRES_CATEGORY_ORDER = ["Boissons", "Grignotage", "Fruits locaux", "Fruits importés"];
 const AUTRES_ROW_ORDER: Record<string, number> = {
   eau_robinet: 0,
@@ -653,127 +687,6 @@ function formatSessionCode(value: string | null | undefined) {
   return String(value ?? "").toUpperCase();
 }
 
-
-const TRANSPORT_LABELS_FR_BY_KEY: Record<string, string> = {
-  walk: "Marche à pied",
-  walking: "Marche à pied",
-  foot: "Marche à pied",
-  on_foot: "Marche à pied",
-  marche: "Marche à pied",
-  marche_a_pied: "Marche à pied",
-  bus: "Bus",
-  metro: "Métro, tramway, train",
-  tram: "Métro, tramway, train",
-  train: "Métro, tramway, train",
-  metro_tram_train: "Métro, tramway, train",
-  metro_tramway_train: "Métro, tramway, train",
-  public_transport: "Métro, tramway, train",
-  electric_scooter: "Trottinette électrique",
-  trottinette_electrique: "Trottinette électrique",
-  scooter_electric: "Trottinette électrique",
-  bike: "Vélo",
-  bicycle: "Vélo",
-  velo: "Vélo",
-  electric_bike: "Vélo électrique",
-  velo_electrique: "Vélo électrique",
-  motorbike: "2 roues thermique",
-  motorcycle: "2 roues thermique",
-  thermal_two_wheeler: "2 roues thermique",
-  deux_roues_thermique: "2 roues thermique",
-  electric_car: "Voiture électrique",
-  car_electric: "Voiture électrique",
-  voiture_electrique: "Voiture électrique",
-  hybrid_car: "Voiture hybride",
-  car_hybrid: "Voiture hybride",
-  voiture_hybride: "Voiture hybride",
-  diesel_car: "Voiture diesel",
-  car_diesel: "Voiture diesel",
-  voiture_diesel: "Voiture diesel",
-  gasoline_car: "Voiture essence",
-  petrol_car: "Voiture essence",
-  gas_car: "Voiture essence",
-  car_gasoline: "Voiture essence",
-  car_petrol: "Voiture essence",
-  voiture_essence: "Voiture essence",
-};
-
-const TRANSPORT_LABELS_FR_BY_LABEL: Record<string, string> = {
-  "walk": "Marche à pied",
-  "walking": "Marche à pied",
-  "on foot": "Marche à pied",
-  "marche a pied": "Marche à pied",
-  "marche à pied": "Marche à pied",
-  "bus": "Bus",
-  "metro": "Métro, tramway, train",
-  "subway": "Métro, tramway, train",
-  "tram": "Métro, tramway, train",
-  "train": "Métro, tramway, train",
-  "metro tramway train": "Métro, tramway, train",
-  "métro tramway train": "Métro, tramway, train",
-  "metro tram train": "Métro, tramway, train",
-  "métro tramway train": "Métro, tramway, train",
-  "electric scooter": "Trottinette électrique",
-  "trottinette electrique": "Trottinette électrique",
-  "trottinette électrique": "Trottinette électrique",
-  "bike": "Vélo",
-  "bicycle": "Vélo",
-  "velo": "Vélo",
-  "vélo": "Vélo",
-  "electric bike": "Vélo électrique",
-  "velo electrique": "Vélo électrique",
-  "vélo électrique": "Vélo électrique",
-  "motorbike": "2 roues thermique",
-  "motorcycle": "2 roues thermique",
-  "2 roues thermique": "2 roues thermique",
-  "electric car": "Voiture électrique",
-  "voiture electrique": "Voiture électrique",
-  "voiture électrique": "Voiture électrique",
-  "hybrid car": "Voiture hybride",
-  "voiture hybride": "Voiture hybride",
-  "diesel car": "Voiture diesel",
-  "voiture diesel": "Voiture diesel",
-  "gasoline car": "Voiture essence",
-  "petrol car": "Voiture essence",
-  "gas car": "Voiture essence",
-  "voiture essence": "Voiture essence",
-};
-
-function normalizeTransportLookupValue(value: string | null | undefined) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
-function normalizeTransportLabelLookupValue(value: string | null | undefined) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function getFrenchTransportLabel(rowKey: string | null | undefined, label: string | null | undefined) {
-  const key = normalizeTransportLookupValue(rowKey);
-  const labelKey = normalizeTransportLabelLookupValue(label);
-
-  return (
-    TRANSPORT_LABELS_FR_BY_KEY[key] ||
-    TRANSPORT_LABELS_FR_BY_LABEL[labelKey] ||
-    String(label ?? rowKey ?? "")
-  );
-}
-
-function normalizeTransportAnalysisRows<T extends { rowKey: string; label: string }>(rows: T[]): T[] {
-  return rows.map((row) => ({
-    ...row,
-    label: getFrenchTransportLabel(row.rowKey, row.label),
-  }));
-}
-
 function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
   return rawText
     .split("\n")
@@ -979,14 +892,24 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
-  const lastSentValueRef = useRef<string | null>(null);
+  const lastCommittedRef = useRef<string>(String(value ?? 0));
+  const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isFocused) {
-      setDraftValue(String(value ?? 0));
-      lastSentValueRef.current = String(value ?? 0);
+      const nextValue = String(value ?? 0);
+      setDraftValue(nextValue);
+      lastCommittedRef.current = nextValue;
     }
   }, [value, isFocused]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   function parseDraft(nextValue: string) {
     const cleanValue = String(nextValue ?? "").trim();
@@ -997,20 +920,36 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     return Math.max(min, numericValue);
   }
 
-  async function commitValue(nextValue = draftValue, options?: { resetEmpty?: boolean }) {
+  async function commitValue(nextValue = draftValue, normalizeAfterSave = true) {
     const numericValue = parseDraft(nextValue);
 
-    // Ne jamais transformer un champ temporairement vide en 0.
     if (numericValue === null) {
-      if (options?.resetEmpty) setDraftValue(String(value ?? 0));
       return;
     }
 
-    const normalizedValue = String(numericValue);
-    if (lastSentValueRef.current === normalizedValue) return;
-
-    lastSentValueRef.current = normalizedValue;
+    const commitKey = String(numericValue);
+    lastCommittedRef.current = commitKey;
     await onCommit(numericValue);
+
+    if (normalizeAfterSave && lastCommittedRef.current === commitKey) {
+      setDraftValue(commitKey);
+    }
+  }
+
+  function scheduleCommit(nextValue: string) {
+    const numericValue = parseDraft(nextValue);
+    if (numericValue === null) return;
+
+    // Mise à jour immédiate des calculs locaux.
+    void onCommit(numericValue);
+
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = window.setTimeout(() => {
+      void commitValue(nextValue, false);
+    }, 250);
   }
 
   return (
@@ -1023,11 +962,11 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       onChange={(e) => {
         const nextValue = e.target.value;
         setDraftValue(nextValue);
-        void commitValue(nextValue);
+        scheduleCommit(nextValue);
       }}
       onBlur={() => {
         setIsFocused(false);
-        void commitValue(draftValue, { resetEmpty: true });
+        void commitValue();
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
@@ -1689,12 +1628,12 @@ const teacherVoteResults = useMemo<TeacherVoteResult[]>(() => {
 }, [consolidatedProposals, teacherVoteRows]);
 
   const teacherTransportRows = useMemo(
-    () => normalizeTransportAnalysisRows(buildTransportRowsForGroup(teacherTransportReportRowsDb, teacherGroupNumber)),
+    () => buildTransportRowsForGroup(teacherTransportReportRowsDb, teacherGroupNumber),
     [teacherTransportReportRowsDb, teacherGroupNumber]
   );
 
   const studentTransportRows = useMemo(
-    () => normalizeTransportAnalysisRows(buildTransportRowsForGroup(studentTransportReportRowsDb, effectiveStudentGroupNumber)),
+    () => buildTransportRowsForGroup(studentTransportReportRowsDb, effectiveStudentGroupNumber),
     [studentTransportReportRowsDb, effectiveStudentGroupNumber]
   );
 
@@ -3112,7 +3051,26 @@ async function handleCreateTeacher(name: string, email: string, password: string
     sessionId: string,
     setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
   ) {
-    await loadGroupReportRowsWithFallback(sessionId, setRows, ["transport"], "transport");
+    if (!sessionId) {
+      setRows([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("group_reports")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("theme", "transport")
+      .order("group_number", { ascending: true })
+      .order("row_key", { ascending: true });
+
+    if (error) {
+      setRows([]);
+      setMessage(`Erreur chargement report transport : ${error.message}`);
+      return;
+    }
+
+    setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
   }
 
   async function loadDejeunerReportRows(
@@ -3129,14 +3087,30 @@ function normalizeGroupReportTheme(theme: string | null | undefined) {
 }
 
 function normalizeGroupReportRows(rows: GroupReportRow[]) {
-  return rows.map((row) => ({
-    ...row,
-    theme: normalizeGroupReportTheme(row.theme),
-    group_number: Number(row.group_number),
-    quantity: row.quantity === null || row.quantity === undefined ? 0 : Number(row.quantity),
-    persons: row.persons === null || row.persons === undefined ? null : Number(row.persons),
-    factor: row.factor === null || row.factor === undefined ? 0 : Number(row.factor),
-  })) as GroupReportRow[];
+  return rows.map((row) => {
+    const normalizedTheme = normalizeGroupReportTheme(row.theme);
+    const rawDistance =
+      (row as any).distance_total_km ??
+      (row as any).distanceTotalKm ??
+      row.quantity ??
+      0;
+    const distanceTotalKm = Number(rawDistance ?? 0);
+
+    return {
+      ...row,
+      theme: normalizedTheme,
+      group_number: Number(row.group_number),
+      label:
+        normalizedTheme === "transport"
+          ? getTransportLabelFr(row.row_key, row.label)
+          : row.label,
+      quantity: row.quantity === null || row.quantity === undefined ? 0 : Number(row.quantity),
+      persons: row.persons === null || row.persons === undefined ? 0 : Number(row.persons),
+      factor: row.factor === null || row.factor === undefined ? 0 : Number(row.factor),
+      distance_total_km: Number.isFinite(distanceTotalKm) ? distanceTotalKm : 0,
+      distanceTotalKm: Number.isFinite(distanceTotalKm) ? distanceTotalKm : 0,
+    } as GroupReportRow & { distance_total_km: number; distanceTotalKm: number };
+  }) as GroupReportRow[];
 }
 
 async function loadGroupReportRowsWithFallback(
@@ -3150,21 +3124,82 @@ async function loadGroupReportRowsWithFallback(
     return;
   }
 
-  const { data, error } = await supabase
-    .from("group_reports")
-    .select("*")
-    .eq("session_id", sessionId)
-    .in("theme", themes)
-    .order("group_number", { ascending: true })
-    .order("row_key", { ascending: true });
+  const fetchRowsForSessionIds = async (sessionIds: string[]) => {
+    let query = supabase
+      .from("group_reports")
+      .select("*")
+      .in("theme", themes)
+      .order("group_number", { ascending: true })
+      .order("row_key", { ascending: true });
 
-  if (error) {
+    if (sessionIds.length === 1) {
+      query = query.eq("session_id", sessionIds[0]);
+    } else {
+      query = query.in("session_id", sessionIds);
+    }
+
+    return await query;
+  };
+
+  const direct = await fetchRowsForSessionIds([sessionId]);
+
+  if (direct.error) {
+    setMessage(`Erreur chargement report ${errorLabel} : ${direct.error.message}`);
     setRows([]);
-    setMessage(`Erreur chargement report ${errorLabel} : ${error.message}`);
     return;
   }
 
-  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
+  const directRows = normalizeGroupReportRows((direct.data ?? []) as GroupReportRow[]);
+
+  if (directRows.length > 0) {
+    setRows(directRows);
+    return;
+  }
+
+  const candidateCode = String(selectedSessionCode || studentSelectedSessionCode || studentCodeSession || "").trim();
+  if (!candidateCode) {
+    setRows([]);
+    return;
+  }
+
+  const { data: matchingSessions, error: sessionError } = await supabase
+    .from("sessions")
+    .select("id, session_code")
+    .ilike("session_code", candidateCode)
+    .limit(20);
+
+  if (sessionError) {
+    console.warn(`Fallback session_code impossible pour ${errorLabel}`, sessionError.message);
+    setRows([]);
+    return;
+  }
+
+  const matchingSessionIds = Array.from(
+    new Set((matchingSessions ?? []).map((session: any) => String(session.id)).filter(Boolean))
+  );
+
+  if (!matchingSessionIds.length || (matchingSessionIds.length === 1 && matchingSessionIds[0] === sessionId)) {
+    setRows([]);
+    return;
+  }
+
+  const fallback = await fetchRowsForSessionIds(matchingSessionIds);
+
+  if (fallback.error) {
+    setMessage(`Erreur chargement report ${errorLabel} : ${fallback.error.message}`);
+    setRows([]);
+    return;
+  }
+
+  const fallbackRows = normalizeGroupReportRows((fallback.data ?? []) as GroupReportRow[]);
+  if (fallbackRows.length > 0) {
+    console.warn(
+      `[DEBUG] Reports ${errorLabel} chargés via fallback session_code`,
+      { requestedSessionId: sessionId, candidateCode, matchingSessionIds, rows: fallbackRows.length }
+    );
+  }
+
+  setRows(fallbackRows);
 }
 
 async function loadEquipementReportRows(
@@ -3194,15 +3229,12 @@ async function loadTransportReportableRows(
   }
 
   setRows(
-    ((data ?? []) as TransportReportableRowRpc[]).map((row) => {
-      const rowKey = String(row.row_key ?? "");
-      return {
-        rowKey,
-        label: getFrenchTransportLabel(rowKey, row.label),
-        persons: Number(row.persons ?? 0),
-        quantity: Number(row.quantity ?? 0),
-      };
-    })
+    ((data ?? []) as TransportReportableRowRpc[]).map((row) => ({
+      rowKey: String(row.row_key),
+      label: getTransportLabelFr(row.row_key, row.label),
+      persons: Number(row.persons ?? 0),
+      quantity: Number(row.quantity ?? 0),
+    }))
   );
 }
 
@@ -3446,72 +3478,87 @@ async function toggleStudentAnalysisAccess() {
     persons: number;
     distanceTotalKm: number;
     factor: number;
-updatedBy: string | null;
+    updatedBy: string | null;
   }) {
     const { sessionId, rowKey, persons, distanceTotalKm, factor, updatedBy } = params;
-    const groupNumber = studentAssignedGroup && sessionId === studentSelectedSessionId ? studentAssignedGroup : params.groupNumber;
+    const groupNumber =
+      studentAssignedGroup && sessionId === studentSelectedSessionId
+        ? studentAssignedGroup
+        : params.groupNumber;
 
     if (!sessionId || !groupNumber || !rowKey) return;
 
-    const label = getFrenchTransportLabel(rowKey, params.label);
     const safePersons = Math.max(0, Number(persons || 0));
     const safeDistanceTotalKm = Math.max(0, Number(distanceTotalKm || 0));
     const safeFactor = Math.max(0, Number(factor || 0));
+    const safeLabel = getTransportLabelFr(rowKey, params.label);
 
     const payload = {
       session_id: sessionId,
       group_number: groupNumber,
       theme: "transport",
       row_key: rowKey,
-      label,
+      label: safeLabel,
       persons: safePersons,
       quantity: safeDistanceTotalKm,
       distance_total_km: safeDistanceTotalKm,
       factor: safeFactor,
-updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
+      updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
     };
 
-    const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
+    const applyTransportRow = (rows: GroupReportRow[]) => {
       const nextRows = normalizeGroupReportRows(rows);
       const existingIndex = nextRows.findIndex(
         (row) =>
-          row.session_id === sessionId &&
+          String(row.session_id) === sessionId &&
           Number(row.group_number) === groupNumber &&
           normalizeGroupReportTheme(row.theme) === "transport" &&
           String(row.row_key) === rowKey
       );
 
+      const nextRow = {
+        ...(existingIndex >= 0 ? nextRows[existingIndex] : {}),
+        ...payload,
+        distanceTotalKm: safeDistanceTotalKm,
+      } as GroupReportRow & { distanceTotalKm: number };
+
       if (existingIndex >= 0) {
-        nextRows[existingIndex] = {
-          ...nextRows[existingIndex],
-          ...payload,
-        } as GroupReportRow;
-        return nextRows;
+        nextRows[existingIndex] = nextRow;
+      } else {
+        nextRows.push(nextRow);
       }
 
-      nextRows.push(payload as unknown as GroupReportRow);
       return nextRows;
     };
 
     if (studentSelectedSessionId === sessionId) {
-      setStudentTransportReportRowsDb((prev) => applyOptimisticUpdate(prev));
+      setStudentTransportReportRowsDb((prev) => applyTransportRow(prev));
     }
 
     if (selectedSessionId === sessionId) {
-      setTeacherTransportReportRowsDb((prev) => applyOptimisticUpdate(prev));
+      setTeacherTransportReportRowsDb((prev) => applyTransportRow(prev));
     }
 
-    const { error } = await supabase.from("group_reports").upsert(
-      payload,
-      { onConflict: "session_id,group_number,theme,row_key" }
-    );
+    const { error } = await supabase.from("group_reports").upsert(payload, {
+      onConflict: "session_id,group_number,theme,row_key",
+    });
 
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
       if (studentSelectedSessionId === sessionId) {
-        await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
+        window.setTimeout(() => {
+          void loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
+        }, 300);
       }
       return;
+    }
+
+    // Pas de reload immédiat côté étudiant : cela évite qu'une réponse réseau plus ancienne
+    // remette l'ancienne valeur pendant la frappe. Le prof est rafraîchi par polling/realtime.
+    if (selectedSessionId === sessionId) {
+      window.setTimeout(() => {
+        void loadTransportReportRows(sessionId, setTeacherTransportReportRowsDb);
+      }, 300);
     }
   }
 
@@ -3914,6 +3961,32 @@ async function saveSalleReportRow(params: {
       window.clearInterval(intervalId);
     };
   }, [screen, selectedSessionId, teacherMenu]);
+
+  useEffect(() => {
+    if (!selectedSessionId) return;
+
+    const channel = supabase
+      .channel(`teacher-transport-report-${selectedSessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "group_reports",
+          filter: `session_id=eq.${selectedSessionId}`,
+        },
+        (payload) => {
+          const nextRow = ((payload as any).new ?? (payload as any).old) as GroupReportRow | undefined;
+          if (normalizeGroupReportTheme(nextRow?.theme) !== "transport") return;
+          void loadTransportReportRows(selectedSessionId, setTeacherTransportReportRowsDb);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [selectedSessionId]);
 
   useEffect(() => {
     if (screen !== "student_analyses" || !studentSelectedSessionId) return;
