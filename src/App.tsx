@@ -282,6 +282,38 @@ function getTransportLabelFr(rowKey: string | null | undefined, fallbackLabel: s
   return TRANSPORT_LABELS_FR[key] ?? String(fallbackLabel ?? key);
 }
 
+function normalizeTransportResponseRowKey(mode: string | null | undefined, carType: string | null | undefined) {
+  const cleanMode = String(mode ?? "").trim();
+  const cleanCarType = String(carType ?? "").trim();
+
+  if (cleanMode === "car") {
+    if (["electric_car", "voiture_electrique", "electric"].includes(cleanCarType)) return "electric_car";
+    if (["hybrid_car", "voiture_hybride", "hybrid"].includes(cleanCarType)) return "hybrid_car";
+    if (["diesel_car", "voiture_diesel", "diesel"].includes(cleanCarType)) return "diesel_car";
+    if (["gasoline_car", "essence_car", "voiture_essence", "gasoline", "essence"].includes(cleanCarType)) return "gasoline_car";
+    return cleanCarType || "car";
+  }
+
+  if (["walk", "marche", "marche_a_pied"].includes(cleanMode)) return "walking";
+  if (["metro", "train", "metro_tramway_train"].includes(cleanMode)) return "metro_tram_train";
+  if (["trottinette_electrique"].includes(cleanMode)) return "electric_scooter";
+  if (["velo"].includes(cleanMode)) return "bike";
+  if (["velo_electrique"].includes(cleanMode)) return "electric_bike";
+  if (["deux_roues_thermique"].includes(cleanMode)) return "motorcycle";
+
+  return cleanMode;
+}
+
+function getTransportFallbackLabel(rowKey: string) {
+  const modeEntry = transportModes.find(([value]) => normalizeTransportResponseRowKey(value, null) === rowKey);
+  if (modeEntry) return modeEntry[1];
+
+  const carEntry = carTypes.find(([value]) => normalizeTransportResponseRowKey("car", value) === rowKey);
+  if (carEntry) return carEntry[1];
+
+  return getTransportLabelFr(rowKey, rowKey);
+}
+
 const AUTRES_CATEGORY_ORDER = ["Boissons", "Grignotage", "Fruits locaux", "Fruits importés"];
 const AUTRES_ROW_ORDER: Record<string, number> = {
   eau_robinet: 0,
@@ -3130,25 +3162,106 @@ async function loadTransportReportableRows(
     return;
   }
 
+  const normalizeReportableRows = (rows: ReportableRow[]) =>
+    rows
+      .map((row) => ({
+        rowKey: String(row.rowKey ?? ""),
+        label: getTransportLabelFr(row.rowKey, row.label),
+        persons: Number(row.persons ?? 0),
+        quantity: Number(row.quantity ?? 0),
+      }))
+      // Important : l'onglet "Données à reporter" ne doit afficher que les
+      // moyens réellement présents dans les questionnaires, pas tout le template.
+      .filter((row) => Number(row.persons ?? 0) > 0 || Number(row.quantity ?? 0) > 0);
+
+  const buildRowsFromResponsesTransport = async () => {
+    const { data, error } = await supabase
+      .from("responses_transport")
+      .select("respondent_email, mode, distance_km, car_type, car_passengers")
+      .eq("session_id", sessionId);
+
+    if (error) {
+      setRows([]);
+      setMessage(`Erreur chargement réponses transport : ${error.message}`);
+      return;
+    }
+
+    const aggregates = new Map<
+      string,
+      { rowKey: string; label: string; persons: number; quantity: number; respondents: Set<string> }
+    >();
+
+    ((data ?? []) as Array<{
+      respondent_email?: string | null;
+      mode?: string | null;
+      distance_km?: number | string | null;
+      car_type?: string | null;
+      car_passengers?: number | string | null;
+    }>).forEach((trip) => {
+      const rowKey = normalizeTransportResponseRowKey(trip.mode, trip.car_type);
+      if (!rowKey) return;
+
+      const distance = Math.max(0, Number(trip.distance_km ?? 0));
+      if (!Number.isFinite(distance) || distance <= 0) return;
+
+      const current = aggregates.get(rowKey) ?? {
+        rowKey,
+        label: getTransportFallbackLabel(rowKey),
+        persons: 0,
+        quantity: 0,
+        respondents: new Set<string>(),
+      };
+
+      current.quantity += distance;
+
+      if (String(trip.mode ?? "") === "car") {
+        const passengers = Math.max(1, Number(trip.car_passengers ?? 1));
+        current.persons += Number.isFinite(passengers) && passengers > 0 ? 1 / passengers : 1;
+      } else {
+        const email = String(trip.respondent_email ?? "").trim().toLowerCase();
+        if (email) current.respondents.add(email);
+        else current.persons += 1;
+      }
+
+      aggregates.set(rowKey, current);
+    });
+
+    const fallbackRows = Array.from(aggregates.values()).map((row) => ({
+      rowKey: row.rowKey,
+      label: getTransportLabelFr(row.rowKey, row.label),
+      persons: row.respondents.size > 0 ? row.respondents.size : row.persons,
+      quantity: row.quantity,
+    }));
+
+    setRows(normalizeReportableRows(fallbackRows));
+  };
+
   const { data, error } = await supabase.rpc("get_transport_reportable_rows", {
     p_session_id: sessionId,
   });
 
-  if (error) {
-    setRows([]);
-    setMessage(`Erreur chargement données à reporter transport : ${error.message}`);
-    return;
+  if (!error) {
+    const rpcRows = normalizeReportableRows(
+      ((data ?? []) as TransportReportableRowRpc[]).map((row) => ({
+        rowKey: String(row.row_key ?? ""),
+        label: getTransportLabelFr(row.row_key, row.label),
+        persons: Number(row.persons ?? 0),
+        quantity: Number(row.quantity ?? 0),
+      }))
+    );
+
+    if (rpcRows.length > 0) {
+      setRows(rpcRows);
+      return;
+    }
   }
 
-  setRows(
-    ((data ?? []) as TransportReportableRowRpc[]).map((row) => ({
-      rowKey: String(row.row_key),
-      label: getTransportLabelFr(row.row_key, row.label),
-      persons: Number(row.persons ?? 0),
-      quantity: Number(row.quantity ?? 0),
-    }))
-  );
+  // Fallback ciblé transport : si la RPC renvoie seulement le template à 0
+  // ou rien, on reconstruit les données à reporter depuis responses_transport.
+  // Cela ne touche pas group_reports et ne crée aucun report automatique.
+  await buildRowsFromResponsesTransport();
 }
+
 
   async function loadDejeunerReportableRowsWithSetter(
     sessionId: string,
