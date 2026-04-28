@@ -897,14 +897,7 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       style={style}
       onFocus={() => setIsFocused(true)}
       onChange={(e) => {
-        const nextValue = e.target.value;
-        setDraftValue(nextValue);
-
-        // Autosave immédiat, mais sécurisé : un champ temporairement vide ne doit jamais
-        // être sauvegardé comme 0.
-        const numericValue = parseDraft(nextValue);
-        if (numericValue === null) return;
-        void onCommit(numericValue);
+        setDraftValue(e.target.value);
       }}
       onBlur={() => {
         setIsFocused(false);
@@ -3575,31 +3568,16 @@ async function saveEquipementReportRow(params: {
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
-    const nextRows = normalizeGroupReportRows(rows);
-    const existingIndex = nextRows.findIndex(
-      (row) =>
-        row.session_id === sessionId &&
-        Number(row.group_number) === groupNumber &&
-        normalizeGroupReportTheme(row.theme) === "equipement" &&
-        String(row.row_key) === rowKey
-    );
-
-    if (existingIndex >= 0) {
-      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
-      return nextRows;
+  const reloadRows = async () => {
+    if (studentSelectedSessionId === sessionId) {
+      await loadEquipementReportRows(sessionId, setStudentEquipementReportRowsDb);
+      await loadEquipementReportableRows(sessionId);
     }
-
-    nextRows.push(payload as unknown as GroupReportRow);
-    return nextRows;
+    if (selectedSessionId === sessionId) {
+      await loadEquipementReportRows(sessionId, setTeacherEquipementReportRowsDb);
+      await loadTeacherEquipementReportableRows(sessionId);
+    }
   };
-
-  if (studentSelectedSessionId === sessionId) {
-    setStudentEquipementReportRowsDb((prev) => applyOptimisticUpdate(prev));
-  }
-  if (selectedSessionId === sessionId) {
-    setTeacherEquipementReportRowsDb((prev) => applyOptimisticUpdate(prev));
-  }
 
   const { error } = await supabase.from("group_reports").upsert(
     payload,
@@ -3608,8 +3586,11 @@ async function saveEquipementReportRow(params: {
 
   if (error) {
     setMessage(`Erreur sauvegarde report équipement : ${error.message}`);
+    await reloadRows();
     return;
   }
+
+  await reloadRows();
 }
 
 async function saveAutresReportRow(params: {
@@ -3644,31 +3625,16 @@ async function saveAutresReportRow(params: {
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
-    const nextRows = normalizeGroupReportRows(rows);
-    const existingIndex = nextRows.findIndex(
-      (row) =>
-        row.session_id === sessionId &&
-        Number(row.group_number) === groupNumber &&
-        normalizeGroupReportTheme(row.theme) === "autres_consommations" &&
-        String(row.row_key) === rowKey
-    );
-
-    if (existingIndex >= 0) {
-      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
-      return nextRows;
+  const reloadRows = async () => {
+    if (studentSelectedSessionId === sessionId) {
+      await loadAutresReportRows(sessionId, setStudentAutresReportRowsDb);
+      await loadAutresReportableRows(sessionId);
     }
-
-    nextRows.push(payload as unknown as GroupReportRow);
-    return nextRows;
+    if (selectedSessionId === sessionId) {
+      await loadAutresReportRows(sessionId, setTeacherAutresReportRowsDb);
+      await loadTeacherAutresReportableRows(sessionId);
+    }
   };
-
-  if (studentSelectedSessionId === sessionId) {
-    setStudentAutresReportRowsDb((prev) => applyOptimisticUpdate(prev));
-  }
-  if (selectedSessionId === sessionId) {
-    setTeacherAutresReportRowsDb((prev) => applyOptimisticUpdate(prev));
-  }
 
   const { error } = await supabase.from("group_reports").upsert(
     payload,
@@ -3677,8 +3643,11 @@ async function saveAutresReportRow(params: {
 
   if (error) {
     setMessage(`Erreur sauvegarde report autres consommations : ${error.message}`);
+    await reloadRows();
     return;
   }
+
+  await reloadRows();
 }
 
 async function saveSalleReportRow(params: {
@@ -3713,31 +3682,14 @@ async function saveSalleReportRow(params: {
     updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
   };
 
-  const applyOptimisticUpdate = (rows: GroupReportRow[]) => {
-    const nextRows = normalizeGroupReportRows(rows);
-    const existingIndex = nextRows.findIndex(
-      (row) =>
-        row.session_id === sessionId &&
-        Number(row.group_number) === groupNumber &&
-        normalizeGroupReportTheme(row.theme) === "salle" &&
-        String(row.row_key) === rowKey
-    );
-
-    if (existingIndex >= 0) {
-      nextRows[existingIndex] = { ...nextRows[existingIndex], ...payload } as GroupReportRow;
-      return nextRows;
+  const reloadRows = async () => {
+    if (studentSelectedSessionId === sessionId) {
+      await loadSalleReportRows(sessionId, setStudentSalleReportRowsDb);
     }
-
-    nextRows.push(payload as unknown as GroupReportRow);
-    return nextRows;
+    if (selectedSessionId === sessionId) {
+      await loadSalleReportRows(sessionId, setTeacherSalleReportRowsDb);
+    }
   };
-
-  if (studentSelectedSessionId === sessionId) {
-    setStudentSalleReportRowsDb((prev) => applyOptimisticUpdate(prev));
-  }
-  if (selectedSessionId === sessionId) {
-    setTeacherSalleReportRowsDb((prev) => applyOptimisticUpdate(prev));
-  }
 
   const { error } = await supabase.from("group_reports").upsert(
     payload,
@@ -3746,8 +3698,11 @@ async function saveSalleReportRow(params: {
 
   if (error) {
     setMessage(`Erreur sauvegarde report salle : ${error.message}`);
+    await reloadRows();
     return;
   }
+
+  await reloadRows();
 }
 
   useEffect(() => {
@@ -4463,11 +4418,37 @@ async function handleStudentEnter() {
     return;
   }
 
-  // Source de vérité côté étudiant : get_student_session_access.
-  // Ne pas rappeler get_open_session_by_code ici : ce RPC peut renvoyer zéro ligne selon les droits/RLS,
-  // ce qui affichait "Session introuvable" alors que la session existe côté professeur.
-  const nextSessionId = String(accessRow.session_id);
-  const nextSessionCode = String(accessRow.session_code ?? normalizedSessionCode);
+  // IMPORTANT : get_student_session_access peut renvoyer un ancien session_id si une session
+  // portant le même code a existé. Pour que l étudiant et le professeur lisent/écrivent
+  // exactement dans la même session, on recale toujours l id sur la session ouverte
+  // correspondant au code saisi. C est cette même source qui est utilisée côté professeur.
+  const { data: openSessionRows, error: openSessionError } = await supabase.rpc(
+    "get_open_session_by_code",
+    { p_session_code: normalizedSessionCode }
+  );
+
+  if (openSessionError) {
+    setMessage(`Erreur chargement session ouverte : `);
+    return;
+  }
+
+  const openSessionRow = Array.isArray(openSessionRows) ? openSessionRows[0] : openSessionRows;
+
+  if (!openSessionRow?.id) {
+    setMessage("Session introuvable ou fermée pour ce code.");
+    return;
+  }
+
+  const nextSessionId = String(openSessionRow.id);
+  const nextSessionCode = String(openSessionRow.session_code ?? accessRow.session_code ?? normalizedSessionCode);
+
+  if (String(accessRow.session_id) !== nextSessionId) {
+    console.warn("Session étudiant recalée sur la session ouverte", {
+      accessSessionId: String(accessRow.session_id),
+      openSessionId: nextSessionId,
+      code: normalizedSessionCode,
+    });
+  }
 
   const assignedGroupNumber = Number(accessRow.assigned_group_number ?? 0);
   const hasAssignments = Boolean(accessRow.has_assignments);
@@ -4623,7 +4604,11 @@ async function refreshStudentAnalysisData() {
       return;
     }
 
-    const sessionId = studentSelectedSessionId;
+    const { data: sessionData } = await supabase.rpc("get_open_session_by_code", {
+      p_session_code: normalizedSessionCode,
+    });
+
+    const sessionId = sessionData?.[0]?.id;
     if (sessionId) {
       await refreshStudentTransportData(sessionId);
     }
