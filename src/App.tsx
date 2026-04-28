@@ -892,27 +892,21 @@ type DraftNumberInputProps = {
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
   const [isFocused, setIsFocused] = useState(false);
-  const lastCommittedRef = useRef<string>(String(value ?? 0));
-  const debounceRef = useRef<number | null>(null);
+  const lastSentValueRef = useRef<string>(String(value ?? 0));
 
   useEffect(() => {
     if (!isFocused) {
       const nextValue = String(value ?? 0);
       setDraftValue(nextValue);
-      lastCommittedRef.current = nextValue;
+      lastSentValueRef.current = nextValue;
     }
   }, [value, isFocused]);
 
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current !== null) {
-        window.clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
-
   function parseDraft(nextValue: string) {
     const cleanValue = String(nextValue ?? "").trim();
+
+    // Pendant la saisie, un input type="number" peut valoir "".
+    // On ne sauvegarde jamais ce vide temporaire comme 0.
     if (cleanValue === "") return null;
 
     const numericValue = Number(cleanValue.replace(",", "."));
@@ -922,34 +916,27 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
 
   async function commitValue(nextValue = draftValue, normalizeAfterSave = true) {
     const numericValue = parseDraft(nextValue);
-
     if (numericValue === null) {
+      setDraftValue(String(value ?? 0));
       return;
     }
 
-    const commitKey = String(numericValue);
-    lastCommittedRef.current = commitKey;
+    const key = String(numericValue);
+    lastSentValueRef.current = key;
     await onCommit(numericValue);
 
-    if (normalizeAfterSave && lastCommittedRef.current === commitKey) {
-      setDraftValue(commitKey);
+    if (normalizeAfterSave && lastSentValueRef.current === key) {
+      setDraftValue(key);
     }
   }
 
-  function scheduleCommit(nextValue: string) {
+  function commitImmediately(nextValue: string) {
     const numericValue = parseDraft(nextValue);
     if (numericValue === null) return;
 
-    // Mise à jour immédiate des calculs locaux.
+    const key = String(numericValue);
+    lastSentValueRef.current = key;
     void onCommit(numericValue);
-
-    if (debounceRef.current !== null) {
-      window.clearTimeout(debounceRef.current);
-    }
-
-    debounceRef.current = window.setTimeout(() => {
-      void commitValue(nextValue, false);
-    }, 250);
   }
 
   return (
@@ -962,7 +949,9 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
       onChange={(e) => {
         const nextValue = e.target.value;
         setDraftValue(nextValue);
-        scheduleCommit(nextValue);
+
+        // Calcul + sauvegarde immédiats, sans appuyer sur Entrée.
+        commitImmediately(nextValue);
       }}
       onBlur={() => {
         setIsFocused(false);
@@ -3124,82 +3113,23 @@ async function loadGroupReportRowsWithFallback(
     return;
   }
 
-  const fetchRowsForSessionIds = async (sessionIds: string[]) => {
-    let query = supabase
-      .from("group_reports")
-      .select("*")
-      .in("theme", themes)
-      .order("group_number", { ascending: true })
-      .order("row_key", { ascending: true });
+  const { data, error } = await supabase
+    .from("group_reports")
+    .select("*")
+    .eq("session_id", sessionId)
+    .in("theme", themes)
+    .order("group_number", { ascending: true })
+    .order("row_key", { ascending: true });
 
-    if (sessionIds.length === 1) {
-      query = query.eq("session_id", sessionIds[0]);
-    } else {
-      query = query.in("session_id", sessionIds);
-    }
-
-    return await query;
-  };
-
-  const direct = await fetchRowsForSessionIds([sessionId]);
-
-  if (direct.error) {
-    setMessage(`Erreur chargement report ${errorLabel} : ${direct.error.message}`);
+  if (error) {
+    setMessage(`Erreur chargement report ${errorLabel} : ${error.message}`);
     setRows([]);
     return;
   }
 
-  const directRows = normalizeGroupReportRows((direct.data ?? []) as GroupReportRow[]);
-
-  if (directRows.length > 0) {
-    setRows(directRows);
-    return;
-  }
-
-  const candidateCode = String(selectedSessionCode || studentSelectedSessionCode || studentCodeSession || "").trim();
-  if (!candidateCode) {
-    setRows([]);
-    return;
-  }
-
-  const { data: matchingSessions, error: sessionError } = await supabase
-    .from("sessions")
-    .select("id, session_code")
-    .ilike("session_code", candidateCode)
-    .limit(20);
-
-  if (sessionError) {
-    console.warn(`Fallback session_code impossible pour ${errorLabel}`, sessionError.message);
-    setRows([]);
-    return;
-  }
-
-  const matchingSessionIds = Array.from(
-    new Set((matchingSessions ?? []).map((session: any) => String(session.id)).filter(Boolean))
-  );
-
-  if (!matchingSessionIds.length || (matchingSessionIds.length === 1 && matchingSessionIds[0] === sessionId)) {
-    setRows([]);
-    return;
-  }
-
-  const fallback = await fetchRowsForSessionIds(matchingSessionIds);
-
-  if (fallback.error) {
-    setMessage(`Erreur chargement report ${errorLabel} : ${fallback.error.message}`);
-    setRows([]);
-    return;
-  }
-
-  const fallbackRows = normalizeGroupReportRows((fallback.data ?? []) as GroupReportRow[]);
-  if (fallbackRows.length > 0) {
-    console.warn(
-      `[DEBUG] Reports ${errorLabel} chargés via fallback session_code`,
-      { requestedSessionId: sessionId, candidateCode, matchingSessionIds, rows: fallbackRows.length }
-    );
-  }
-
-  setRows(fallbackRows);
+  // Lecture stricte : on ne va jamais chercher des données d'une ancienne session
+  // avec le même code. Cela évite les reports fantômes et réduit l'egress.
+  setRows(normalizeGroupReportRows((data ?? []) as GroupReportRow[]));
 }
 
 async function loadEquipementReportRows(
@@ -3470,6 +3400,26 @@ async function toggleStudentAnalysisAccess() {
     await loadSessionVoteAccess(selectedSessionId);
   }
 
+  function notifyTransportReportChanged(sessionId: string) {
+    if (!sessionId || typeof window === "undefined") return;
+
+    const payload = {
+      sessionId,
+      theme: "transport",
+      timestamp: Date.now(),
+    };
+
+    try {
+      window.localStorage.setItem("group_reports_changed", JSON.stringify(payload));
+    } catch {
+      // localStorage peut être indisponible en navigation privée stricte.
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("group_reports_changed_local", { detail: payload })
+    );
+  }
+
   async function saveTransportReportRow(params: {
     sessionId: string;
     groupNumber: number;
@@ -3480,6 +3430,10 @@ async function toggleStudentAnalysisAccess() {
     factor: number;
     updatedBy: string | null;
   }) {
+    if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
+      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
+    }
+
     const { sessionId, rowKey, persons, distanceTotalKm, factor, updatedBy } = params;
     const groupNumber =
       studentAssignedGroup && sessionId === studentSelectedSessionId
@@ -3493,21 +3447,30 @@ async function toggleStudentAnalysisAccess() {
     const safeFactor = Math.max(0, Number(factor || 0));
     const safeLabel = getTransportLabelFr(rowKey, params.label);
 
+    // Logique transport restaurée depuis la version qui fonctionnait avant réduction egress :
+    // update optimiste simple + upsert + reload ciblé transport.
+    // On conserve les libellés français et on notifie le prof sans polling lourd.
     const payload = {
       session_id: sessionId,
       group_number: groupNumber,
       theme: "transport",
       row_key: rowKey,
       label: safeLabel,
-      persons: safePersons,
-      quantity: safeDistanceTotalKm,
-      distance_total_km: safeDistanceTotalKm,
+      persons: safePersons > 0 ? safePersons : null,
+      quantity: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
+      distance_total_km: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
       factor: safeFactor,
       updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
     };
 
-    const applyTransportRow = (rows: GroupReportRow[]) => {
-      const nextRows = normalizeGroupReportRows(rows);
+    const applyOptimisticUpdate = (
+      rows: GroupReportRow[],
+      targetSessionId: string,
+      targetGroupNumber: number
+    ) => {
+      if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+
+      const nextRows = [...rows];
       const existingIndex = nextRows.findIndex(
         (row) =>
           String(row.session_id) === sessionId &&
@@ -3519,25 +3482,29 @@ async function toggleStudentAnalysisAccess() {
       const nextRow = {
         ...(existingIndex >= 0 ? nextRows[existingIndex] : {}),
         ...payload,
+        label: safeLabel,
+        persons: safePersons,
+        quantity: safeDistanceTotalKm,
+        distance_total_km: safeDistanceTotalKm,
         distanceTotalKm: safeDistanceTotalKm,
-      } as GroupReportRow & { distanceTotalKm: number };
+        factor: safeFactor,
+      } as GroupReportRow & { distance_total_km: number; distanceTotalKm: number };
 
       if (existingIndex >= 0) {
         nextRows[existingIndex] = nextRow;
-      } else {
-        nextRows.push(nextRow);
+        return nextRows;
       }
 
+      nextRows.push(nextRow as unknown as GroupReportRow);
       return nextRows;
     };
 
-    if (studentSelectedSessionId === sessionId) {
-      setStudentTransportReportRowsDb((prev) => applyTransportRow(prev));
-    }
-
-    if (selectedSessionId === sessionId) {
-      setTeacherTransportReportRowsDb((prev) => applyTransportRow(prev));
-    }
+    setStudentTransportReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
+    );
+    setTeacherTransportReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
+    );
 
     const { error } = await supabase.from("group_reports").upsert(payload, {
       onConflict: "session_id,group_number,theme,row_key",
@@ -3545,20 +3512,19 @@ async function toggleStudentAnalysisAccess() {
 
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
-      if (studentSelectedSessionId === sessionId) {
-        window.setTimeout(() => {
-          void loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
-        }, 300);
-      }
       return;
     }
 
-    // Pas de reload immédiat côté étudiant : cela évite qu'une réponse réseau plus ancienne
-    // remette l'ancienne valeur pendant la frappe. Le prof est rafraîchi par polling/realtime.
-    if (selectedSessionId === sessionId) {
-      window.setTimeout(() => {
-        void loadTransportReportRows(sessionId, setTeacherTransportReportRowsDb);
-      }, 300);
+    notifyTransportReportChanged(sessionId);
+
+    if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
+      await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
+      await loadTransportReportableRows(sessionId, setStudentTransportReportableRows);
+    }
+
+    if (selectedSessionId && sessionId === selectedSessionId) {
+      await loadTransportReportRows(sessionId, setTeacherTransportReportRowsDb);
+      await loadTransportReportableRows(sessionId, setTeacherTransportReportableRows);
     }
   }
 
@@ -3907,12 +3873,9 @@ async function saveSalleReportRow(params: {
     const timeoutId = window.setTimeout(() => {
       void loadSessionCounts(selectedSessionId);
     }, 0);
-    const intervalId = window.setInterval(() => {
-    }, 2000);
 
     return () => {
       window.clearTimeout(timeoutId);
-      window.clearInterval(intervalId);
     };
   }, [teacherMenu, teacherSessionTab, selectedSessionId]);
 
@@ -3938,35 +3901,63 @@ async function saveSalleReportRow(params: {
       void loadConsolidatedProposals(selectedSessionId);
       void loadTeacherVoteRows(selectedSessionId);
     }, 0);
-    const intervalId = window.setInterval(() => {
-      void loadTransportReportRows(selectedSessionId, setTeacherTransportReportRowsDb);
-      void loadTransportReportableRows(selectedSessionId, setTeacherTransportReportableRows);
-      void loadTeacherDejeunerReportableRows(selectedSessionId);
-      void loadDejeunerReportRows(selectedSessionId, setTeacherDejeunerReportRowsDb);
-      void loadTeacherEquipementReportableRows(selectedSessionId);
-      void loadEquipementReportRows(selectedSessionId, setTeacherEquipementReportRowsDb);
-      void loadTeacherAutresReportableRows(selectedSessionId);
-      void loadAutresReportRows(selectedSessionId, setTeacherAutresReportRowsDb);
-      void loadSalleReportRows(selectedSessionId, setTeacherSalleReportRowsDb);
-      void loadSessionAnalysisAccess(selectedSessionId);
-      void loadSessionSyntheseAccess(selectedSessionId);
-      void loadSessionVoteAccess(selectedSessionId);
-      void loadTeacherGroupProposals(selectedSessionId);
-      void loadConsolidatedProposals(selectedSessionId);
-      void loadTeacherVoteRows(selectedSessionId);
-    }, 2000);
-
     return () => {
       window.clearTimeout(timeoutId);
-      window.clearInterval(intervalId);
     };
   }, [screen, selectedSessionId, teacherMenu]);
 
   useEffect(() => {
     if (!selectedSessionId) return;
 
+    function reloadChangedTheme(theme: string | null | undefined) {
+      const normalizedTheme = normalizeGroupReportTheme(theme);
+
+      if (normalizedTheme === "transport") {
+        void loadTransportReportRows(selectedSessionId, setTeacherTransportReportRowsDb);
+        return;
+      }
+
+      if (normalizedTheme === "dejeuner") {
+        void loadDejeunerReportRows(selectedSessionId, setTeacherDejeunerReportRowsDb);
+        return;
+      }
+
+      if (normalizedTheme === "equipement") {
+        void loadEquipementReportRows(selectedSessionId, setTeacherEquipementReportRowsDb);
+        return;
+      }
+
+      if (normalizedTheme === "autres_consommations") {
+        void loadAutresReportRows(selectedSessionId, setTeacherAutresReportRowsDb);
+        return;
+      }
+
+      if (normalizedTheme === "salle") {
+        void loadSalleReportRows(selectedSessionId, setTeacherSalleReportRowsDb);
+      }
+    }
+
+    function handleLocalGroupReportChange(event: Event) {
+      const customEvent = event as CustomEvent<{ sessionId?: string; theme?: string }>;
+      const payload = customEvent.detail;
+      if (!payload || payload.sessionId !== selectedSessionId) return;
+      reloadChangedTheme(payload.theme);
+    }
+
+    function handleStorageGroupReportChange(event: StorageEvent) {
+      if (event.key !== "group_reports_changed" || !event.newValue) return;
+
+      try {
+        const payload = JSON.parse(event.newValue) as { sessionId?: string; theme?: string };
+        if (payload.sessionId !== selectedSessionId) return;
+        reloadChangedTheme(payload.theme);
+      } catch {
+        // Ignore les anciens formats ou valeurs invalides.
+      }
+    }
+
     const channel = supabase
-      .channel(`teacher-transport-report-${selectedSessionId}`)
+      .channel(`teacher-group-reports-${selectedSessionId}`)
       .on(
         "postgres_changes",
         {
@@ -3977,14 +3968,18 @@ async function saveSalleReportRow(params: {
         },
         (payload) => {
           const nextRow = ((payload as any).new ?? (payload as any).old) as GroupReportRow | undefined;
-          if (normalizeGroupReportTheme(nextRow?.theme) !== "transport") return;
-          void loadTransportReportRows(selectedSessionId, setTeacherTransportReportRowsDb);
+          reloadChangedTheme(nextRow?.theme);
         }
       )
       .subscribe();
 
+    window.addEventListener("group_reports_changed_local", handleLocalGroupReportChange as EventListener);
+    window.addEventListener("storage", handleStorageGroupReportChange);
+
     return () => {
       void supabase.removeChannel(channel);
+      window.removeEventListener("group_reports_changed_local", handleLocalGroupReportChange as EventListener);
+      window.removeEventListener("storage", handleStorageGroupReportChange);
     };
   }, [selectedSessionId]);
 
