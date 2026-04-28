@@ -891,47 +891,63 @@ type DraftNumberInputProps = {
 
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
-  const lastCommittedRef = useRef<number | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
-    const numericValue = Number(value ?? 0);
-
-    // 🔥 NE PAS écraser une saisie en cours ou récente
-    if (lastCommittedRef.current === numericValue) return;
-
-    setDraftValue(String(numericValue));
-  }, [value]);
+    // Ne jamais écraser une saisie en cours avec une ancienne valeur venant du state parent.
+    // C'était la cause des retours à 0 sur la table transport.
+    if (!isFocused) {
+      setDraftValue(String(value ?? 0));
+    }
+  }, [value, isFocused]);
 
   function parseDraft(nextValue: string) {
-    const numericValue = Number(String(nextValue || "0").replace(",", "."));
-    if (!Number.isFinite(numericValue)) return min;
+    const cleanValue = String(nextValue ?? "").trim();
+    if (cleanValue === "") return null;
+
+    const numericValue = Number(cleanValue.replace(",", "."));
+    if (!Number.isFinite(numericValue)) return null;
     return Math.max(min, numericValue);
   }
 
-  async function commitValue(nextValue: string) {
-    if (nextValue === "") return;
-
+  async function commitValue(nextValue = draftValue) {
     const numericValue = parseDraft(nextValue);
 
-    lastCommittedRef.current = numericValue;
+    if (numericValue === null) {
+      setDraftValue(String(value ?? 0));
+      return;
+    }
 
     await onCommit(numericValue);
+    setDraftValue(String(numericValue));
   }
 
   return (
     <input
       type="number"
+      min={min}
       value={draftValue}
       style={style}
+      onFocus={() => setIsFocused(true)}
       onChange={(e) => {
-        const next = e.target.value;
-        setDraftValue(next);
+        const nextValue = e.target.value;
+        setDraftValue(nextValue);
 
-        // 🔥 SAVE IMMÉDIAT
-        void commitValue(next);
+        const numericValue = parseDraft(nextValue);
+        if (numericValue === null) return;
+
+        // Sauvegarde immédiate sans Entrée + calcul immédiat côté étudiant.
+        void onCommit(numericValue);
       }}
       onBlur={() => {
-        void commitValue(draftValue);
+        setIsFocused(false);
+        void commitValue();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          void commitValue(e.currentTarget.value);
+          e.currentTarget.blur();
+        }
       }}
     />
   );
@@ -3400,10 +3416,6 @@ async function toggleStudentAnalysisAccess() {
     factor: number;
     updatedBy: string | null;
   }) {
-    if (studentAssignedGroup && params.sessionId === studentSelectedSessionId && params.groupNumber !== studentAssignedGroup) {
-      setMessage(`Accès limité au groupe ${studentAssignedGroup}. Sauvegarde forcée sur votre groupe.`);
-    }
-
     const { sessionId, rowKey, persons, distanceTotalKm, factor, updatedBy } = params;
     const groupNumber =
       studentAssignedGroup && sessionId === studentSelectedSessionId
@@ -3417,30 +3429,21 @@ async function toggleStudentAnalysisAccess() {
     const safeFactor = Math.max(0, Number(factor || 0));
     const safeLabel = getTransportLabelFr(rowKey, params.label);
 
-    // Logique transport restaurée depuis la version qui fonctionnait avant réduction egress :
-    // update optimiste simple + upsert + reload ciblé transport.
-    // On conserve les libellés français et on notifie le prof sans polling lourd.
     const payload = {
       session_id: sessionId,
       group_number: groupNumber,
       theme: "transport",
       row_key: rowKey,
       label: safeLabel,
-      persons: safePersons > 0 ? safePersons : null,
-      quantity: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
-      distance_total_km: safeDistanceTotalKm > 0 ? safeDistanceTotalKm : null,
+      persons: safePersons,
+      quantity: safeDistanceTotalKm,
+      distance_total_km: safeDistanceTotalKm,
       factor: safeFactor,
       updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
     };
 
-    const applyOptimisticUpdate = (
-      rows: GroupReportRow[],
-      targetSessionId: string,
-      targetGroupNumber: number
-    ) => {
-      if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
-
-      const nextRows = [...rows];
+    const applyTransportRow = (rows: GroupReportRow[]) => {
+      const nextRows = normalizeGroupReportRows(rows);
       const existingIndex = nextRows.findIndex(
         (row) =>
           String(row.session_id) === sessionId &&
@@ -3452,29 +3455,25 @@ async function toggleStudentAnalysisAccess() {
       const nextRow = {
         ...(existingIndex >= 0 ? nextRows[existingIndex] : {}),
         ...payload,
-        label: safeLabel,
-        persons: safePersons,
-        quantity: safeDistanceTotalKm,
-        distance_total_km: safeDistanceTotalKm,
         distanceTotalKm: safeDistanceTotalKm,
-        factor: safeFactor,
-      } as GroupReportRow & { distance_total_km: number; distanceTotalKm: number };
+      } as GroupReportRow & { distanceTotalKm: number };
 
       if (existingIndex >= 0) {
         nextRows[existingIndex] = nextRow;
-        return nextRows;
+      } else {
+        nextRows.push(nextRow);
       }
 
-      nextRows.push(nextRow as unknown as GroupReportRow);
       return nextRows;
     };
 
-    setStudentTransportReportRowsDb((prev) =>
-      applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
-    );
-    setTeacherTransportReportRowsDb((prev) =>
-      applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
-    );
+    if (studentSelectedSessionId === sessionId) {
+      setStudentTransportReportRowsDb((prev) => applyTransportRow(prev));
+    }
+
+    if (selectedSessionId === sessionId) {
+      setTeacherTransportReportRowsDb((prev) => applyTransportRow(prev));
+    }
 
     const { error } = await supabase.from("group_reports").upsert(payload, {
       onConflict: "session_id,group_number,theme,row_key",
@@ -3482,19 +3481,23 @@ async function toggleStudentAnalysisAccess() {
 
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
+      if (studentSelectedSessionId === sessionId) {
+        window.setTimeout(() => {
+          void loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
+        }, 300);
+      }
       return;
     }
 
     notifyTransportReportChanged(sessionId);
 
-    if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
-      await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
-      await loadTransportReportableRows(sessionId, setStudentTransportReportableRows);
-    }
-
-    if (selectedSessionId && sessionId === selectedSessionId) {
-      await loadTransportReportRows(sessionId, setTeacherTransportReportRowsDb);
-      await loadTransportReportableRows(sessionId, setTeacherTransportReportableRows);
+    // Pas de reload immédiat côté étudiant : cela évite qu'une réponse réseau plus ancienne
+    // remette l'ancienne valeur pendant la frappe. Le prof est rafraîchi par Realtime
+    // ou par l'événement localStorage entre fenêtres du même navigateur.
+    if (selectedSessionId === sessionId) {
+      window.setTimeout(() => {
+        void loadTransportReportRows(sessionId, setTeacherTransportReportRowsDb);
+      }, 300);
     }
   }
 
@@ -3952,6 +3955,34 @@ async function saveSalleReportRow(params: {
       window.removeEventListener("storage", handleStorageGroupReportChange);
     };
   }, [selectedSessionId]);
+
+  useEffect(() => {
+    // Fallback léger uniquement pour le transport professeur : Realtime/localStorage ne couvre pas
+    // toujours les fenêtres ou navigateurs séparés. On évite le polling global qui faisait exploser l'egress.
+    if (!selectedSessionId) return;
+    if (screen !== "teacher_dashboard" && screen !== "teacher_session_settings") return;
+    if (teacherMenu !== "session_open") return;
+    if (teacherAnalysesTab !== "report_des_donnees") return;
+    if (teacherTheme !== "transport") return;
+
+    const refreshTransport = () => {
+      void loadTransportReportRows(selectedSessionId, setTeacherTransportReportRowsDb);
+    };
+
+    refreshTransport();
+    const intervalId = window.setInterval(refreshTransport, 2000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [
+    selectedSessionId,
+    screen,
+    teacherMenu,
+    teacherAnalysesTab,
+    teacherTheme,
+    teacherGroupNumber,
+  ]);
 
   useEffect(() => {
     if (screen !== "student_analyses" || !studentSelectedSessionId) return;
