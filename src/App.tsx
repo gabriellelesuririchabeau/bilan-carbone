@@ -891,77 +891,47 @@ type DraftNumberInputProps = {
 
 function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputProps) {
   const [draftValue, setDraftValue] = useState(String(value ?? 0));
-  const [isFocused, setIsFocused] = useState(false);
-  const lastSentValueRef = useRef<string>(String(value ?? 0));
+  const lastCommittedRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!isFocused) {
-      const nextValue = String(value ?? 0);
-      setDraftValue(nextValue);
-      lastSentValueRef.current = nextValue;
-    }
-  }, [value, isFocused]);
+    const numericValue = Number(value ?? 0);
+
+    // 🔥 NE PAS écraser une saisie en cours ou récente
+    if (lastCommittedRef.current === numericValue) return;
+
+    setDraftValue(String(numericValue));
+  }, [value]);
 
   function parseDraft(nextValue: string) {
-    const cleanValue = String(nextValue ?? "").trim();
-
-    // Pendant la saisie, un input type="number" peut valoir "".
-    // On ne sauvegarde jamais ce vide temporaire comme 0.
-    if (cleanValue === "") return null;
-
-    const numericValue = Number(cleanValue.replace(",", "."));
-    if (!Number.isFinite(numericValue)) return null;
+    const numericValue = Number(String(nextValue || "0").replace(",", "."));
+    if (!Number.isFinite(numericValue)) return min;
     return Math.max(min, numericValue);
   }
 
-  async function commitValue(nextValue = draftValue, normalizeAfterSave = true) {
-    const numericValue = parseDraft(nextValue);
-    if (numericValue === null) {
-      setDraftValue(String(value ?? 0));
-      return;
-    }
+  async function commitValue(nextValue: string) {
+    if (nextValue === "") return;
 
-    const key = String(numericValue);
-    lastSentValueRef.current = key;
+    const numericValue = parseDraft(nextValue);
+
+    lastCommittedRef.current = numericValue;
+
     await onCommit(numericValue);
-
-    if (normalizeAfterSave && lastSentValueRef.current === key) {
-      setDraftValue(key);
-    }
-  }
-
-  function commitImmediately(nextValue: string) {
-    const numericValue = parseDraft(nextValue);
-    if (numericValue === null) return;
-
-    const key = String(numericValue);
-    lastSentValueRef.current = key;
-    void onCommit(numericValue);
   }
 
   return (
     <input
       type="number"
-      min={min}
       value={draftValue}
       style={style}
-      onFocus={() => setIsFocused(true)}
       onChange={(e) => {
-        const nextValue = e.target.value;
-        setDraftValue(nextValue);
+        const next = e.target.value;
+        setDraftValue(next);
 
-        // Calcul + sauvegarde immédiats, sans appuyer sur Entrée.
-        commitImmediately(nextValue);
+        // 🔥 SAVE IMMÉDIAT
+        void commitValue(next);
       }}
       onBlur={() => {
-        setIsFocused(false);
-        void commitValue();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          void commitValue(e.currentTarget.value);
-          e.currentTarget.blur();
-        }
+        void commitValue(draftValue);
       }}
     />
   );
