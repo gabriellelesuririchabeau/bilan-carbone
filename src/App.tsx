@@ -3021,44 +3021,6 @@ function normalizeGroupReportRows(rows: GroupReportRow[]) {
   })) as GroupReportRow[];
 }
 
-function upsertGroupReportRowInState(rows: GroupReportRow[], payload: Partial<GroupReportRow>) {
-  const normalizedPayload = {
-    ...payload,
-    theme: normalizeGroupReportTheme(payload.theme),
-    group_number: Number(payload.group_number),
-    quantity: payload.quantity === null || payload.quantity === undefined ? 0 : Number(payload.quantity),
-    persons: payload.persons === null || payload.persons === undefined ? null : Number(payload.persons),
-    factor: payload.factor === null || payload.factor === undefined ? 0 : Number(payload.factor),
-  } as GroupReportRow;
-
-  const nextRows = normalizeGroupReportRows(rows);
-  const existingIndex = nextRows.findIndex(
-    (row) =>
-      String(row.session_id) === String(normalizedPayload.session_id) &&
-      Number(row.group_number) === Number(normalizedPayload.group_number) &&
-      normalizeGroupReportTheme(row.theme) === normalizeGroupReportTheme(normalizedPayload.theme) &&
-      String(row.row_key) === String(normalizedPayload.row_key)
-  );
-
-  if (existingIndex >= 0) {
-    nextRows[existingIndex] = { ...nextRows[existingIndex], ...normalizedPayload } as GroupReportRow;
-    return nextRows;
-  }
-
-  return [...nextRows, normalizedPayload];
-}
-
-function broadcastGroupReportSaved(payload: Partial<GroupReportRow>) {
-  try {
-    window.localStorage.setItem(
-      "group_reports_saved_event",
-      JSON.stringify({ ts: Date.now(), payload })
-    );
-  } catch {
-    // localStorage peut être indisponible en navigation privée stricte.
-  }
-}
-
 async function loadGroupReportRowsWithFallback(
   sessionId: string,
   setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>,
@@ -3450,32 +3412,55 @@ updatedBy: string | null;
 updated_by: updatedBy && /^[0-9a-fA-F-]{36}$/.test(updatedBy) ? updatedBy : null,
     };
 
-    // Transport doit se comporter comme les autres tables :
-    // 1) mise à jour locale immédiate pour recalculer le total étudiant sans Entrée ;
-    // 2) sauvegarde Supabase ;
-    // 3) notification aux autres fenêtres (interface prof) après succès.
-    if (studentSelectedSessionId === sessionId) {
-      setStudentTransportReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-    }
-    if (selectedSessionId === sessionId) {
-      setTeacherTransportReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-    }
+    const applyOptimisticUpdate = (
+      rows: GroupReportRow[],
+      targetSessionId: string,
+      targetGroupNumber: number
+    ) => {
+      if (sessionId !== targetSessionId || groupNumber !== targetGroupNumber) return rows;
+
+      const nextRows = [...rows];
+      const existingIndex = nextRows.findIndex(
+        (row) =>
+          row.session_id === sessionId &&
+          row.group_number === groupNumber &&
+          row.theme === "transport" &&
+          String(row.row_key) === rowKey
+      );
+
+      if (existingIndex >= 0) {
+        nextRows[existingIndex] = {
+          ...nextRows[existingIndex],
+          ...payload,
+        } as GroupReportRow;
+        return nextRows;
+      }
+
+      nextRows.push(payload as unknown as GroupReportRow);
+      return nextRows;
+    };
+
+    setStudentTransportReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, studentSelectedSessionId, effectiveStudentGroupNumber)
+    );
+    setTeacherTransportReportRowsDb((prev) =>
+      applyOptimisticUpdate(prev, selectedSessionId, teacherGroupNumber)
+    );
 
     const { error } = await supabase.from("group_reports").upsert(
       payload,
       { onConflict: "session_id,group_number,theme,row_key" }
     );
-
+console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report transport : ${error.message}`);
-      // En cas d'échec, on recharge depuis la DB pour ne pas garder une fausse valeur locale.
-      if (studentSelectedSessionId === sessionId) {
-        void loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
-      }
       return;
     }
 
-    broadcastGroupReportSaved(payload);
+    if (studentSelectedSessionId && sessionId === studentSelectedSessionId) {
+      await loadTransportReportRows(sessionId, setStudentTransportReportRowsDb);
+      await loadTransportReportableRows(sessionId, setStudentTransportReportableRows);
+    }
   }
 
   async function saveDejeunerReportRow(params: {
@@ -3919,42 +3904,6 @@ async function saveSalleReportRow(params: {
       void supabase.removeChannel(channel);
     };
   }, [screen, selectedSessionId, teacherMenu]);
-
-  useEffect(() => {
-    function applyExternalGroupReport(payload: Partial<GroupReportRow>) {
-      if (!payload?.session_id || !payload?.theme || !payload?.row_key) return;
-      const theme = normalizeGroupReportTheme(payload.theme);
-
-      if (String(payload.session_id) === String(selectedSessionId)) {
-        if (theme === "transport") setTeacherTransportReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-        if (theme === "dejeuner") setTeacherDejeunerReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-        if (theme === "equipement") setTeacherEquipementReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-        if (theme === "autres_consommations") setTeacherAutresReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-        if (theme === "salle") setTeacherSalleReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-      }
-
-      if (String(payload.session_id) === String(studentSelectedSessionId)) {
-        if (theme === "transport") setStudentTransportReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-        if (theme === "dejeuner") setStudentDejeunerReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-        if (theme === "equipement") setStudentEquipementReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-        if (theme === "autres_consommations") setStudentAutresReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-        if (theme === "salle") setStudentSalleReportRowsDb((prev) => upsertGroupReportRowInState(prev, payload));
-      }
-    }
-
-    function handleStorage(event: StorageEvent) {
-      if (event.key !== "group_reports_saved_event" || !event.newValue) return;
-      try {
-        const parsed = JSON.parse(event.newValue);
-        applyExternalGroupReport(parsed.payload);
-      } catch {
-        // ignore malformed events
-      }
-    }
-
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, [selectedSessionId, studentSelectedSessionId]);
 
   useEffect(() => {
     if (screen !== "student_analyses" || !studentSelectedSessionId) return;
