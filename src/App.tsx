@@ -886,6 +886,28 @@ function generateRandomAssignments(rawText: string): StudentAssignmentDraft[] {
     }));
 }
 
+function countRandomAssignmentCandidates(rawText: string) {
+  return rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line, index) => {
+      if (index !== 0) return true;
+      return !line.toLowerCase().includes("email");
+    })
+    .map((line) => {
+      const separator = line.includes(";") ? ";" : "\t";
+      const parts = line.split(separator).map((part) => part.trim());
+      return {
+        email: normalizeEmail(parts[0] ?? ""),
+        firstName: parts[1] ?? "",
+        lastName: parts[2] ?? "",
+      };
+    })
+    .filter((student) => student.email && student.email.includes("@") && student.firstName && student.lastName)
+    .length;
+}
+
 function serializeStudentAssignments(assignments: StudentAssignmentDraft[]) {
   return assignments
     .map((student) =>
@@ -1517,6 +1539,7 @@ const [quickSessionSuffix, setQuickSessionSuffix] = useState("");  const [teache
 const [, setAssignmentMode] = useState<AssignmentMode>("groups");
 const [assignmentMethod, setAssignmentMethod] = useState<AssignmentMethod>("import");
 const [assignmentRawText, setAssignmentRawText] = useState("");
+const [validatedRandomAssignments, setValidatedRandomAssignments] = useState<StudentAssignmentDraft[]>([]);
 const [newStudentEmail, setNewStudentEmail] = useState("");
 const [newStudentFirstName, setNewStudentFirstName] = useState("");
 const [newStudentLastName, setNewStudentLastName] = useState("");
@@ -1841,14 +1864,14 @@ const studentSyntheseData = useMemo(
   return parseStudentAssignments(assignmentRawText);
 }, [assignmentRawText]);
 
-  const randomStudentAssignments = useMemo(() => {
-    if (assignmentMethod !== "random") return [];
-    return generateRandomAssignments(settingsAllowedEmailsText);
+  const randomCandidateCount = useMemo(() => {
+    if (assignmentMethod !== "random") return 0;
+    return countRandomAssignmentCandidates(settingsAllowedEmailsText);
   }, [assignmentMethod, settingsAllowedEmailsText]);
 
   const activeStudentAssignments = useMemo(() => {
-    return assignmentMethod === "random" ? randomStudentAssignments : parsedStudentAssignments;
-  }, [assignmentMethod, parsedStudentAssignments, randomStudentAssignments]);
+    return assignmentMethod === "random" ? validatedRandomAssignments : parsedStudentAssignments;
+  }, [assignmentMethod, parsedStudentAssignments, validatedRandomAssignments]);
 
   const displayedStudentAssignments = useMemo(() => {
     return activeStudentAssignments;
@@ -4256,6 +4279,7 @@ setQuickSessionSuffix("");
     setSettingsTitle("");
     setSettingsCampus("");
     setSettingsAllowedEmailsText("");
+    setValidatedRandomAssignments([]);
     setCounts(EMPTY_COUNTS);
     setTeacherTransportReportRowsDb([]);
     setStudentTransportReportRowsDb([]);
@@ -4344,6 +4368,7 @@ async function handleCreateSessionQuick() {
   setAssignmentMode("groups");
   setSettingsAllowedEmailsText("");
   setAssignmentRawText("");
+  setValidatedRandomAssignments([]);
   setQuickSessionCampus("");
   setQuickSessionProgramme("");
   setQuickSessionLevel("");
@@ -4403,6 +4428,7 @@ async function handleOpenSession(session: SessionRow) {
     setAssignmentMethod("import");
     setAssignmentRawText("");
     setSettingsAllowedEmailsText(allowedEmailText);
+    setValidatedRandomAssignments([]);
   }
 
 
@@ -4445,6 +4471,7 @@ setAssignmentMode("groups");
 setAssignmentMethod("import");
 setAssignmentRawText("");
       setSettingsAllowedEmailsText("");
+      setValidatedRandomAssignments([]);
       setCounts(EMPTY_COUNTS);
       setTeacherTransportReportRowsDb([]);
       setTeacherTransportReportableRows([]);
@@ -4537,6 +4564,21 @@ setAssignmentRawText("");
     setMessage(`Étudiant ajouté au groupe ${groupNumber}. Pensez à enregistrer les paramètres.`);
   }
 
+  function handleValidateRandomAssignment() {
+    const nextAssignments = generateRandomAssignments(settingsAllowedEmailsText);
+
+    if (!nextAssignments.length) {
+      setValidatedRandomAssignments([]);
+      setAssignmentRawText("");
+      setMessage("Aucun étudiant valide à répartir. Format attendu : email;prenom;nom.");
+      return;
+    }
+
+    setValidatedRandomAssignments(nextAssignments);
+    setAssignmentRawText(serializeStudentAssignments(nextAssignments));
+    setMessage("Assignation aléatoire validée. Vous pouvez maintenant l'exporter ou l'enregistrer.");
+  }
+
   function downloadAssignmentExport() {
     const sourceAssignments =
       displayedStudentAssignments.length > 0 ? displayedStudentAssignments : activeStudentAssignments;
@@ -4580,7 +4622,7 @@ const assignmentsToSave = activeStudentAssignments;
 if (assignmentsToSave.length === 0) {
   setMessage(
     assignmentMethod === "random"
-      ? "Aucune ligne valide détectée pour l'assignation aléatoire. Format attendu : email;prenom;nom."
+      ? "Validez d'abord l'assignation aléatoire avant d'enregistrer."
       : "Aucune assignation valide détectée. Vérifiez le format : email;prenom;nom;groupe."
   );
   return;
@@ -7412,13 +7454,36 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                       <textarea
                         style={{ ...styles.input, minHeight: 170 } as React.CSSProperties}
                         value={settingsAllowedEmailsText}
-                        onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
+                        onChange={(e) => {
+                          setSettingsAllowedEmailsText(e.target.value);
+                          setValidatedRandomAssignments([]);
+                          setAssignmentRawText("");
+                        }}
                         placeholder={"email;prenom;nom\netudiant1@exemple.com;Marie;Durand\netudiant2@exemple.com;Lucas;Martin"}
                       />
 
                       <div style={{ ...styles.emptyText, marginTop: 10 }}>
-                        {activeStudentAssignments.length} assignation(s) aléatoire(s) valide(s) détectée(s).
+                        {randomCandidateCount} étudiant(s) valide(s) détecté(s) avant répartition.
                       </div>
+
+                      <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                        <button
+                          type="button"
+                          style={styles.primaryButton}
+                          onClick={handleValidateRandomAssignment}
+                        >
+                          Valider l'assignation aléatoire
+                        </button>
+                      </div>
+
+                      {validatedRandomAssignments.length > 0 ? (
+                        <>
+                          <div style={{ ...styles.emptyText, marginTop: 10 }}>
+                            {validatedRandomAssignments.length} assignation(s) aléatoire(s) validée(s).
+                          </div>
+                          {renderAssignmentsTable(validatedRandomAssignments)}
+                        </>
+                      ) : null}
                     </>
                   ) : (
                     <>
@@ -7442,7 +7507,12 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
                     <button
                       type="button"
-                      style={styles.primaryButton}
+                      style={
+                        assignmentMethod === "random" && validatedRandomAssignments.length === 0
+                          ? styles.secondaryButton
+                          : styles.primaryButton
+                      }
+                      disabled={assignmentMethod === "random" && validatedRandomAssignments.length === 0}
                       onClick={downloadAssignmentExport}
                     >
                       Exporter l'assignation
@@ -8245,7 +8315,10 @@ if (screen === "student_vote") {
       <input
         type="radio"
         checked={assignmentMethod === "import"}
-        onChange={() => setAssignmentMethod("import")}
+        onChange={() => {
+          setAssignmentMethod("import");
+          setValidatedRandomAssignments([]);
+        }}
       />{" "}
       Assignation prédéfinie
     </label>
@@ -8254,7 +8327,11 @@ if (screen === "student_vote") {
       <input
         type="radio"
         checked={assignmentMethod === "random"}
-        onChange={() => setAssignmentMethod("random")}
+        onChange={() => {
+          setAssignmentMethod("random");
+          setValidatedRandomAssignments([]);
+          setAssignmentRawText("");
+        }}
       />{" "}
       Assignation aléatoire
     </label>
