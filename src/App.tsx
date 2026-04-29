@@ -1517,11 +1517,6 @@ const [quickSessionSuffix, setQuickSessionSuffix] = useState("");  const [teache
 const [, setAssignmentMode] = useState<AssignmentMode>("groups");
 const [assignmentMethod, setAssignmentMethod] = useState<AssignmentMethod>("import");
 const [assignmentRawText, setAssignmentRawText] = useState("");
-const [newStudentEmail, setNewStudentEmail] = useState("");
-const [newStudentFirstName, setNewStudentFirstName] = useState("");
-const [newStudentLastName, setNewStudentLastName] = useState("");
-const [newStudentGroupNumber, setNewStudentGroupNumber] = useState(1);
-const [autoAssignNewStudentGroup, setAutoAssignNewStudentGroup] = useState(true);
 
   const [transportTrips, setTransportTrips] = useState<TransportTrip[]>(emptyTrips());
   const [transportMessage, setTransportMessage] = useState("");
@@ -4480,64 +4475,6 @@ setAssignmentRawText("");
     return countsByGroup[0]?.groupNumber ?? 1;
   }
 
-  function resetNewStudentForm() {
-    setNewStudentEmail("");
-    setNewStudentFirstName("");
-    setNewStudentLastName("");
-    setNewStudentGroupNumber(1);
-    setAutoAssignNewStudentGroup(true);
-  }
-
-  function handleAddStudentToSessionDraft() {
-    const normalizedNewEmail = normalizeEmail(newStudentEmail);
-
-    if (!normalizedNewEmail || !normalizedNewEmail.includes("@")) {
-      setMessage("Ajout impossible : l'email de l'étudiant est obligatoire.");
-      return;
-    }
-
-    const firstName = newStudentFirstName.trim();
-    const lastName = newStudentLastName.trim();
-
-    if (!firstName || !lastName) {
-      setMessage("Ajout impossible : prénom et nom sont obligatoires pour une session avec assignation.");
-      return;
-    }
-
-    const currentAssignments = activeStudentAssignments;
-
-    if (currentAssignments.some((student) => student.email === normalizedNewEmail)) {
-      setMessage("Cet étudiant est déjà présent dans l'assignation.");
-      return;
-    }
-
-    const groupNumber = autoAssignNewStudentGroup
-      ? getNextAutoGroupNumber(currentAssignments)
-      : Number(newStudentGroupNumber);
-
-    if (!Number.isInteger(groupNumber) || groupNumber < 1 || groupNumber > 10) {
-      setMessage("Ajout impossible : le groupe doit être compris entre 1 et 10.");
-      return;
-    }
-
-    const nextAssignments = [
-      ...currentAssignments,
-      {
-        email: normalizedNewEmail,
-        first_name: firstName,
-        last_name: lastName,
-        group_number: groupNumber,
-      },
-    ];
-
-    setAssignmentMode("groups");
-    setAssignmentMethod("import");
-    setAssignmentRawText(serializeStudentAssignments(nextAssignments));
-    setSettingsAllowedEmailsText(nextAssignments.map((student) => student.email).join("\n"));
-    resetNewStudentForm();
-    setMessage(`Étudiant ajouté au groupe ${groupNumber}. Pensez à enregistrer les paramètres.`);
-  }
-
   function downloadAssignmentExport() {
     const sourceAssignments =
       displayedStudentAssignments.length > 0 ? displayedStudentAssignments : activeStudentAssignments;
@@ -7402,72 +7339,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               <label style={styles.label}>Code de session</label>
               <input style={styles.input} value={settingsTitle} onChange={(e) => setSettingsTitle(e.target.value)} />
 
-              <label style={styles.label}>Mode d'accès étudiant</label>
-              <div style={{ ...styles.emptyText, marginBottom: 16 }}>
-                Assignation obligatoire des étudiants à un groupe.
-              </div>
 
-              {!isInitialSessionSetup && (
-                <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
-                  <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
-
-                  <label style={styles.label}>Email</label>
-                  <input
-                    style={styles.input}
-                    value={newStudentEmail}
-                    onChange={(e) => setNewStudentEmail(e.target.value)}
-                    placeholder="email@exemple.com"
-                  />
-
-                  <label style={styles.label}>Nom</label>
-                  <input
-                    style={styles.input}
-                    value={newStudentLastName}
-                    onChange={(e) => setNewStudentLastName(e.target.value)}
-                    placeholder="Nom"
-                  />
-
-                  <label style={styles.label}>Prénom</label>
-                  <input
-                    style={styles.input}
-                    value={newStudentFirstName}
-                    onChange={(e) => setNewStudentFirstName(e.target.value)}
-                    placeholder="Prénom"
-                  />
-
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
-                    <input
-                      type="checkbox"
-                      checked={autoAssignNewStudentGroup}
-                      onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
-                    />
-                    <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
-                  </div>
-
-                  {!autoAssignNewStudentGroup && (
-                    <>
-                      <label style={styles.label}>Groupe</label>
-                      <select
-                        style={styles.input}
-                        value={newStudentGroupNumber}
-                        onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
-                      >
-                        {studentGroups.map((group) => (
-                          <option key={group} value={group}>
-                            Groupe {group}
-                          </option>
-                        ))}
-                      </select>
-                    </>
-                  )}
-
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                    <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
-                      Ajouter l'étudiant
-                    </button>
-                  </div>
-                </div>
-              )}
 
               <label style={styles.label}>Méthode d'assignation</label>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
@@ -8254,11 +8126,6 @@ if (screen === "student_vote") {
 </div>
 
 <div style={{ marginTop: 16 }}>
-  <label style={styles.label}>Mode d'accès étudiant</label>
-  <div style={{ ...styles.emptyText, marginBottom: 10 }}>
-    Assignation obligatoire des étudiants à un groupe.
-  </div>
-
   <label style={styles.label}>Méthode d'assignation</label>
   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
     <label>
