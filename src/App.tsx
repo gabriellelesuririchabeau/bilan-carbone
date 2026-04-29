@@ -7478,21 +7478,13 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                       placeholder="Prénom"
                     />
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
-                      <input
-                        type="checkbox"
-                        checked={autoAssignNewStudentGroup}
-                        onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
-                      />
-                      <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
-                    </div>
-
-                    {!autoAssignNewStudentGroup && (
-                      <>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 16, alignItems: "end", marginTop: 10 }}>
+                      <div>
                         <label style={styles.label}>Groupe</label>
                         <select
                           style={styles.input}
                           value={newStudentGroupNumber}
+                          disabled={autoAssignNewStudentGroup}
                           onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
                         >
                           {studentGroups.map((group) => (
@@ -7501,24 +7493,30 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                             </option>
                           ))}
                         </select>
-                      </>
-                    )}
+                      </div>
 
-                    <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, color: "#40577a", fontSize: 14 }}>
+                        <input
+                          type="checkbox"
+                          checked={autoAssignNewStudentGroup}
+                          onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
+                        />
+                        Assignation aléatoire
+                      </label>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
                       <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
                         Ajouter l'étudiant
                       </button>
+                      <button
+                        type="button"
+                        style={styles.primaryButton}
+                        onClick={downloadAssignmentExport}
+                      >
+                        Exporter l'assignation
+                      </button>
                     </div>
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                    <button
-                      type="button"
-                      style={styles.primaryButton}
-                      onClick={downloadAssignmentExport}
-                    >
-                      Exporter l'assignation
-                    </button>
                   </div>
 
                   <input
