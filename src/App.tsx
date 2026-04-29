@@ -4132,6 +4132,54 @@ async function saveSalleReportRow(params: {
     };
   }, [selectedSessionId]);
 
+
+  useEffect(() => {
+    if (screen !== "teacher_dashboard" && screen !== "teacher_session_settings") return;
+    if (teacherMenu !== "session_open") return;
+    if (!selectedSessionId) return;
+
+    let refreshTimeoutId: number | undefined;
+
+    const scheduleTransportReportableRefresh = () => {
+      if (refreshTimeoutId !== undefined) {
+        window.clearTimeout(refreshTimeoutId);
+      }
+
+      // Rechargement ciblé et débounced : un questionnaire transport peut insérer
+      // plusieurs trajets, on évite donc de relire Supabase à chaque ligne reçue.
+      refreshTimeoutId = window.setTimeout(() => {
+        void loadTransportReportableRows(selectedSessionId, setTeacherTransportReportableRows);
+      }, 350);
+    };
+
+    const channel = supabase
+      .channel(`teacher-responses-transport-${selectedSessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "responses_transport",
+          filter: `session_id=eq.${selectedSessionId}`,
+        },
+        scheduleTransportReportableRefresh
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          setMessage(
+            "Realtime Supabase indisponible pour responses_transport. Vérifiez que la table est activée dans la publication supabase_realtime."
+          );
+        }
+      });
+
+    return () => {
+      if (refreshTimeoutId !== undefined) {
+        window.clearTimeout(refreshTimeoutId);
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [screen, teacherMenu, selectedSessionId]);
+
   useEffect(() => {
     if (screen !== "student_analyses" || !studentSelectedSessionId) return;
 
