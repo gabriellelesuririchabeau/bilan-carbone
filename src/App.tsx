@@ -1449,6 +1449,7 @@ function StudentQuestionnaireTabs({
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
+  const [isInitialSessionSetup, setIsInitialSessionSetup] = useState(false);
 
   const [teacherMenu, setTeacherMenu] = useState<TeacherMenu>("sessions");
   const [teacherSessionTab, setTeacherSessionTab] = useState<TeacherSessionTab>("counts");
@@ -4299,6 +4300,7 @@ setQuickSessionSuffix("");
     setIsCreatingTeacher(false);
     setAuthPortal("teacher");
     setMessage("");
+    setIsInitialSessionSetup(false);
     setScreen("home");
   }
 
@@ -4348,6 +4350,7 @@ async function handleCreateSessionQuick() {
   setQuickSessionSuffix("");
 
   await loadTeacherSessions(teacherUserId);
+  setIsInitialSessionSetup(true);
   setScreen("teacher_session_settings");
   setMessage(`Session créée : ${normalizedCode}`);
 }
@@ -4403,6 +4406,7 @@ async function handleOpenSession(session: SessionRow) {
   }
 
 
+  setIsInitialSessionSetup(false);
   setTeacherMenu("session_open");
   setTeacherSessionTab(draft?.teacherSessionTab ?? "counts");
   setTeacherAnalysesTab(draft?.teacherAnalysesTab ?? "donnees_a_reporter");
@@ -4577,7 +4581,7 @@ const assignmentsToSave = activeStudentAssignments;
 if (assignmentsToSave.length === 0) {
   setMessage(
     assignmentMethod === "random"
-      ? "Aucun email valide détecté pour l'assignation aléatoire. Ajoutez une liste d'emails, un par ligne."
+      ? "Aucune ligne valide détectée pour l'assignation aléatoire. Format attendu : email;prenom;nom."
       : "Aucune assignation valide détectée. Vérifiez le format : email;prenom;nom;groupe."
   );
   return;
@@ -7403,65 +7407,67 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 Assignation obligatoire des étudiants à un groupe.
               </div>
 
-              <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
-                <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
+              {!isInitialSessionSetup && (
+                <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
+                  <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
 
-                <label style={styles.label}>Email</label>
-                <input
-                  style={styles.input}
-                  value={newStudentEmail}
-                  onChange={(e) => setNewStudentEmail(e.target.value)}
-                  placeholder="email@exemple.com"
-                />
-
-                <label style={styles.label}>Nom</label>
-                <input
-                  style={styles.input}
-                  value={newStudentLastName}
-                  onChange={(e) => setNewStudentLastName(e.target.value)}
-                  placeholder="Nom"
-                />
-
-                <label style={styles.label}>Prénom</label>
-                <input
-                  style={styles.input}
-                  value={newStudentFirstName}
-                  onChange={(e) => setNewStudentFirstName(e.target.value)}
-                  placeholder="Prénom"
-                />
-
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
+                  <label style={styles.label}>Email</label>
                   <input
-                    type="checkbox"
-                    checked={autoAssignNewStudentGroup}
-                    onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
+                    style={styles.input}
+                    value={newStudentEmail}
+                    onChange={(e) => setNewStudentEmail(e.target.value)}
+                    placeholder="email@exemple.com"
                   />
-                  <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
-                </div>
 
-                {!autoAssignNewStudentGroup && (
-                  <>
-                    <label style={styles.label}>Groupe</label>
-                    <select
-                      style={styles.input}
-                      value={newStudentGroupNumber}
-                      onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
-                    >
-                      {studentGroups.map((group) => (
-                        <option key={group} value={group}>
-                          Groupe {group}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
+                  <label style={styles.label}>Nom</label>
+                  <input
+                    style={styles.input}
+                    value={newStudentLastName}
+                    onChange={(e) => setNewStudentLastName(e.target.value)}
+                    placeholder="Nom"
+                  />
 
-                <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                  <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
-                    Ajouter l'étudiant
-                  </button>
+                  <label style={styles.label}>Prénom</label>
+                  <input
+                    style={styles.input}
+                    value={newStudentFirstName}
+                    onChange={(e) => setNewStudentFirstName(e.target.value)}
+                    placeholder="Prénom"
+                  />
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
+                    <input
+                      type="checkbox"
+                      checked={autoAssignNewStudentGroup}
+                      onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
+                    />
+                    <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
+                  </div>
+
+                  {!autoAssignNewStudentGroup && (
+                    <>
+                      <label style={styles.label}>Groupe</label>
+                      <select
+                        style={styles.input}
+                        value={newStudentGroupNumber}
+                        onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
+                      >
+                        {studentGroups.map((group) => (
+                          <option key={group} value={group}>
+                            Groupe {group}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                    <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
+                      Ajouter l'étudiant
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <label style={styles.label}>Méthode d'assignation</label>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
@@ -7487,14 +7493,14 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               {assignmentMethod === "random" ? (
                 <>
                   <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
-                    Emails à répartir aléatoirement
+                    Étudiants à répartir aléatoirement
                   </label>
 
                   <textarea
                     style={{ ...styles.input, minHeight: 170 } as React.CSSProperties}
                     value={settingsAllowedEmailsText}
                     onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
-                    placeholder={"Un email par ligne\netudiant1@exemple.com\netudiant2@exemple.com"}
+                    placeholder={"email;prenom;nom\netudiant1@exemple.com;Marie;Durand\netudiant2@exemple.com;Lucas;Martin"}
                   />
 
                   <div style={{ ...styles.emptyText, marginTop: 10 }}>
@@ -8142,7 +8148,8 @@ if (screen === "student_vote") {
               setMessage("Ouvre d'abord une session.");
               return;
             }
-            setTeacherMenu("session_open");
+            setIsInitialSessionSetup(false);
+  setTeacherMenu("session_open");
             setTeacherSessionTab("counts");
           }}
         >
@@ -8442,7 +8449,10 @@ if (screen === "student_vote") {
 
                     <button
                       style={styles.secondaryButton}
-                      onClick={() => setScreen("teacher_session_settings")}
+                      onClick={() => {
+                        setIsInitialSessionSetup(false);
+                        setScreen("teacher_session_settings");
+                      }}
                     >
                       Modifier les paramètres
                     </button>
