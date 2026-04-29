@@ -7400,7 +7400,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
               <label style={styles.label}>Mode d'accès étudiant</label>
               <div style={{ ...styles.emptyText, marginBottom: 16 }}>
-                Assignation obligatoire des étudiants à un groupe. Le mode "liste simple d'emails autorisés" est désactivé dans cette version.
+                Assignation obligatoire des étudiants à un groupe.
               </div>
 
               <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
