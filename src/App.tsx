@@ -1851,13 +1851,8 @@ const teacherSyntheseData = useMemo(
 );
 
 const studentSyntheseData = useMemo(
-  () =>
-    computeSynthese(
-      studentSyntheseSourceRows.filter((row) =>
-        !studentAssignedGroup || Number(row.group_number) === studentAssignedGroup
-      )
-    ),
-  [studentSyntheseSourceRows, studentAssignedGroup]
+  () => computeSynthese(studentSyntheseSourceRows),
+  [studentSyntheseSourceRows]
 );
 
   const parsedStudentAssignments = useMemo(() => {
