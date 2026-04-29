@@ -2192,24 +2192,42 @@ async function loadTeacherGroupProposals(sessionId: string) {
     return;
   }
 
-  const { data, error } = await supabase.rpc("get_group_proposals_for_session", {
-    p_session_id: sessionId,
-  });
-
-  if (error) {
-    setMessage(`Erreur chargement propositions : ${error.message}`);
-    setTeacherGroupProposals({});
-    return;
-  }
-
   const nextState: Record<number, GroupProposalState> = {};
 
   for (let group = 1; group <= 10; group++) {
     nextState[group] = emptyGroupProposalState();
   }
 
-  (data ?? []).forEach((row: GroupProposalRow) => {
-    nextState[row.group_number] = {
+  // Lecture directe de group_proposals : c'est la source utilisée par les étudiants
+  // lorsqu'ils valident leurs propositions. On conserve un fallback RPC pour ne pas
+  // casser les éventuelles règles RLS côté étudiant.
+  const directResponse = await supabase
+    .from("group_proposals")
+    .select("group_number,proposal_1,proposal_2,proposal_3,is_validated")
+    .eq("session_id", sessionId)
+    .order("group_number", { ascending: true });
+
+  let rows = (directResponse.data ?? []) as GroupProposalRow[];
+
+  if (directResponse.error || rows.length === 0) {
+    const rpcResponse = await supabase.rpc("get_group_proposals_for_session", {
+      p_session_id: sessionId,
+    });
+
+    if (rpcResponse.error && directResponse.error) {
+      setMessage(`Erreur chargement propositions : ${directResponse.error.message}`);
+      setTeacherGroupProposals(nextState);
+      return;
+    }
+
+    rows = (rpcResponse.data ?? rows) as GroupProposalRow[];
+  }
+
+  rows.forEach((row: GroupProposalRow) => {
+    const groupNumber = Number(row.group_number);
+    if (!Number.isInteger(groupNumber) || groupNumber < 1 || groupNumber > 10) return;
+
+    nextState[groupNumber] = {
       proposal_1: String(row.proposal_1 ?? ""),
       proposal_2: String(row.proposal_2 ?? ""),
       proposal_3: String(row.proposal_3 ?? ""),
@@ -4004,6 +4022,48 @@ async function saveSalleReportRow(params: {
     }, 0);
     return () => {
       window.clearTimeout(timeoutId);
+    };
+  }, [screen, selectedSessionId, teacherMenu]);
+
+  useEffect(() => {
+    if (screen !== "teacher_dashboard") return;
+    if (teacherMenu !== "session_open") return;
+    if (!selectedSessionId) return;
+
+    const channel = supabase
+      .channel(`teacher-group-proposals-${selectedSessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "group_proposals",
+          filter: `session_id=eq.${selectedSessionId}`,
+        },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as Partial<GroupProposalRow> | null;
+          const groupNumber = Number(row?.group_number ?? 0);
+
+          if (!Number.isInteger(groupNumber) || groupNumber < 1 || groupNumber > 10) return;
+
+          setTeacherGroupProposals((prev) => ({
+            ...prev,
+            [groupNumber]:
+              payload.eventType === "DELETE"
+                ? emptyGroupProposalState()
+                : {
+                    proposal_1: String(row?.proposal_1 ?? ""),
+                    proposal_2: String(row?.proposal_2 ?? ""),
+                    proposal_3: String(row?.proposal_3 ?? ""),
+                    is_validated: Boolean(row?.is_validated),
+                  },
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
     };
   }, [screen, selectedSessionId, teacherMenu]);
 
