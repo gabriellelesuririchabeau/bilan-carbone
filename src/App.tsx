@@ -1517,6 +1517,11 @@ const [quickSessionSuffix, setQuickSessionSuffix] = useState("");  const [teache
 const [, setAssignmentMode] = useState<AssignmentMode>("groups");
 const [assignmentMethod, setAssignmentMethod] = useState<AssignmentMethod>("import");
 const [assignmentRawText, setAssignmentRawText] = useState("");
+const [newStudentEmail, setNewStudentEmail] = useState("");
+const [newStudentFirstName, setNewStudentFirstName] = useState("");
+const [newStudentLastName, setNewStudentLastName] = useState("");
+const [newStudentGroupNumber, setNewStudentGroupNumber] = useState(1);
+const [autoAssignNewStudentGroup, setAutoAssignNewStudentGroup] = useState(true);
 
   const [transportTrips, setTransportTrips] = useState<TransportTrip[]>(emptyTrips());
   const [transportMessage, setTransportMessage] = useState("");
@@ -4461,6 +4466,77 @@ setAssignmentRawText("");
   }
 
 
+  function getNextAutoGroupNumber(assignments: StudentAssignmentDraft[]) {
+    const countsByGroup = Array.from({ length: 10 }, (_, index) => ({
+      groupNumber: index + 1,
+      count: assignments.filter((student) => student.group_number === index + 1).length,
+    }));
+
+    countsByGroup.sort((a, b) => {
+      if (a.count !== b.count) return a.count - b.count;
+      return a.groupNumber - b.groupNumber;
+    });
+
+    return countsByGroup[0]?.groupNumber ?? 1;
+  }
+
+  function resetNewStudentForm() {
+    setNewStudentEmail("");
+    setNewStudentFirstName("");
+    setNewStudentLastName("");
+    setNewStudentGroupNumber(1);
+    setAutoAssignNewStudentGroup(true);
+  }
+
+  function handleAddStudentToSessionDraft() {
+    const normalizedNewEmail = normalizeEmail(newStudentEmail);
+
+    if (!normalizedNewEmail || !normalizedNewEmail.includes("@")) {
+      setMessage("Ajout impossible : l'email de l'étudiant est obligatoire.");
+      return;
+    }
+
+    const firstName = newStudentFirstName.trim();
+    const lastName = newStudentLastName.trim();
+
+    if (!firstName || !lastName) {
+      setMessage("Ajout impossible : prénom et nom sont obligatoires.");
+      return;
+    }
+
+    const currentAssignments = activeStudentAssignments;
+
+    if (currentAssignments.some((student) => student.email === normalizedNewEmail)) {
+      setMessage("Cet étudiant est déjà présent dans l'assignation.");
+      return;
+    }
+
+    const groupNumber = autoAssignNewStudentGroup
+      ? getNextAutoGroupNumber(currentAssignments)
+      : Number(newStudentGroupNumber);
+
+    if (!Number.isInteger(groupNumber) || groupNumber < 1 || groupNumber > 10) {
+      setMessage("Ajout impossible : le groupe doit être compris entre 1 et 10.");
+      return;
+    }
+
+    const nextAssignments = [
+      ...currentAssignments,
+      {
+        email: normalizedNewEmail,
+        first_name: firstName,
+        last_name: lastName,
+        group_number: groupNumber,
+      },
+    ];
+
+    setAssignmentMethod("import");
+    setAssignmentRawText(serializeStudentAssignments(nextAssignments));
+    setSettingsAllowedEmailsText(nextAssignments.map((student) => student.email).join("\n"));
+    resetNewStudentForm();
+    setMessage(`Étudiant ajouté au groupe ${groupNumber}. Pensez à enregistrer les paramètres.`);
+  }
+
   function downloadAssignmentExport() {
     const sourceAssignments =
       displayedStudentAssignments.length > 0 ? displayedStudentAssignments : activeStudentAssignments;
@@ -7325,81 +7401,126 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               <label style={styles.label}>Code de session</label>
               <input style={styles.input} value={settingsTitle} onChange={(e) => setSettingsTitle(e.target.value)} />
 
-
-
-              {!isInitialSessionSetup && (
+              {isInitialSessionSetup ? (
                 <>
-                  <label style={styles.label}>Méthode d'assignation</label>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-                    <label>
-                      <input
-                        type="radio"
-                        checked={assignmentMethod === "import"}
-                        onChange={() => setAssignmentMethod("import")}
-                      />{" "}
-                      Assignation prédéfinie
-                    </label>
+                  {assignmentMethod === "random" ? (
+                    <>
+                      <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
+                        Étudiants à répartir aléatoirement
+                      </label>
 
-                    <label>
-                      <input
-                        type="radio"
-                        checked={assignmentMethod === "random"}
-                        onChange={() => setAssignmentMethod("random")}
-                      />{" "}
-                      Assignation aléatoire
-                    </label>
-                  </div>
-                </>
-              )}
+                      <textarea
+                        style={{ ...styles.input, minHeight: 170 } as React.CSSProperties}
+                        value={settingsAllowedEmailsText}
+                        onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
+                        placeholder={"email;prenom;nom\netudiant1@exemple.com;Marie;Durand\netudiant2@exemple.com;Lucas;Martin"}
+                      />
 
-              {assignmentMethod === "random" ? (
-                <>
-                  <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
-                    Étudiants à répartir aléatoirement
-                  </label>
+                      <div style={{ ...styles.emptyText, marginTop: 10 }}>
+                        {activeStudentAssignments.length} assignation(s) aléatoire(s) valide(s) détectée(s).
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
+                        Liste avec assignation prédéfinie
+                      </label>
 
-                  <textarea
-                    style={{ ...styles.input, minHeight: 170 } as React.CSSProperties}
-                    value={settingsAllowedEmailsText}
-                    onChange={(e) => setSettingsAllowedEmailsText(e.target.value)}
-                    placeholder={"email;prenom;nom\netudiant1@exemple.com;Marie;Durand\netudiant2@exemple.com;Lucas;Martin"}
-                  />
+                      <textarea
+                        style={{ ...styles.input, minHeight: 170 } as React.CSSProperties}
+                        value={assignmentRawText}
+                        onChange={(e) => setAssignmentRawText(e.target.value)}
+                        placeholder={"email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
+                      />
 
-                  <div style={{ ...styles.emptyText, marginTop: 10 }}>
-                    {activeStudentAssignments.length} assignation(s) aléatoire(s) valide(s) détectée(s).
+                      <div style={{ ...styles.emptyText, marginTop: 10 }}>
+                        {activeStudentAssignments.length} assignation(s) valide(s) détectée(s).
+                      </div>
+                    </>
+                  )}
+
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                    <button
+                      type="button"
+                      style={styles.primaryButton}
+                      onClick={downloadAssignmentExport}
+                    >
+                      Exporter l'assignation
+                    </button>
                   </div>
                 </>
               ) : (
                 <>
-                  <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
-                    Liste avec assignation prédéfinie
-                  </label>
+                  <div style={{ ...styles.innerCardFull, marginTop: 16, marginBottom: 16 }}>
+                    <h3 style={styles.innerTitle}>Ajouter un étudiant</h3>
 
-                  <textarea
-                    style={{ ...styles.input, minHeight: 170 } as React.CSSProperties}
-                    value={assignmentRawText}
-                    onChange={(e) => setAssignmentRawText(e.target.value)}
-                    placeholder={"email;prenom;nom;groupe\netudiant1@exemple.com;Marie;Durand;1"}
-                  />
+                    <label style={styles.label}>Email</label>
+                    <input
+                      style={styles.input}
+                      value={newStudentEmail}
+                      onChange={(e) => setNewStudentEmail(e.target.value)}
+                      placeholder="email@exemple.com"
+                    />
 
-                  <div style={{ ...styles.emptyText, marginTop: 10 }}>
-                    {activeStudentAssignments.length} assignation(s) valide(s) détectée(s).
+                    <label style={styles.label}>Nom</label>
+                    <input
+                      style={styles.input}
+                      value={newStudentLastName}
+                      onChange={(e) => setNewStudentLastName(e.target.value)}
+                      placeholder="Nom"
+                    />
+
+                    <label style={styles.label}>Prénom</label>
+                    <input
+                      style={styles.input}
+                      value={newStudentFirstName}
+                      onChange={(e) => setNewStudentFirstName(e.target.value)}
+                      placeholder="Prénom"
+                    />
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={autoAssignNewStudentGroup}
+                        onChange={(e) => setAutoAssignNewStudentGroup(e.target.checked)}
+                      />
+                      <span style={styles.emptyText}>Assigner automatiquement le groupe</span>
+                    </div>
+
+                    {!autoAssignNewStudentGroup && (
+                      <>
+                        <label style={styles.label}>Groupe</label>
+                        <select
+                          style={styles.input}
+                          value={newStudentGroupNumber}
+                          onChange={(e) => setNewStudentGroupNumber(Number(e.target.value))}
+                        >
+                          {studentGroups.map((group) => (
+                            <option key={group} value={group}>
+                              Groupe {group}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+
+                    <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                      <button type="button" style={styles.primaryButton} onClick={handleAddStudentToSessionDraft}>
+                        Ajouter l'étudiant
+                      </button>
+                    </div>
                   </div>
-                </>
-              )}
 
-              <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                <button
-                  type="button"
-                  style={styles.primaryButton}
-                  onClick={downloadAssignmentExport}
-                >
-                  Exporter l'assignation
-                </button>
-              </div>
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                    <button
+                      type="button"
+                      style={styles.primaryButton}
+                      onClick={downloadAssignmentExport}
+                    >
+                      Exporter l'assignation
+                    </button>
+                  </div>
 
-              {!isInitialSessionSetup && (
-                <>
                   <input
                     type="text"
                     placeholder="Rechercher par nom, prénom, groupe ou email..."
