@@ -7341,26 +7341,30 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
 
 
-              <label style={styles.label}>Méthode d'assignation</label>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-                <label>
-                  <input
-                    type="radio"
-                    checked={assignmentMethod === "import"}
-                    onChange={() => setAssignmentMethod("import")}
-                  />{" "}
-                  Assignation prédéfinie
-                </label>
+              {!isInitialSessionSetup && (
+                <>
+                  <label style={styles.label}>Méthode d'assignation</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                    <label>
+                      <input
+                        type="radio"
+                        checked={assignmentMethod === "import"}
+                        onChange={() => setAssignmentMethod("import")}
+                      />{" "}
+                      Assignation prédéfinie
+                    </label>
 
-                <label>
-                  <input
-                    type="radio"
-                    checked={assignmentMethod === "random"}
-                    onChange={() => setAssignmentMethod("random")}
-                  />{" "}
-                  Assignation aléatoire
-                </label>
-              </div>
+                    <label>
+                      <input
+                        type="radio"
+                        checked={assignmentMethod === "random"}
+                        onChange={() => setAssignmentMethod("random")}
+                      />{" "}
+                      Assignation aléatoire
+                    </label>
+                  </div>
+                </>
+              )}
 
               {assignmentMethod === "random" ? (
                 <>
@@ -7408,16 +7412,18 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 </button>
               </div>
 
-              <input
-                type="text"
-                placeholder="Rechercher par nom, prénom, groupe ou email..."
-                value={assignmentSearch}
-                onChange={(e) => setAssignmentSearch(e.target.value)}
-                style={{ ...styles.input, marginTop: 14 }}
-              />
+              {!isInitialSessionSetup && (
+                <input
+                  type="text"
+                  placeholder="Rechercher par nom, prénom, groupe ou email..."
+                  value={assignmentSearch}
+                  onChange={(e) => setAssignmentSearch(e.target.value)}
+                  style={{ ...styles.input, marginTop: 14 }}
+                />
+              )}
 
               {activeStudentAssignments.length > 0 ? (
-                renderAssignmentsTable(activeStudentAssignments, assignmentSearch)
+                renderAssignmentsTable(activeStudentAssignments, isInitialSessionSetup ? "" : assignmentSearch)
               ) : (
                 <div style={{ ...styles.emptyText, marginTop: 12 }}>
                   Aucune assignation valide détectée.
