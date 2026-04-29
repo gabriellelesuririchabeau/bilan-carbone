@@ -3290,7 +3290,11 @@ async function loadTransportReportableRows(
       return;
     }
 
-    setRows((data ?? []) as DejeunerReportableRowRpc[]);
+    const positiveRows = ((data ?? []) as DejeunerReportableRowRpc[]).filter(
+      (row) => Number(row.quantity ?? 0) > 0
+    );
+
+    setRows(positiveRows);
   }
 
   async function loadDejeunerReportableRows(sessionId: string) {
@@ -5209,7 +5213,9 @@ setAutresMessage("Questionnaire autres consommations enregistré.");
 
 
 function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyText: string) {
-  const quantityByLabel = rows.reduce<Record<string, number>>((acc, row) => {
+  const positiveRows = rows.filter((row) => Number(row.quantity ?? 0) > 0);
+
+  const quantityByLabel = positiveRows.reduce<Record<string, number>>((acc, row) => {
     const label = normalizeDejeunerLookupValue(row.label);
     if (!label) return acc;
 
@@ -5217,7 +5223,7 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
     return acc;
   }, {});
 
-  const quantityByKey = rows.reduce<Record<string, number>>((acc, row) => {
+  const quantityByKey = positiveRows.reduce<Record<string, number>>((acc, row) => {
     const rowKey = normalizeDejeunerLookupValue(String((row as { row_key?: string | null }).row_key ?? ""));
     if (!rowKey) return acc;
 
