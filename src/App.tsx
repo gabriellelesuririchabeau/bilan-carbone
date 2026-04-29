@@ -4068,6 +4068,60 @@ async function saveSalleReportRow(params: {
   }, [screen, selectedSessionId, teacherMenu]);
 
   useEffect(() => {
+    if (screen !== "teacher_dashboard") return;
+    if (teacherMenu !== "session_open") return;
+    if (!selectedSessionId) return;
+
+    const channel = supabase
+      .channel(`teacher-proposal-votes-${selectedSessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "proposal_votes",
+          filter: `session_id=eq.${selectedSessionId}`,
+        },
+        (payload) => {
+          const nextRow = payload.new as TeacherVoteRow | null;
+          const oldRow = payload.old as TeacherVoteRow | null;
+          const sourceRow = nextRow ?? oldRow;
+
+          if (!sourceRow?.proposal_id) {
+            void loadTeacherVoteRows(selectedSessionId);
+            return;
+          }
+
+          setTeacherVoteRows((prev) => {
+            const sameVote = (row: TeacherVoteRow) =>
+              String(row.proposal_id) === String(sourceRow.proposal_id) &&
+              Number(row.rank) === Number(sourceRow.rank) &&
+              normalizeEmail(row.student_email ?? "") === normalizeEmail(sourceRow.student_email ?? "");
+
+            if (payload.eventType === "DELETE") {
+              return prev.filter((row) => !sameVote(row));
+            }
+
+            const cleanNextRow: TeacherVoteRow = {
+              proposal_id: String(nextRow?.proposal_id ?? sourceRow.proposal_id),
+              rank: Number(nextRow?.rank ?? sourceRow.rank),
+              student_email: nextRow?.student_email ?? sourceRow.student_email ?? null,
+            };
+
+            return [...prev.filter((row) => !sameVote(row)), cleanNextRow];
+          });
+        }
+      )
+      .subscribe();
+
+    void loadTeacherVoteRows(selectedSessionId);
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [screen, selectedSessionId, teacherMenu]);
+
+  useEffect(() => {
     if (!selectedSessionId) return;
 
     function reloadChangedTheme(theme: string | null | undefined) {
@@ -8929,7 +8983,10 @@ style={
                             ? styles.primaryButton
                             : styles.secondaryButton
                         }
-                        onClick={() => setTeacherVoteView("results")}
+                        onClick={() => {
+                          void loadTeacherVoteRows(selectedSessionId);
+                          setTeacherVoteView("results");
+                        }}
                       >
                         Résultats des votes
                       </button>
