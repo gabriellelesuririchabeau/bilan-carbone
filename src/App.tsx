@@ -7476,14 +7476,20 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                         </button>
                       </div>
 
-                      {validatedRandomAssignments.length > 0 ? (
-                        <>
+                      <div style={{ marginTop: 14, marginBottom: 14 }}>
+                        {validatedRandomAssignments.length > 0 ? (
+                          <>
+                            <div style={{ ...styles.emptyText, marginBottom: 10 }}>
+                              Aperçu de l'assignation validée : {validatedRandomAssignments.length} étudiant(s) réparti(s).
+                            </div>
+                            {renderAssignmentsTable(validatedRandomAssignments)}
+                          </>
+                        ) : (
                           <div style={{ ...styles.emptyText, marginTop: 10 }}>
-                            {validatedRandomAssignments.length} assignation(s) aléatoire(s) validée(s).
+                            Validez l'assignation aléatoire pour afficher le tableau avant export.
                           </div>
-                          {renderAssignmentsTable(validatedRandomAssignments)}
-                        </>
-                      ) : null}
+                        )}
+                      </div>
                     </>
                   ) : (
                     <>
