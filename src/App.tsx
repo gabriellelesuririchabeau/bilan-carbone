@@ -5233,15 +5233,27 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
     return keyQuantity || labelQuantity;
   };
 
+  const visibleSections = DEJEUNER_REPORT_STRUCTURE.map((section) => ({
+    ...section,
+    groups: section.groups
+      .map((group) => ({
+        ...group,
+        items: group.items
+          .map((item) => ({ ...item, quantity: getQuantity(item) }))
+          .filter((item) => Number(item.quantity ?? 0) > 0),
+      }))
+      .filter((group) => group.items.length > 0),
+  })).filter((section) => section.groups.length > 0);
+
   return (
     <div style={styles.innerCardFull}>
       <h3 style={styles.innerTitle}>Données à reporter</h3>
 
-      {!rows.length ? (
+      {!visibleSections.length ? (
         <div style={styles.infoMessage}>{emptyText}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 22, marginTop: 18 }}>
-          {DEJEUNER_REPORT_STRUCTURE.map((section) => (
+          {visibleSections.map((section) => (
             <div
               key={section.title}
               style={{
@@ -5304,7 +5316,7 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
                             {item.label}
                           </td>
                           <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 700 }}>
-                            {getQuantity(item)}
+                            {formatReportNumber(item.quantity, 0)}
                           </td>
                         </tr>
                       ))
