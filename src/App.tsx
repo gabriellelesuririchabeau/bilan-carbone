@@ -1449,7 +1449,7 @@ function StudentQuestionnaireTabs({
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
-  const [, setIsInitialSessionSetup] = useState(false);
+  const [isInitialSessionSetup, setIsInitialSessionSetup] = useState(false);
 
   const [teacherMenu, setTeacherMenu] = useState<TeacherMenu>("sessions");
   const [teacherSessionTab, setTeacherSessionTab] = useState<TeacherSessionTab>("counts");
@@ -1512,6 +1512,7 @@ const [quickSessionSuffix, setQuickSessionSuffix] = useState("");  const [teache
   const [settingsCampus, setSettingsCampus] = useState("");
   const [settingsAllowedEmailsText, setSettingsAllowedEmailsText] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [assignmentSearch, setAssignmentSearch] = useState("");
 
 const [, setAssignmentMode] = useState<AssignmentMode>("groups");
 const [assignmentMethod, setAssignmentMethod] = useState<AssignmentMethod>("import");
@@ -3043,7 +3044,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
 
     const { data, error } = await supabase
       .from("group_reports")
-      .select("id,session_id,group_number,theme,row_key,label,quantity,persons,factor,updated_by,updated_at")
+      .select("*")
       .eq("session_id", sessionId)
       .eq("theme", "transport")
       .order("group_number", { ascending: true })
@@ -3108,7 +3109,7 @@ async function loadGroupReportRowsWithFallback(
 
   const { data, error } = await supabase
     .from("group_reports")
-    .select("id,session_id,group_number,theme,row_key,label,quantity,persons,factor,updated_by,updated_at")
+    .select("*")
     .eq("session_id", sessionId)
     .in("theme", themes)
     .order("group_number", { ascending: true })
@@ -7325,6 +7326,32 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               <input style={styles.input} value={settingsTitle} onChange={(e) => setSettingsTitle(e.target.value)} />
 
 
+
+              {!isInitialSessionSetup && (
+                <>
+                  <label style={styles.label}>Méthode d'assignation</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                    <label>
+                      <input
+                        type="radio"
+                        checked={assignmentMethod === "import"}
+                        onChange={() => setAssignmentMethod("import")}
+                      />{" "}
+                      Assignation prédéfinie
+                    </label>
+
+                    <label>
+                      <input
+                        type="radio"
+                        checked={assignmentMethod === "random"}
+                        onChange={() => setAssignmentMethod("random")}
+                      />{" "}
+                      Assignation aléatoire
+                    </label>
+                  </div>
+                </>
+              )}
+
               {assignmentMethod === "random" ? (
                 <>
                   <label style={{ ...styles.label, display: "block", marginBottom: 10 }}>
@@ -7371,12 +7398,24 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 </button>
               </div>
 
-              {activeStudentAssignments.length > 0 ? (
-                renderAssignmentsTable(activeStudentAssignments, "")
-              ) : (
-                <div style={{ ...styles.emptyText, marginTop: 12 }}>
-                  Aucune assignation valide détectée.
-                </div>
+              {!isInitialSessionSetup && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Rechercher par nom, prénom, groupe ou email..."
+                    value={assignmentSearch}
+                    onChange={(e) => setAssignmentSearch(e.target.value)}
+                    style={{ ...styles.input, marginTop: 14 }}
+                  />
+
+                  {activeStudentAssignments.length > 0 ? (
+                    renderAssignmentsTable(activeStudentAssignments, assignmentSearch)
+                  ) : (
+                    <div style={{ ...styles.emptyText, marginTop: 12 }}>
+                      Aucune assignation valide détectée.
+                    </div>
+                  )}
+                </>
               )}
 
               <div style={styles.row}>
