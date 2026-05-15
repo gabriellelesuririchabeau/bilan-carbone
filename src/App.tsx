@@ -263,6 +263,7 @@ const TRANSPORT_LABELS_FR: Record<string, string> = {
   bike: "Vélo",
   velo: "Vélo",
   electric_bike: "Vélo électrique",
+  ebike: "Vélo électrique",
   velo_electrique: "Vélo électrique",
   motorcycle: "2 roues thermique",
   deux_roues_thermique: "2 roues thermique",
