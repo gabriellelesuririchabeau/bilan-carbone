@@ -62,6 +62,108 @@ import {
 } from "./utils/student";
 import { EMPTY_COUNTS, buildTransportRowsForGroup } from "./utils/teacher";
 
+
+type Lang = "fr" | "en";
+
+const LANGUAGE_STORAGE_KEY = "bilan-carbone:language";
+
+const I18N = {
+  fr: {
+    appTitle: "Bilan carbone de la séance de cours",
+    appTitleUpper: "BILAN CARBONE DE LA SÉANCE DE COURS",
+    chooseProfile: "Choisissez votre profil pour accéder à l'application.",
+    student: "Étudiant",
+    teacher: "Professeur",
+    admin: "Administrateur",
+    miseEnOeuvre: "Mise en œuvre",
+    dataCollection: "Collecte des données",
+    analyses: "Analyses",
+    vote: "Vote",
+    synthese: "Synthèse",
+    sessions: "Sessions",
+    openSession: "Session ouverte",
+    administration: "Administration",
+    logout: "Déconnexion",
+    code: "Code",
+    activeSessionCode: "Code session actif",
+    developedBy: "Activité pédagogique développée par G. Lesur-Irichabeau & J. Hanoteau",
+    lockAnalysis: "L'accès à l'analyse n'a pas encore été autorisé par le professeur.",
+    lockVote: "L'accès au vote n'a pas encore été autorisé par le professeur.",
+    lockSynthese: "L'accès à la synthèse n'a pas encore été autorisé par le professeur.",
+  },
+  en: {
+    appTitle: "Carbon footprint of the class session",
+    appTitleUpper: "CARBON FOOTPRINT OF THE CLASS SESSION",
+    chooseProfile: "Choose your profile to access the application.",
+    student: "Student",
+    teacher: "Teacher",
+    admin: "Administrator",
+    miseEnOeuvre: "Implementation",
+    dataCollection: "Data collection",
+    analyses: "Analysis",
+    vote: "Vote",
+    synthese: "Summary",
+    sessions: "Sessions",
+    openSession: "Open session",
+    administration: "Administration",
+    logout: "Log out",
+    code: "Code",
+    activeSessionCode: "Active session code",
+    developedBy: "Educational activity developed by G. Lesur-Irichabeau & J. Hanoteau",
+    lockAnalysis: "Access to the analysis has not yet been authorized by the teacher.",
+    lockVote: "Access to the vote has not yet been authorized by the teacher.",
+    lockSynthese: "Access to the summary has not yet been authorized by the teacher.",
+  },
+} as const;
+
+type TranslationKey = keyof typeof I18N.fr;
+
+function t(lang: Lang, key: TranslationKey) {
+  return I18N[lang]?.[key] ?? I18N.fr[key];
+}
+
+function getStoredLanguage(): Lang {
+  try {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return stored === "en" ? "en" : "fr";
+  } catch {
+    return "fr";
+  }
+}
+
+function LanguageToggle({
+  lang,
+  setLang,
+  compact = false,
+}: {
+  lang: Lang;
+  setLang: React.Dispatch<React.SetStateAction<Lang>>;
+  compact?: boolean;
+}) {
+  return (
+    <div style={compact ? styles.languageToggleCompact : styles.languageToggle}>
+      <button
+        type="button"
+        aria-label="Français"
+        title="Français"
+        style={lang === "fr" ? styles.languageFlagButtonActive : styles.languageFlagButton}
+        onClick={() => setLang("fr")}
+      >
+        🇫🇷
+      </button>
+      <button
+        type="button"
+        aria-label="English"
+        title="English"
+        style={lang === "en" ? styles.languageFlagButtonActive : styles.languageFlagButton}
+        onClick={() => setLang("en")}
+      >
+        🇬🇧
+      </button>
+    </div>
+  );
+}
+
 type TransportReportableRowRpc = {
   row_key: string | null;
   label: string | null;
@@ -1309,6 +1411,8 @@ type StudentSidebarProps = {
   onBeforeOpenVote?: () => Promise<boolean> | boolean;
   sessionCode?: string;
   sessionId?: string;
+  lang: Lang;
+  setLang: React.Dispatch<React.SetStateAction<Lang>>;
 };
 
 function StudentSidebar({
@@ -1322,6 +1426,8 @@ function StudentSidebar({
   onBeforeOpenVote,
   sessionCode,
   sessionId,
+  lang,
+  setLang,
 }: StudentSidebarProps) {
     return (
     <aside style={styles.sidebar}>
@@ -1334,7 +1440,7 @@ function StudentSidebar({
         style={active === "mise_en_oeuvre" ? styles.sidebarButtonActive : styles.sidebarButton}
         onClick={() => onGo("student_mise_en_oeuvre")}
       >
-        Mise en oeuvre
+        {t(lang, "miseEnOeuvre")}
       </button>
 
       <button
@@ -1342,7 +1448,7 @@ function StudentSidebar({
         style={active === "collecte" ? styles.sidebarButtonActive : styles.sidebarButton}
         onClick={() => onGo("student_transport")}
       >
-        Collecte des données
+        {t(lang, "dataCollection")}
       </button>
 
       <button
@@ -1353,13 +1459,13 @@ function StudentSidebar({
           const canOpenAnalysis =
             typeof refreshedAccess === "boolean" ? refreshedAccess : analysisUnlocked;
           if (!canOpenAnalysis) {
-            window.alert("L'accès à l'analyse n'a pas encore été autorisé par le professeur.");
+            window.alert(t(lang, "lockAnalysis"));
             return;
           }
           onGo("student_analyses");
         }}
       >
-        Analyses {analysisUnlocked ? "🔓" : "🔒"}
+        {t(lang, "analyses")} {analysisUnlocked ? "🔓" : "🔒"}
       </button>
 
       <button
@@ -1371,14 +1477,14 @@ function StudentSidebar({
             typeof refreshedAccess === "boolean" ? refreshedAccess : voteUnlocked;
 
           if (!canOpenVote) {
-            window.alert("L'accès au vote n'a pas encore été autorisé par le professeur.");
+            window.alert(t(lang, "lockVote"));
             return;
           }
 
           onGo("student_vote");
         }}
       >
-        Vote {voteUnlocked ? "🔓" : "🔒"}
+        {t(lang, "vote")} {voteUnlocked ? "🔓" : "🔒"}
       </button>
 
       <button
@@ -1390,18 +1496,19 @@ function StudentSidebar({
             typeof refreshedAccess === "boolean" ? refreshedAccess : syntheseUnlocked;
 
           if (!canOpenSynthese) {
-            window.alert("L'accès à la synthèse n'a pas encore été autorisé par le professeur.");
+            window.alert(t(lang, "lockSynthese"));
             return;
           }
 
           onGo("student_synthese");
         }}
       >
-        Synthèse {syntheseUnlocked ? "🔓" : "🔒"}
+        {t(lang, "synthese")} {syntheseUnlocked ? "🔓" : "🔒"}
       </button>
 
       {/* ✅ AJOUT : affichage debug session en bas de sidebar */}
       <div style={styles.sidebarFooter}>
+        <LanguageToggle lang={lang} setLang={setLang} compact />
         {(sessionCode || sessionId) && (
           <div
             style={{
@@ -1414,7 +1521,7 @@ function StudentSidebar({
           >
             {sessionCode && (
               <div>
-                <strong>Code :</strong> {formatSessionCode(sessionCode)}
+                <strong>{t(lang, "code")} :</strong> {formatSessionCode(sessionCode)}
               </div>
             )}
             {sessionId && (
@@ -1425,7 +1532,7 @@ function StudentSidebar({
           </div>
         )}
         <button style={styles.sidebarSmallButton} onClick={() => onGo("home" as Screen)}>
-          Déconnexion
+          {t(lang, "logout")}
         </button>
       </div>
     </aside>
@@ -1437,6 +1544,7 @@ type StudentQuestionnaireTabsProps = {
   completion: StudentCompletion;
   onNavigate: (target: QuestionnaireKey) => void;
   canAccess: (target: QuestionnaireKey) => boolean;
+  lang?: Lang;
 };
 
 function StudentQuestionnaireTabs({
@@ -1444,6 +1552,7 @@ function StudentQuestionnaireTabs({
   completion,
   onNavigate,
   canAccess,
+  lang = "fr",
 }: StudentQuestionnaireTabsProps) {
   const label = (text: string, done: boolean) => (done ? `${text} ✓` : text);
 
@@ -1458,13 +1567,13 @@ function StudentQuestionnaireTabs({
         {label("Transport", completion.transport)}
       </button>
       <button style={buttonStyle("dejeuner")} type="button" onClick={() => onNavigate("dejeuner")}>
-        {label("Déjeuner", completion.dejeuner)}
+        {label(lang === "en" ? "Lunch" : "Déjeuner", completion.dejeuner)}
       </button>
       <button style={buttonStyle("equipement")} type="button" onClick={() => onNavigate("equipement")}>
-        {label("Équipement", completion.equipement)}
+        {label(lang === "en" ? "Equipment" : "Équipement", completion.equipement)}
       </button>
       <button style={buttonStyle("autres")} type="button" onClick={() => onNavigate("autres")}>
-        {label("Autres consommations", completion.autres)}
+        {label(lang === "en" ? "Other consumption" : "Autres consommations", completion.autres)}
       </button>
     </div>
   );
@@ -1472,7 +1581,15 @@ function StudentQuestionnaireTabs({
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
+  const [lang, setLang] = useState<Lang>(getStoredLanguage);
   const [isInitialSessionSetup, setIsInitialSessionSetup] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+    } catch {}
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const [teacherMenu, setTeacherMenu] = useState<TeacherMenu>("sessions");
   const [teacherSessionTab, setTeacherSessionTab] = useState<TeacherSessionTab>("counts");
@@ -6343,6 +6460,8 @@ function renderSalleAnalysisTable(params: {
     return (
       <div style={styles.appShell}>
         <StudentSidebar
+          lang={lang}
+          setLang={setLang}
           active="mise_en_oeuvre"
           onGo={goToScreen}
           analysisUnlocked={studentAnalysisUnlocked}
@@ -6357,9 +6476,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         <main style={styles.mainArea}>
           <header style={styles.topHeader}>
 <div style={styles.topHeader}>
-  <div style={styles.topHeaderTitle}>BILAN CARBONE DE LA SÉANCE DE COURS</div>
+  <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
   <div style={styles.topHeaderSub}>
-    Activité pédagogique développée par G. Lesur-Irchabeau &amp; J. Hanoteau
+    {t(lang, "developedBy")}
   </div>
 </div>
           </header>
@@ -6436,10 +6555,10 @@ if (screen === "home") {
           <div style={styles.landingPanelInner}>
             <img src={kedgeLogo} alt="KEDGE Business School" style={styles.landingLogo} />
 
-            <h1 style={styles.landingTitle}>Bilan carbone de la séance de cours</h1>
+            <h1 style={styles.landingTitle}>{t(lang, "appTitle")}</h1>
 
             <p style={styles.landingIntro}>
-              Choisissez votre profil pour accéder à l&apos;application.
+              {t(lang, "chooseProfile")}
             </p>
 
 <div style={styles.landingButtons}>
@@ -6451,7 +6570,7 @@ if (screen === "home") {
       setScreen("student_login");
     }}
   >
-    Étudiant
+    {t(lang, "student")}
   </button>
 
   <button
@@ -6463,7 +6582,7 @@ if (screen === "home") {
       setScreen("teacher_login");
     }}
   >
-    Professeur
+    {t(lang, "teacher")}
   </button>
 
   <button
@@ -6475,11 +6594,15 @@ if (screen === "home") {
       setScreen("teacher_login");
     }}
   >
-    Administrateur
+    {t(lang, "admin")}
   </button>
 </div>
+
           </div>
         </div>
+      </div>
+      <div style={styles.landingLanguageDock}>
+        <LanguageToggle lang={lang} setLang={setLang} />
       </div>
     </div>
   );
@@ -6578,6 +6701,8 @@ if (screen === "student_login") {
     return (
       <div style={styles.appShell}>
         <StudentSidebar
+          lang={lang}
+          setLang={setLang}
           active="collecte"
           onGo={goToScreen}
           analysisUnlocked={studentAnalysisUnlocked}
@@ -6592,9 +6717,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         <main style={styles.mainArea}>
           <header style={styles.topHeader}>
 <div style={styles.topHeader}>
-  <div style={styles.topHeaderTitle}>BILAN CARBONE DE LA SÉANCE DE COURS</div>
+  <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
   <div style={styles.topHeaderSub}>
-    Activité pédagogique développée par G. Lesur-Irchabeau &amp; J. Hanoteau
+    {t(lang, "developedBy")}
   </div>
 </div>
           </header>
@@ -6734,6 +6859,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     return (
       <div style={styles.appShell}>
         <StudentSidebar
+          lang={lang}
+          setLang={setLang}
           active="collecte"
           onGo={goToScreen}
          analysisUnlocked={studentAnalysisUnlocked}
@@ -6747,9 +6874,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         />
         <main style={styles.mainArea}>
           <header style={styles.topHeader}>
-            <div style={styles.topHeaderTitle}>BILAN CARBONE DE LA SÉANCE DE COURS</div>
+            <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
             <div style={styles.topHeaderSub}>
-              Activité pédagogique développée par G. Lesur-Irichabeau &amp; J. Hanoteau
+              {t(lang, "developedBy")}
             </div>
           </header>
           <section style={styles.bigPanel}>
@@ -6971,6 +7098,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     return (
       <div style={styles.appShell}>
 <StudentSidebar
+          lang={lang}
+          setLang={setLang}
   active="collecte"
   onGo={goToScreen}
   analysisUnlocked={studentAnalysisUnlocked}
@@ -6985,9 +7114,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
         <main style={styles.mainArea}>
           <header style={styles.topHeader}>
-            <div style={styles.topHeaderTitle}>BILAN CARBONE DE LA SÉANCE DE COURS</div>
+            <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
             <div style={styles.topHeaderSub}>
-              Activité pédagogique développée par G. Lesur-Irichabeau &amp; J. Hanoteau
+              {t(lang, "developedBy")}
             </div>
           </header>
 
@@ -7142,6 +7271,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     return (
       <div style={styles.appShell}>
 <StudentSidebar
+          lang={lang}
+          setLang={setLang}
   active="collecte"
   onGo={goToScreen}
   analysisUnlocked={studentAnalysisUnlocked}
@@ -7156,9 +7287,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
         <main style={styles.mainArea}>
           <header style={styles.topHeader}>
-            <div style={styles.topHeaderTitle}>BILAN CARBONE DE LA SÉANCE DE COURS</div>
+            <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
             <div style={styles.topHeaderSub}>
-              Activité pédagogique développée par G. Lesur-Irichabeau &amp; J. Hanoteau
+              {t(lang, "developedBy")}
             </div>
           </header>
 
@@ -7288,7 +7419,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             style={adminTab === "sessions" ? styles.sidebarButtonActive : styles.sidebarButton}
             onClick={() => setAdminTab("sessions")}
           >
-            Sessions
+            {t(lang, "sessions")}
           </button>
 
           <button
@@ -7304,8 +7435,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </button>
 
           <div style={styles.sidebarFooter}>
+            <LanguageToggle lang={lang} setLang={setLang} compact />
             <button style={styles.sidebarSmallButton} onClick={handleTeacherLogout}>
-              Déconnexion
+              {t(lang, "logout")}
             </button>
           </div>
         </aside>
@@ -7579,7 +7711,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               setScreen("teacher_dashboard");
             }}
           >
-            Sessions
+            {t(lang, "sessions")}
           </button>
 
           <button
@@ -7594,12 +7726,13 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               void handleGoToAdminFromTeacher();
             }}
           >
-            Administration
+            {t(lang, "administration")}
           </button>
 
           <div style={styles.sidebarFooter}>
+            <LanguageToggle lang={lang} setLang={setLang} compact />
             <button style={styles.sidebarSmallButton} onClick={handleTeacherLogout}>
-              Déconnexion
+              {t(lang, "logout")}
             </button>
           </div>
         </aside>
@@ -7816,6 +7949,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
       return (
       <div style={styles.appShell}>
         <StudentSidebar
+          lang={lang}
+          setLang={setLang}
           active="analyses"
           onGo={goToScreen}
           analysisUnlocked={studentAnalysisUnlocked}
@@ -7831,9 +7966,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         <main style={styles.mainArea}>
           <header style={styles.topHeader}>
 <div style={styles.topHeader}>
-  <div style={styles.topHeaderTitle}>BILAN CARBONE DE LA SÉANCE DE COURS</div>
+  <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
   <div style={styles.topHeaderSub}>
-    Activité pédagogique développée par G. Lesur-Irchabeau &amp; J. Hanoteau
+    {t(lang, "developedBy")}
   </div>
 </div>
           </header>
@@ -8146,6 +8281,8 @@ onClick={() => {
     return (
       <div style={styles.appShell}>
         <StudentSidebar
+          lang={lang}
+          setLang={setLang}
           active="bilans"
           onGo={goToScreen}
           analysisUnlocked={studentAnalysisUnlocked}
@@ -8160,9 +8297,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         <main style={styles.mainArea}>
           <header style={styles.topHeader}>
 <div style={styles.topHeader}>
-  <div style={styles.topHeaderTitle}>BILAN CARBONE DE LA SÉANCE DE COURS</div>
+  <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
   <div style={styles.topHeaderSub}>
-    Activité pédagogique développée par G. Lesur-Irchabeau &amp; J. Hanoteau
+    {t(lang, "developedBy")}
   </div>
 </div>
           </header>
@@ -8182,6 +8319,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     return (
       <div style={styles.appShell}>
         <StudentSidebar
+          lang={lang}
+          setLang={setLang}
           active="synthese"
           onGo={goToScreen}
           analysisUnlocked={studentAnalysisUnlocked}
@@ -8196,9 +8335,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         <main style={styles.mainArea}>
           <header style={styles.topHeader}>
 <div style={styles.topHeader}>
-  <div style={styles.topHeaderTitle}>BILAN CARBONE DE LA SÉANCE DE COURS</div>
+  <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
   <div style={styles.topHeaderSub}>
-    Activité pédagogique développée par G. Lesur-Irchabeau &amp; J. Hanoteau
+    {t(lang, "developedBy")}
   </div>
 </div>
           </header>
@@ -8223,6 +8362,8 @@ if (screen === "student_vote") {
   return (
     <div style={styles.appShell}>
       <StudentSidebar
+          lang={lang}
+          setLang={setLang}
         active="vote"
         onGo={goToScreen}
         analysisUnlocked={studentAnalysisUnlocked}
@@ -8237,9 +8378,9 @@ if (screen === "student_vote") {
 
       <main style={styles.mainArea}>
 <header style={styles.topHeader}>
-  <div style={styles.topHeaderTitle}>BILAN CARBONE DE LA SÉANCE DE COURS</div>
+  <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
   <div style={styles.topHeaderSub}>
-    Activité pédagogique développée par G. Lesur-Irchabeau &amp; J. Hanoteau
+    {t(lang, "developedBy")}
   </div>
 </header>
 
@@ -8406,21 +8547,22 @@ if (screen === "student_vote") {
               void handleGoToAdminFromTeacher();
             }}
           >
-            Administration
+            {t(lang, "administration")}
           </button>
 
         <div style={styles.sidebarFooter}>
+          <LanguageToggle lang={lang} setLang={setLang} compact />
           <button style={styles.sidebarSmallButton} onClick={handleTeacherLogout}>
-            Déconnexion
+            {t(lang, "logout")}
           </button>
         </div>
       </aside>
 
       <main style={styles.mainArea}>
         <header style={styles.topHeader}>
-          <div style={styles.topHeaderTitle}>BILAN CARBONE DE LA SÉANCE DE COURS</div>
+          <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
           <div style={styles.topHeaderSub}>
-            Activité pédagogique développée par G. Lesur-Irichabeau &amp; J. Hanoteau · Professeur : {teacherDisplayName || teacherUserEmail || "—"}
+            {t(lang, "developedBy")} · Professeur : {teacherDisplayName || teacherUserEmail || "—"}
           </div>
         </header>
 
@@ -9869,6 +10011,7 @@ panelTitle: {
   },
   landingPage: {
     minHeight: "100vh",
+    position: "relative",
     background: "#e9edf3",
     display: "flex",
     alignItems: "center",
