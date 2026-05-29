@@ -90,6 +90,24 @@ const I18N = {
     lockAnalysis: "L'accès à l'analyse n'a pas encore été autorisé par le professeur.",
     lockVote: "L'accès au vote n'a pas encore été autorisé par le professeur.",
     lockSynthese: "L'accès à la synthèse n'a pas encore été autorisé par le professeur.",
+    studentImplementationTitle: "Mise en œuvre",
+    implementationInfo1: "Chaque étudiant d'une même classe répond individuellement aux questionnaires.",
+    implementationInfo2: "Chaque groupe se voit attribuer une thématique. Vous accédez ensuite aux données à reporter.",
+    implementationInfo3: "Une fois le bilan établi, vous proposerez des pistes d'amélioration discutées en classe.",
+    implementationInfo4: "Ces pistes d'amélioration seront ensuite résumées et soumises au vote.",
+    implementationInfo5: "Une synthèse permettra de comparer les résultats entre les thématiques.",
+    startDataCollection: "Commencer la collecte",
+    teacherLogin: "Connexion professeur",
+    adminLogin: "Connexion administrateur",
+    studentLogin: "Connexion étudiant",
+    emailAddress: "Adresse e-mail",
+    password: "Mot de passe",
+    sessionCode: "Code session",
+    signIn: "Se connecter",
+    enter: "Entrer",
+    back: "Retour",
+    teachers: "Professeurs",
+    teacherAccess: "Accès professeur",
   },
   en: {
     appTitle: "Carbon footprint of the class session",
@@ -98,7 +116,7 @@ const I18N = {
     student: "Student",
     teacher: "Teacher",
     admin: "Administrator",
-    miseEnOeuvre: "Implementation",
+    miseEnOeuvre: "Setup",
     dataCollection: "Data collection",
     analyses: "Analysis",
     vote: "Vote",
@@ -113,6 +131,24 @@ const I18N = {
     lockAnalysis: "Access to the analysis has not yet been authorized by the teacher.",
     lockVote: "Access to the vote has not yet been authorized by the teacher.",
     lockSynthese: "Access to the summary has not yet been authorized by the teacher.",
+    studentImplementationTitle: "Implementation",
+    implementationInfo1: "Each student in the class answers the questionnaires individually.",
+    implementationInfo2: "Each group is assigned a theme. You then access the data to report.",
+    implementationInfo3: "Once the carbon footprint is established, you will suggest improvement ideas discussed in class.",
+    implementationInfo4: "These ideas will then be summarized and submitted to a vote.",
+    implementationInfo5: "A summary will allow you to compare results across themes.",
+    startDataCollection: "Start data collection",
+    teacherLogin: "Teacher login",
+    adminLogin: "Administrator login",
+    studentLogin: "Student login",
+    emailAddress: "Email address",
+    password: "Password",
+    sessionCode: "Session code",
+    signIn: "Sign in",
+    enter: "Enter",
+    back: "Back",
+    teachers: "Teachers",
+    teacherAccess: "Teacher access",
   },
 } as const;
 
@@ -6483,13 +6519,13 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 </div>
           </header>
           <section style={styles.bigPanel}>
-            <h2 style={styles.panelTitle}>Mise en œuvre</h2>
+            <h2 style={styles.panelTitle}>{t(lang, "studentImplementationTitle")}</h2>
 <div style={styles.infoCard}>
   <div style={styles.sectionIconWrap}>
     <span style={styles.sectionIcon}>📊</span>
   </div>
   <p style={styles.infoCardText}>
-    Chaque étudiant d'une même classe répond individuellement aux questionnaires.
+    {t(lang, "implementationInfo1")}
   </p>
 </div>
 
@@ -6498,7 +6534,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     <span style={styles.sectionIcon}>👥</span>
   </div>
   <p style={styles.infoCardText}>
-    Chaque groupe se voit attribuer une thématique. Vous accédez ensuite aux données à reporter.
+    {t(lang, "implementationInfo2")}
   </p>
 </div>
 
@@ -6507,7 +6543,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     <span style={styles.sectionIcon}>💡</span>
   </div>
   <p style={styles.infoCardText}>
-    Une fois le bilan établi, vous proposerez des pistes d'amélioration discutées en classe.
+    {t(lang, "implementationInfo3")}
   </p>
 </div>
 
@@ -6516,7 +6552,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     <span style={styles.sectionIcon}>🗳️</span>
   </div>
   <p style={styles.infoCardText}>
-    Ces pistes d'amélioration seront ensuite résumées et soumises au vote.
+    {t(lang, "implementationInfo4")}
   </p>
 </div>
 
@@ -6525,12 +6561,12 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     <span style={styles.sectionIcon}>📈</span>
   </div>
   <p style={styles.infoCardText}>
-    Une synthèse permettra de comparer les résultats entre les thématiques.
+    {t(lang, "implementationInfo5")}
   </p>
 </div>
             <div style={styles.row}>
               <button style={styles.primaryButton} onClick={() => goToScreen("student_transport")}>
-                Commencer la collecte
+                {t(lang, "startDataCollection")}
               </button>
             </div>
           </section>
@@ -6615,7 +6651,7 @@ if (screen === "teacher_login") {
         <img src={kedgeLogo} alt="KEDGE Business School" style={styles.authLogo} />
 
         <h1 style={styles.authTitle}>
-          {authPortal === "admin" ? "Connexion administrateur" : "Connexion professeur"}
+          {authPortal === "admin" ? t(lang, "adminLogin") : t(lang, "teacherLogin")}
         </h1>
 
 <form
@@ -6627,14 +6663,14 @@ if (screen === "teacher_login") {
   <div style={styles.formGroup}>
     <input
       style={styles.input}
-      placeholder="Adresse e-mail"
+      placeholder={t(lang, "emailAddress")}
       value={teacherEmail}
       onChange={(e) => setTeacherEmail(e.target.value)}
     />
     <input
       style={styles.input}
       type="password"
-      placeholder="Mot de passe"
+      placeholder={t(lang, "password")}
       value={teacherPassword}
       onChange={(e) => setTeacherPassword(e.target.value)}
     />
@@ -6642,18 +6678,21 @@ if (screen === "teacher_login") {
 
   <div style={styles.formActions}>
     <button type="submit" style={styles.primaryButton}>
-      Se connecter
+      {t(lang, "signIn")}
     </button>
     <button
       type="button"
       style={styles.secondaryButton}
       onClick={() => setScreen("home")}
     >
-      Retour
+      {t(lang, "back")}
     </button>
   </div>
 </form>
         {!!message && <div style={styles.infoMessage}>{message}</div>}
+      </div>
+      <div style={styles.authLanguageDock}>
+        <LanguageToggle lang={lang} setLang={setLang} />
       </div>
     </div>
   );
@@ -6665,18 +6704,18 @@ if (screen === "student_login") {
       <div style={styles.authCard}>
         <img src={kedgeLogo} alt="KEDGE Business School" style={styles.authLogo} />
 
-        <h1 style={styles.authTitle}>Connexion étudiant</h1>
+        <h1 style={styles.authTitle}>{t(lang, "studentLogin")}</h1>
 
         <div style={styles.column}>
           <input
             style={styles.input}
-            placeholder="Adresse e-mail"
+            placeholder={t(lang, "emailAddress")}
             value={studentEmail}
             onChange={(e) => setStudentEmail(e.target.value)}
           />
           <input
             style={styles.input}
-            placeholder="Code session"
+            placeholder={t(lang, "sessionCode")}
             value={studentCodeSession}
             onChange={(e) => setStudentCodeSession(e.target.value)}
           />
@@ -6684,10 +6723,10 @@ if (screen === "student_login") {
 
         <div style={styles.row}>
           <button style={styles.primaryButton} onClick={handleStudentEnter}>
-            Entrer
+            {t(lang, "enter")}
           </button>
           <button style={styles.secondaryButton} onClick={() => setScreen("home")}>
-            Retour
+            {t(lang, "back")}
           </button>
         </div>
 
@@ -7412,7 +7451,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             style={adminTab === "teachers" ? styles.sidebarButtonActive : styles.sidebarButton}
             onClick={() => setAdminTab("teachers")}
           >
-            Professeurs
+            {t(lang, "teachers")}
           </button>
 
           <button
@@ -7431,7 +7470,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               setMessage("Accès professeur ouvert.");
             }}
           >
-            Accès professeur
+            {t(lang, "teacherAccess")}
           </button>
 
           <div style={styles.sidebarFooter}>
@@ -8516,7 +8555,7 @@ if (screen === "student_vote") {
           style={teacherMenu === "sessions" ? styles.sidebarButtonActive : styles.sidebarButton}
           onClick={() => setTeacherMenu("sessions")}
         >
-          Sessions
+          {t(lang, "sessions")}
         </button>
 
         <button
@@ -8531,7 +8570,7 @@ if (screen === "student_vote") {
             setTeacherSessionTab("counts");
           }}
         >
-          Session ouverte
+          {t(lang, "openSession")}
         </button>
 
 
@@ -9475,31 +9514,41 @@ const styles: Record<string, React.CSSProperties> = {
     marginLeft: "auto",
   },
   sidebarButton: {
+    width: "100%",
     background: "#e6e6e6",
     color: "#123b64",
     border: "none",
     borderRadius: 999,
-    padding: "12px 14px",
-    fontSize: 15,
+    padding: "11px 10px",
+    fontSize: 14,
     fontWeight: 800,
     cursor: "pointer",
-    textAlign: "left",
+    textAlign: "center",
     lineHeight: 1.1,
+    whiteSpace: "normal",
+    overflowWrap: "break-word",
   },
   sidebarButtonActive: {
+    width: "100%",
     background: "#ef7d32",
     color: "#123b64",
     border: "none",
     borderRadius: 999,
-    padding: "12px 14px",
-    fontSize: 15,
+    padding: "11px 10px",
+    fontSize: 14,
     fontWeight: 800,
     cursor: "pointer",
-    textAlign: "left",
+    textAlign: "center",
     lineHeight: 1.1,
+    whiteSpace: "normal",
+    overflowWrap: "break-word",
   },
   sidebarFooter: {
     marginTop: "auto",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 8,
   },
   sidebarSmallButton: {
     width: "100%",
@@ -10016,14 +10065,14 @@ panelTitle: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: "24px 24px 86px 24px",
     fontFamily: "Arial, sans-serif",
     boxSizing: "border-box" as const,
   },
 
   landingShell: {
     width: "calc(100vw - 48px)",
-    height: "calc(100vh - 48px)",
+    height: "calc(100vh - 110px)",
     display: "grid",
     gridTemplateColumns: "1.35fr 0.95fr",
     borderRadius: 24,
@@ -10123,6 +10172,73 @@ panelTitle: {
     color: "#1f2937",
   },
 
+  landingLanguageDock: {
+    position: "absolute",
+    left: "50%",
+    bottom: 26,
+    transform: "translateX(-50%)",
+    zIndex: 20,
+  },
+
+  authLanguageDock: {
+    position: "absolute",
+    left: "50%",
+    bottom: 26,
+    transform: "translateX(-50%)",
+    zIndex: 20,
+  },
+
+  languageToggle: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    padding: "8px 12px",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.92)",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.16)",
+  },
+
+  languageToggleCompact: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 10,
+    width: "100%",
+  },
+
+  languageFlagButton: {
+    width: 38,
+    height: 38,
+    border: "1px solid rgba(15,23,42,0.12)",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.78)",
+    cursor: "pointer",
+    fontSize: 20,
+    lineHeight: 1,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+  },
+
+  languageFlagButtonActive: {
+    width: 38,
+    height: 38,
+    border: "2px solid #ef7d32",
+    borderRadius: 999,
+    background: "#ffffff",
+    cursor: "pointer",
+    fontSize: 20,
+    lineHeight: 1,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    boxShadow: "0 0 0 3px rgba(239,125,50,0.18)",
+  },
+
   analysisActionRow: {
     display: "flex",
     gap: 14,
@@ -10133,11 +10249,12 @@ panelTitle: {
 
   authPage: {
     minHeight: "100vh",
+    position: "relative",
     background: "linear-gradient(135deg, #eef2f7 0%, #dde5ef 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: "24px 24px 86px 24px",
     fontFamily: "Arial, sans-serif",
   },
 
