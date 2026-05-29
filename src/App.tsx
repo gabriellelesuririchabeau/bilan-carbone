@@ -1298,6 +1298,309 @@ function renderCarbonHistogram(title: string, rows: CarbonBarRow[]) {
   );
 }
 
+
+type AppLanguage = "fr" | "en";
+
+type LanguageToggleProps = {
+  language: AppLanguage;
+  onLanguageChange: (language: AppLanguage) => void;
+  compact?: boolean;
+};
+
+const UI_TRANSLATIONS: Record<string, string> = {
+  "Bilan carbone de la séance de cours": "Class carbon footprint",
+  "BILAN CARBONE DE LA SÉANCE DE COURS": "CLASS CARBON FOOTPRINT",
+  "BILAN CARBONE DE LA SÉANCE DE COURS": "CLASS CARBON FOOTPRINT",
+  "Choisissez votre profil pour accéder à l'application.": "Choose your profile to access the application.",
+  "Étudiant": "Student",
+  "Professeur": "Teacher",
+  "Administrateur": "Administrator",
+  "Connexion administrateur": "Administrator login",
+  "Connexion professeur": "Teacher login",
+  "Connexion étudiant": "Student login",
+  "Email": "Email",
+  "Mot de passe": "Password",
+  "Code session": "Session code",
+  "Code de session": "Session code",
+  "Se connecter": "Log in",
+  "Retour": "Back",
+  "Déconnexion": "Log out",
+  "Mise en oeuvre": "Implementation",
+  "Mise en œuvre": "Implementation",
+  "Collecte des données": "Data collection",
+  "Analyses": "Analyses",
+  "Vote": "Vote",
+  "Synthèse": "Summary",
+  "Sessions": "Sessions",
+  "Session ouverte": "Open session",
+  "Administration": "Administration",
+  "Compteur de réponses": "Response counter",
+  "Utilisateurs": "Users",
+  "Gestion des sessions": "Session management",
+  "Créer une session": "Create a session",
+  "Mes sessions": "My sessions",
+  "Campus": "Campus",
+  "Programme": "Programme",
+  "Niveau": "Level",
+  "Nom de la session": "Session name",
+  "Code généré :": "Generated code:",
+  "Méthode d'assignation": "Assignment method",
+  "Assignation prédéfinie": "Predefined assignment",
+  "Assignation aléatoire": "Random assignment",
+  "Créer la session": "Create session",
+  "Paramètres de la session": "Session settings",
+  "Liste avec assignation prédéfinie": "Predefined assignment list",
+  "Emails à répartir aléatoirement": "Emails to assign randomly",
+  "Exporter l'assignation": "Export assignment",
+  "Enregistrer": "Save",
+  "Ajouter un étudiant": "Add a student",
+  "Ajouter l'étudiant": "Add student",
+  "Nom": "Last name",
+  "Prénom": "First name",
+  "Groupe": "Group",
+  "Groupe 1": "Group 1",
+  "Groupe 2": "Group 2",
+  "Groupe 3": "Group 3",
+  "Groupe 4": "Group 4",
+  "Groupe 5": "Group 5",
+  "Groupe 6": "Group 6",
+  "Groupe 7": "Group 7",
+  "Groupe 8": "Group 8",
+  "Groupe 9": "Group 9",
+  "Groupe 10": "Group 10",
+  "Groupe assigné": "Assigned group",
+  "Thématique attribuée": "Assigned topic",
+  "Transport": "Transport",
+  "Déjeuner": "Lunch",
+  "Équipement": "Equipment",
+  "Autres consommations": "Other consumption",
+  "Salle de cours": "Classroom",
+  "Données à reporter": "Data to report",
+  "Report des données": "Data report",
+  "Visualiser le bilan carbone": "View carbon footprint",
+  "Propositions": "Proposals",
+  "Consultez les données utiles à votre thématique puis renseignez le tableau de report correspondant.": "Review the useful data for your topic, then complete the corresponding reporting table.",
+  "Nombre de répondants": "Number of respondents",
+  "Distance cumulée (km)": "Cumulative distance (km)",
+  "Élément": "Item",
+  "Sous-catégorie": "Subcategory",
+  "Plat principal": "Main dish",
+  "Protéines": "Proteins",
+  "Accompagnements": "Side dishes",
+  "Desserts et fruits": "Desserts and fruit",
+  "Boissons": "Drinks",
+  "Sandwich": "Sandwich",
+  "Quiche/Pizza": "Quiche/Pizza",
+  "Plat de pâtes": "Pasta dish",
+  "Salade composée": "Mixed salad",
+  "Viande rouge": "Red meat",
+  "Viande blanche": "White meat",
+  "Poisson": "Fish",
+  "Œufs": "Eggs",
+  "Fruit local": "Local fruit",
+  "Fruit importé": "Imported fruit",
+  "Laitage": "Dairy product",
+  "Dessert": "Dessert",
+  "Matériel": "Equipment",
+  "Activité": "Activity",
+  "Grignotage": "Snacks",
+  "Fruits locaux": "Local fruit",
+  "Fruits importés": "Imported fruit",
+  "Moyen de transport": "Mode of transport",
+  "Nombre de personnes": "Number of people",
+  "Distance totale (km)": "Total distance (km)",
+  "Facteur": "Factor",
+  "Total émissions": "Total emissions",
+  "Total émissions :": "Total emissions:",
+  "Moyenne par thématique": "Average by topic",
+  "Synthèse finale de la session": "Final session summary",
+  "Aucune donnée disponible.": "No data available.",
+  "Aucune donnée carbone à visualiser pour le moment.": "No carbon data to display yet.",
+  "Aucune donnée à reporter pour le moment. Les réponses transport validées apparaîtront ici automatiquement.": "No data to report yet. Validated transport responses will appear here automatically.",
+  "Réponses enregistrées": "Responses saved",
+  "Valider": "Submit",
+  "Précédent": "Previous",
+  "Suivant": "Next",
+  "Commencer la collecte": "Start data collection",
+  "Chaque étudiant d'une même classe répond individuellement aux questionnaires.": "Each student in the same class answers the questionnaires individually.",
+  "Chaque groupe se voit attribuer une thématique. Vous accédez ensuite aux données à reporter.": "Each group is assigned a topic. You then access the data to report.",
+  "Une fois le bilan établi, vous proposerez des pistes d'amélioration discutées en classe.": "Once the footprint is calculated, you will suggest improvement actions discussed in class.",
+  "Ces pistes d'amélioration seront ensuite résumées et soumises au vote.": "These improvement actions will then be summarized and put to a vote.",
+  "Une synthèse permettra de comparer les résultats entre les thématiques.": "A summary will compare the results across topics.",
+  "Transport validé.": "Transport submitted.",
+  "Déjeuner validé.": "Lunch submitted.",
+  "Équipement validé.": "Equipment submitted.",
+  "Autres consommations validées.": "Other consumption submitted.",
+  "Propositions du groupe": "Group proposals",
+  "Modifier les propositions": "Edit proposals",
+  "Vote soumis": "Vote submitted",
+  "Mettre à jour mon vote": "Update my vote",
+  "Effacer choix 1": "Clear choice 1",
+  "Effacer choix 2": "Clear choice 2",
+  "Effacer choix 3": "Clear choice 3",
+  "Résultats des votes": "Vote results",
+  "Retour aux propositions": "Back to proposals",
+  "Aucun vote enregistré pour le moment.": "No votes recorded yet.",
+  "Télécharger le fichier .txt à soumettre à l'IA": "Download the .txt file to submit to AI",
+  "Vote accessible aux étudiants": "Vote accessible to students",
+  "Synthèse accessible aux étudiants": "Summary accessible to students",
+  "Analyse accessible aux étudiants": "Analysis accessible to students",
+  "Marche à pied": "Walking",
+  "Vélo": "Bike",
+  "Vélo électrique": "Electric bike",
+  "Trottinette électrique": "Electric scooter",
+  "Métro, tramway, train": "Metro, tram, train",
+  "2 roues thermique": "Thermal two-wheeler",
+  "Voiture électrique": "Electric car",
+  "Voiture hybride": "Hybrid car",
+  "Voiture diesel": "Diesel car",
+  "Voiture essence": "Petrol car",
+  "Ordinateur portable": "Laptop",
+  "Ordinateur de bureau": "Desktop computer",
+  "Tablette": "Tablet",
+  "Smartphone": "Smartphone",
+  "Papeterie": "Stationery",
+  "Nombre d'emails envoyés sans pièce jointe": "Number of emails sent without attachment",
+  "Nombre d'emails envoyés avec pièce jointe": "Number of emails sent with attachment",
+  "Réseaux sociaux": "Social media",
+  "IA": "AI",
+  "Eau du robinet": "Tap water",
+  "Eau bouteille": "Bottled water",
+  "Café": "Coffee",
+  "Thé": "Tea",
+  "Chocolat au lait": "Milk chocolate",
+  "Barres chocolatées": "Chocolate bars",
+  "Viennoiseries": "Pastries",
+  "Biscuits": "Biscuits",
+  "Bonbons": "Candy",
+  "Pomme": "Apple",
+  "Raisin": "Grapes",
+  "Poire": "Pear",
+  "Banane": "Banana",
+  "Ananas": "Pineapple",
+  "Mangue": "Mango",
+  "Ampoules": "Light bulbs",
+  "Chauffage": "Heating",
+  "Climatisation": "Air conditioning",
+  "Vidéoprojecteur": "Projector",
+  "Écran fixe": "Fixed screen",
+};
+
+const PLACEHOLDER_TRANSLATIONS: Record<string, string> = {
+  "Sélectionner un campus": "Select a campus",
+  "Sélectionner un programme": "Select a programme",
+  "Ex. 1, 2, 3...": "E.g. 1, 2, 3...",
+  "Ex. SECTION 1 ou 210426": "E.g. SECTION 1 or 210426",
+  "Rechercher par nom, prénom, groupe ou email...": "Search by last name, first name, group or email...",
+  "Un email par ligne": "One email per line",
+  "Nom": "Last name",
+  "Prénom": "First name",
+  "email@exemple.com": "email@example.com",
+};
+
+function normalizeI18nText(value: string) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function translateUiText(value: string, language: AppLanguage) {
+  if (language === "fr") return value;
+  const normalized = normalizeI18nText(value);
+  if (!normalized) return value;
+
+  const direct = UI_TRANSLATIONS[normalized];
+  if (direct) return value.replace(normalized, direct);
+
+  if (/^Groupe\s+\d+$/.test(normalized)) {
+    return value.replace(normalized, normalized.replace("Groupe", "Group"));
+  }
+
+  if (/^Propositions du groupe\s+\d+$/.test(normalized)) {
+    return value.replace("Propositions du groupe", "Group proposals");
+  }
+
+  if (/^Session ouverte\s*:/.test(normalized)) {
+    return value.replace("Session ouverte", "Open session");
+  }
+
+  if (/^Session créée\s*:/.test(normalized)) {
+    return value.replace("Session créée", "Session created");
+  }
+
+  if (/^Code session actif\s*:/.test(normalized)) {
+    return value.replace("Code session actif", "Active session code");
+  }
+
+  if (/^Étudiant\s*:/.test(normalized)) {
+    return value
+      .replace("Étudiant", "Student")
+      .replace("Groupe assigné", "Assigned group");
+  }
+
+  if (/^Professeur\s*:/.test(normalized)) {
+    return value
+      .replace("Professeur", "Teacher")
+      .replace("Code session", "Session code");
+  }
+
+  return value;
+}
+
+function LanguageToggle({ language, onLanguageChange, compact = false }: LanguageToggleProps) {
+  const buttonBase: React.CSSProperties = {
+    border: "1px solid rgba(255,255,255,0.4)",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.12)",
+    padding: compact ? "6px 9px" : "8px 12px",
+    fontSize: compact ? 18 : 22,
+    cursor: "pointer",
+    lineHeight: 1,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+    opacity: 0.72,
+  };
+
+  return (
+    <div
+      data-no-auto-translate="true"
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: compact ? 6 : 10,
+        marginTop: compact ? 8 : 16,
+        marginBottom: compact ? 10 : 0,
+      }}
+      aria-label="Language switcher"
+    >
+      <button
+        type="button"
+        title="Français"
+        aria-label="Français"
+        onClick={() => onLanguageChange("fr")}
+        style={{
+          ...buttonBase,
+          opacity: language === "fr" ? 1 : 0.55,
+          transform: language === "fr" ? "scale(1.04)" : "scale(1)",
+        }}
+      >
+        🇫🇷
+      </button>
+      <button
+        type="button"
+        title="English"
+        aria-label="English"
+        onClick={() => onLanguageChange("en")}
+        style={{
+          ...buttonBase,
+          opacity: language === "en" ? 1 : 0.55,
+          transform: language === "en" ? "scale(1.04)" : "scale(1)",
+        }}
+      >
+        🇬🇧
+      </button>
+    </div>
+  );
+}
+
 type StudentSidebarProps = {
   active: "mise_en_oeuvre" | "collecte" | "analyses" | "bilans" | "synthese" | "vote";
   onGo: (screen: Screen) => void;
@@ -1309,6 +1612,8 @@ type StudentSidebarProps = {
   onBeforeOpenVote?: () => Promise<boolean> | boolean;
   sessionCode?: string;
   sessionId?: string;
+  language: AppLanguage;
+  onLanguageChange: (language: AppLanguage) => void;
 };
 
 function StudentSidebar({
@@ -1322,6 +1627,8 @@ function StudentSidebar({
   onBeforeOpenVote,
   sessionCode,
   sessionId,
+  language,
+  onLanguageChange,
 }: StudentSidebarProps) {
     return (
     <aside style={styles.sidebar}>
@@ -1402,6 +1709,7 @@ function StudentSidebar({
 
       {/* ✅ AJOUT : affichage debug session en bas de sidebar */}
       <div style={styles.sidebarFooter}>
+        <LanguageToggle language={language} onLanguageChange={onLanguageChange} compact />
         {(sessionCode || sessionId) && (
           <div
             style={{
@@ -1472,6 +1780,10 @@ function StudentQuestionnaireTabs({
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
+  const [appLanguage, setAppLanguage] = useState<AppLanguage>(() => {
+    const savedLanguage = window.localStorage.getItem("bilan-carbone:language");
+    return savedLanguage === "en" ? "en" : "fr";
+  });
   const [isInitialSessionSetup, setIsInitialSessionSetup] = useState(false);
 
   const [teacherMenu, setTeacherMenu] = useState<TeacherMenu>("sessions");
@@ -1657,6 +1969,108 @@ const teacherVoteResults = useMemo<TeacherVoteResult[]>(() => {
     return a.text.localeCompare(b.text);
   });
 }, [consolidatedProposals, teacherVoteRows]);
+
+useEffect(() => {
+  window.localStorage.setItem("bilan-carbone:language", appLanguage);
+
+  const ignoredTags = new Set(["SCRIPT", "STYLE", "TEXTAREA", "INPUT", "SELECT", "OPTION"]);
+
+  function shouldIgnoreNode(node: Node) {
+    const parent = node.parentElement;
+    if (!parent) return true;
+    if (ignoredTags.has(parent.tagName)) return true;
+    if (parent.closest("[data-no-auto-translate='true']")) return true;
+    return false;
+  }
+
+  function applyTextTranslation(root: ParentNode) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      if (!node.nodeValue || shouldIgnoreNode(node)) continue;
+      if (!normalizeI18nText(node.nodeValue)) continue;
+      nodes.push(node);
+    }
+
+    nodes.forEach((node) => {
+      const parent = node.parentElement;
+      if (!parent) return;
+
+      const original =
+        parent.getAttribute("data-i18n-original-text") ??
+        (appLanguage === "fr" ? node.nodeValue ?? "" : "");
+
+      if (!parent.hasAttribute("data-i18n-original-text")) {
+        parent.setAttribute("data-i18n-original-text", original);
+      }
+
+      const translatedValue = appLanguage === "fr" ? original : translateUiText(original, "en");
+      if (node.nodeValue !== translatedValue) {
+        node.nodeValue = translatedValue;
+      }
+    });
+  }
+
+  function applyAttributeTranslation(root: ParentNode) {
+    const elements = Array.from(root.querySelectorAll<HTMLElement>("[placeholder], [title], [aria-label]"));
+
+    elements.forEach((element) => {
+      if (element.closest("[data-no-auto-translate='true']")) return;
+
+      ["placeholder", "title", "aria-label"].forEach((attributeName) => {
+        const currentValue = element.getAttribute(attributeName);
+        if (!currentValue) return;
+
+        const originalAttribute = `data-i18n-original-${attributeName}`;
+        const original =
+          element.getAttribute(originalAttribute) ??
+          (appLanguage === "fr" ? currentValue : "");
+
+        if (!element.hasAttribute(originalAttribute)) {
+          element.setAttribute(originalAttribute, original);
+        }
+
+        if (appLanguage === "fr") {
+          if (element.getAttribute(attributeName) !== original) {
+            element.setAttribute(attributeName, original);
+          }
+          return;
+        }
+
+        const normalized = normalizeI18nText(original);
+        const translatedAttribute = PLACEHOLDER_TRANSLATIONS[normalized] ?? translateUiText(original, "en");
+        if (element.getAttribute(attributeName) !== translatedAttribute) {
+          element.setAttribute(attributeName, translatedAttribute);
+        }
+      });
+    });
+  }
+
+  const applyTranslations = () => {
+    applyTextTranslation(document.body);
+    applyAttributeTranslation(document.body);
+  };
+
+  applyTranslations();
+
+  const observer = new MutationObserver(() => {
+    window.requestAnimationFrame(applyTranslations);
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ["placeholder", "title", "aria-label"],
+  });
+
+  return () => observer.disconnect();
+}, [appLanguage]);
+
+
 
   const teacherTransportRows = useMemo(
     () => buildTransportRowsForGroup(teacherTransportReportRowsDb, teacherGroupNumber),
@@ -6351,6 +6765,8 @@ function renderSalleAnalysisTable(params: {
           onBeforeOpenSynthese={refreshStudentSyntheseData}
           sessionCode={studentSelectedSessionCode}
           sessionId={studentSelectedSessionId}
+          language={appLanguage}
+          onLanguageChange={setAppLanguage}
           voteUnlocked={studentVoteUnlocked}
 onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         />
@@ -6478,6 +6894,7 @@ if (screen === "home") {
     Administrateur
   </button>
 </div>
+            <LanguageToggle language={appLanguage} onLanguageChange={setAppLanguage} />
           </div>
         </div>
       </div>
@@ -6586,6 +7003,8 @@ if (screen === "student_login") {
           onBeforeOpenSynthese={refreshStudentSyntheseData}
           sessionCode={studentSelectedSessionCode}
           sessionId={studentSelectedSessionId}
+          language={appLanguage}
+          onLanguageChange={setAppLanguage}
           voteUnlocked={studentVoteUnlocked}
 onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         />
@@ -6742,6 +7161,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
          onBeforeOpenSynthese={refreshStudentSyntheseData}
          sessionCode={studentSelectedSessionCode}
          sessionId={studentSelectedSessionId}
+          language={appLanguage}
+          onLanguageChange={setAppLanguage}
          voteUnlocked={studentVoteUnlocked}
 onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         />
@@ -6979,6 +7400,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   onBeforeOpenSynthese={refreshStudentSyntheseData}
   sessionCode={studentSelectedSessionCode}
   sessionId={studentSelectedSessionId}
+          language={appLanguage}
+          onLanguageChange={setAppLanguage}
   voteUnlocked={studentVoteUnlocked}
 onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 />
@@ -7150,6 +7573,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   onBeforeOpenSynthese={refreshStudentSyntheseData}
   sessionCode={studentSelectedSessionCode}
   sessionId={studentSelectedSessionId}
+          language={appLanguage}
+          onLanguageChange={setAppLanguage}
   voteUnlocked={studentVoteUnlocked}
 onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 />
@@ -7304,6 +7729,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </button>
 
           <div style={styles.sidebarFooter}>
+            <LanguageToggle language={appLanguage} onLanguageChange={setAppLanguage} compact />
             <button style={styles.sidebarSmallButton} onClick={handleTeacherLogout}>
               Déconnexion
             </button>
@@ -7598,6 +8024,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </button>
 
           <div style={styles.sidebarFooter}>
+            <LanguageToggle language={appLanguage} onLanguageChange={setAppLanguage} compact />
             <button style={styles.sidebarSmallButton} onClick={handleTeacherLogout}>
               Déconnexion
             </button>
@@ -7824,6 +8251,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           onBeforeOpenSynthese={refreshStudentSyntheseData}
           sessionCode={studentSelectedSessionCode}
           sessionId={studentSelectedSessionId}
+          language={appLanguage}
+          onLanguageChange={setAppLanguage}
           voteUnlocked={studentVoteUnlocked}
 onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         />
@@ -8154,6 +8583,8 @@ onClick={() => {
           onBeforeOpenSynthese={refreshStudentSyntheseData}
           sessionCode={studentSelectedSessionCode}
           sessionId={studentSelectedSessionId}
+          language={appLanguage}
+          onLanguageChange={setAppLanguage}
           voteUnlocked={studentVoteUnlocked}
 onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         />
@@ -8190,6 +8621,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           onBeforeOpenSynthese={refreshStudentSyntheseData}
           sessionCode={studentSelectedSessionCode}
           sessionId={studentSelectedSessionId}
+          language={appLanguage}
+          onLanguageChange={setAppLanguage}
           voteUnlocked={studentVoteUnlocked}
 onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         />
@@ -8233,6 +8666,8 @@ if (screen === "student_vote") {
         onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         sessionCode={studentSelectedSessionCode}
         sessionId={studentSelectedSessionId}
+          language={appLanguage}
+          onLanguageChange={setAppLanguage}
       />
 
       <main style={styles.mainArea}>
@@ -8410,6 +8845,7 @@ if (screen === "student_vote") {
           </button>
 
         <div style={styles.sidebarFooter}>
+            <LanguageToggle language={appLanguage} onLanguageChange={setAppLanguage} compact />
           <button style={styles.sidebarSmallButton} onClick={handleTeacherLogout}>
             Déconnexion
           </button>
