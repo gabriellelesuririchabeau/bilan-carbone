@@ -1310,7 +1310,6 @@ type LanguageToggleProps = {
 const UI_TRANSLATIONS: Record<string, string> = {
   "Bilan carbone de la séance de cours": "Class carbon footprint",
   "BILAN CARBONE DE LA SÉANCE DE COURS": "CLASS CARBON FOOTPRINT",
-  "BILAN CARBONE DE LA SÉANCE DE COURS": "CLASS CARBON FOOTPRINT",
   "Choisissez votre profil pour accéder à l'application.": "Choose your profile to access the application.",
   "Étudiant": "Student",
   "Professeur": "Teacher",
