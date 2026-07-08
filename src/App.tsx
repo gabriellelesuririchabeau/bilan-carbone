@@ -109,6 +109,8 @@ const I18N = {
     teachers: "Professeurs",
     teacherAccess: "Accès professeur",
     privacyTitle: "Protection des données personnelles",
+    privacyButton: "Données personnelles / RGPD",
+    close: "Fermer",
     privacyStudentNotice: "Les informations saisies (adresse e-mail, code session et réponses aux questionnaires) sont utilisées uniquement pour l’activité pédagogique, le calcul de résultats collectifs et l’analyse en classe. Les résultats affichés aux étudiants sont agrégés.",
     privacyTeacherNotice: "Accès réservé à la gestion pédagogique de l’activité. Les données étudiantes doivent être utilisées uniquement pour créer les sessions, suivre la collecte et analyser les résultats collectifs.",
     privacyRights: "Les données ne sont pas utilisées à des fins commerciales. Pour toute demande d’accès, de rectification ou de suppression, contactez l’enseignant responsable ou le DPO de l’établissement.",
@@ -154,6 +156,8 @@ const I18N = {
     teachers: "Teachers",
     teacherAccess: "Teacher access",
     privacyTitle: "Personal data protection",
+    privacyButton: "Personal data / GDPR",
+    close: "Close",
     privacyStudentNotice: "The information entered (email address, session code and questionnaire answers) is used only for the educational activity, the calculation of collective results and in-class analysis. Results shown to students are aggregated.",
     privacyTeacherNotice: "Access is restricted to the educational management of the activity. Student data must be used only to create sessions, monitor data collection and analyze collective results.",
     privacyRights: "The data is not used for commercial purposes. For any request for access, rectification or deletion, contact the teacher in charge or the institution’s DPO.",
@@ -832,6 +836,58 @@ function LanguageToggle({
       </button>
     </div>
   )}</Translated>);
+}
+
+function PrivacyModal({
+  lang,
+  audience,
+  onClose,
+}: {
+  lang: Lang;
+  audience: "student" | "teacher";
+  onClose: () => void;
+}) {
+  return (
+    <div
+      style={styles.privacyModalBackdrop}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="privacy-modal-title"
+      onClick={onClose}
+    >
+      <div style={styles.privacyModalCard} onClick={(event) => event.stopPropagation()}>
+        <div style={styles.privacyModalHeader}>
+          <h2 id="privacy-modal-title" style={styles.privacyModalTitle}>
+            {t(lang, "privacyTitle")}
+          </h2>
+          <button
+            type="button"
+            aria-label={t(lang, "close")}
+            title={t(lang, "close")}
+            style={styles.privacyModalIconButton}
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={styles.privacyModalBody}>
+          <p style={styles.privacyModalParagraph}>
+            {audience === "student"
+              ? t(lang, "privacyStudentNotice")
+              : t(lang, "privacyTeacherNotice")}
+          </p>
+          <p style={styles.privacyModalParagraph}>{t(lang, "privacyRights")}</p>
+        </div>
+
+        <div style={styles.privacyModalActions}>
+          <button type="button" style={styles.primaryButton} onClick={onClose}>
+            {t(lang, "close")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 type TransportReportableRowRpc = {
@@ -7290,10 +7346,13 @@ if (screen === "teacher_login") {
           {authPortal === "admin" ? t(lang, "adminLogin") : t(lang, "teacherLogin")}
         </h1>
 
-        <div style={styles.privacyNotice}>
-          <strong style={styles.privacyNoticeTitle}>{t(lang, "privacyTitle")}</strong>
-          <span style={styles.privacyNoticeText}>{t(lang, "privacyTeacherNotice")}</span>
-        </div>
+        <button
+          type="button"
+          style={styles.privacyButton}
+          onClick={() => setPrivacyModalAudience("teacher")}
+        >
+          {t(lang, "privacyButton")}
+        </button>
 
 <form
   onSubmit={(e) => {
@@ -7336,6 +7395,13 @@ if (screen === "teacher_login") {
           <LanguageToggle lang={lang} setLang={setLang} />
         </div>
       </div>
+      {privacyModalAudience && (
+        <PrivacyModal
+          lang={lang}
+          audience={privacyModalAudience}
+          onClose={() => setPrivacyModalAudience(null)}
+        />
+      )}
     </div>
   )}</Translated>);
 }
@@ -7348,11 +7414,13 @@ if (screen === "student_login") {
 
         <h1 style={styles.authTitle}>{t(lang, "studentLogin")}</h1>
 
-        <div style={styles.privacyNotice}>
-          <strong style={styles.privacyNoticeTitle}>{t(lang, "privacyTitle")}</strong>
-          <span style={styles.privacyNoticeText}>{t(lang, "privacyStudentNotice")}</span>
-          <span style={styles.privacyNoticeText}>{t(lang, "privacyRights")}</span>
-        </div>
+        <button
+          type="button"
+          style={styles.privacyButton}
+          onClick={() => setPrivacyModalAudience("student")}
+        >
+          {t(lang, "privacyButton")}
+        </button>
 
         <div style={styles.column}>
           <input
@@ -7384,6 +7452,13 @@ if (screen === "student_login") {
           <LanguageToggle lang={lang} setLang={setLang} />
         </div>
       </div>
+      {privacyModalAudience && (
+        <PrivacyModal
+          lang={lang}
+          audience={privacyModalAudience}
+          onClose={() => setPrivacyModalAudience(null)}
+        />
+      )}
     </div>
   )}</Translated>);
 }
@@ -10970,6 +11045,88 @@ panelTitle: {
 
   privacyNoticeText: {
     display: "block",
+  },
+
+  privacyButton: {
+    alignSelf: "center",
+    border: "1px solid #cbd5e1",
+    borderRadius: 999,
+    padding: "10px 18px",
+    background: "#f8fafc",
+    color: "#1e293b",
+    fontSize: 14,
+    fontWeight: 800,
+    cursor: "pointer",
+    boxShadow: "0 4px 12px rgba(15,23,42,0.08)",
+  },
+
+  privacyModalBackdrop: {
+    position: "fixed" as const,
+    inset: 0,
+    zIndex: 1000,
+    background: "rgba(15,23,42,0.55)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+
+  privacyModalCard: {
+    width: 560,
+    maxWidth: "100%",
+    maxHeight: "85vh",
+    overflowY: "auto" as const,
+    background: "#ffffff",
+    borderRadius: 24,
+    padding: 28,
+    boxShadow: "0 28px 80px rgba(15,23,42,0.35)",
+    border: "1px solid #dbe4f0",
+  },
+
+  privacyModalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 16,
+    marginBottom: 18,
+  },
+
+  privacyModalTitle: {
+    margin: 0,
+    fontSize: 24,
+    fontWeight: 900,
+    color: "#1e293b",
+  },
+
+  privacyModalIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    border: "1px solid #cbd5e1",
+    background: "#f8fafc",
+    color: "#1e293b",
+    fontSize: 28,
+    lineHeight: 1,
+    cursor: "pointer",
+  },
+
+  privacyModalBody: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 12,
+  },
+
+  privacyModalParagraph: {
+    margin: 0,
+    color: "#334155",
+    fontSize: 15,
+    lineHeight: 1.6,
+  },
+
+  privacyModalActions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    marginTop: 24,
   },
 
   column: {
