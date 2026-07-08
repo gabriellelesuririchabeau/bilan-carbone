@@ -108,6 +108,10 @@ const I18N = {
     back: "Retour",
     teachers: "Professeurs",
     teacherAccess: "Accès professeur",
+    privacyTitle: "Protection des données personnelles",
+    privacyStudentNotice: "Les informations saisies (adresse e-mail, code session et réponses aux questionnaires) sont utilisées uniquement pour l’activité pédagogique, le calcul de résultats collectifs et l’analyse en classe. Les résultats affichés aux étudiants sont agrégés.",
+    privacyTeacherNotice: "Accès réservé à la gestion pédagogique de l’activité. Les données étudiantes doivent être utilisées uniquement pour créer les sessions, suivre la collecte et analyser les résultats collectifs.",
+    privacyRights: "Les données ne sont pas utilisées à des fins commerciales. Pour toute demande d’accès, de rectification ou de suppression, contactez l’enseignant responsable ou le DPO de l’établissement.",
   },
   en: {
     appTitle: "Carbon footprint of the class session",
@@ -149,6 +153,10 @@ const I18N = {
     back: "Back",
     teachers: "Teachers",
     teacherAccess: "Teacher access",
+    privacyTitle: "Personal data protection",
+    privacyStudentNotice: "The information entered (email address, session code and questionnaire answers) is used only for the educational activity, the calculation of collective results and in-class analysis. Results shown to students are aggregated.",
+    privacyTeacherNotice: "Access is restricted to the educational management of the activity. Student data must be used only to create sessions, monitor data collection and analyze collective results.",
+    privacyRights: "The data is not used for commercial purposes. For any request for access, rectification or deletion, contact the teacher in charge or the institution’s DPO.",
   },
 } as const;
 
@@ -7282,6 +7290,11 @@ if (screen === "teacher_login") {
           {authPortal === "admin" ? t(lang, "adminLogin") : t(lang, "teacherLogin")}
         </h1>
 
+        <div style={styles.privacyNotice}>
+          <strong style={styles.privacyNoticeTitle}>{t(lang, "privacyTitle")}</strong>
+          <span style={styles.privacyNoticeText}>{t(lang, "privacyTeacherNotice")}</span>
+        </div>
+
 <form
   onSubmit={(e) => {
     e.preventDefault();
@@ -7334,6 +7347,12 @@ if (screen === "student_login") {
         <img src={kedgeLogo} alt="KEDGE Business School" style={styles.authLogo} />
 
         <h1 style={styles.authTitle}>{t(lang, "studentLogin")}</h1>
+
+        <div style={styles.privacyNotice}>
+          <strong style={styles.privacyNoticeTitle}>{t(lang, "privacyTitle")}</strong>
+          <span style={styles.privacyNoticeText}>{t(lang, "privacyStudentNotice")}</span>
+          <span style={styles.privacyNoticeText}>{t(lang, "privacyRights")}</span>
+        </div>
 
         <div style={styles.column}>
           <input
@@ -10925,6 +10944,32 @@ panelTitle: {
     fontSize: 30,
     fontWeight: 700,
     color: "#1e293b",
+  },
+
+  privacyNotice: {
+    width: "100%",
+    boxSizing: "border-box" as const,
+    background: "#f8fafc",
+    border: "1px solid #d8e0ec",
+    borderRadius: 16,
+    padding: "14px 16px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    color: "#334155",
+    fontSize: 13,
+    lineHeight: 1.45,
+  },
+
+  privacyNoticeTitle: {
+    display: "block",
+    color: "#1e293b",
+    fontSize: 13,
+    fontWeight: 800,
+  },
+
+  privacyNoticeText: {
+    display: "block",
   },
 
   column: {
