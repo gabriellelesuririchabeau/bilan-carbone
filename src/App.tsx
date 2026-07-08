@@ -217,6 +217,11 @@ const DISPLAY_TRANSLATIONS_EN: Record<string, string> = {
   "Ces pistes d'amélioration seront ensuite résumées et soumises au vote.": "These improvement ideas will then be summarized and submitted to a vote.",
   "Une synthèse permettra de comparer les résultats entre les thématiques.": "A summary will allow you to compare results across themes.",
   "Commencer la collecte": "Start data collection",
+  "Enregistrement...": "Saving...",
+  "Enregistrement en cours...": "Saving in progress...",
+  "Actualisation...": "Updating...",
+  "Actualisation automatique toutes les 3 secondes": "Automatic refresh every 3 seconds",
+  "Actualiser": "Refresh",
   "L'accès à l'analyse n'a pas encore été autorisé par le professeur.": "Access to the analysis has not yet been authorized by the teacher.",
   "L'accès au vote n'a pas encore été autorisé par le professeur.": "Access to the vote has not yet been authorized by the teacher.",
   "L'accès à la synthèse n'a pas encore été autorisé par le professeur.": "Access to the summary has not yet been authorized by the teacher.",
@@ -836,6 +841,31 @@ function LanguageToggle({
       </button>
     </div>
   )}</Translated>);
+}
+
+function LoadingSpinner({
+  label,
+  tone = "light",
+}: {
+  label?: React.ReactNode;
+  tone?: "light" | "dark";
+}) {
+  const spinnerStyle =
+    tone === "dark"
+      ? {
+          ...styles.spinnerIcon,
+          border: "2px solid rgba(15,23,42,0.18)",
+          borderTopColor: "#ed7d31",
+        }
+      : styles.spinnerIcon;
+
+  return (
+    <span style={styles.loadingInline} role="status" aria-live="polite">
+      <style>{`@keyframes carbon-app-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <span style={spinnerStyle} aria-hidden="true" />
+      {label ? <span>{label}</span> : null}
+    </span>
+  );
 }
 
 function PrivacyModal({
@@ -2406,6 +2436,8 @@ const [autoAssignNewStudentGroup, setAutoAssignNewStudentGroup] = useState(true)
   const [autresMessage, setAutresMessage] = useState("");
 
   const [counts, setCounts] = useState<ResponseCounts>(EMPTY_COUNTS);
+  const [countsLoading, setCountsLoading] = useState(false);
+  const [studentSavingQuestionnaire, setStudentSavingQuestionnaire] = useState<QuestionnaireKey | null>(null);
   const [message, setMessage] = useState("");
   const [teacherTransportReportRowsDb, setTeacherTransportReportRowsDb] = useState<GroupReportRow[]>([]);
   const [studentTransportReportRowsDb, setStudentTransportReportRowsDb] = useState<GroupReportRow[]>([]);
@@ -3896,29 +3928,49 @@ async function handleCreateTeacher(name: string, email: string, password: string
     setMessage("Interface administrateur ouverte.");
   }
 
-  async function loadSessionCounts(sessionId: string) {
+  async function loadSessionCounts(
+    sessionId: string,
+    options: { showLoading?: boolean } = {}
+  ) {
     if (!sessionId) {
       setCounts(EMPTY_COUNTS);
       return;
     }
 
-    const { data, error } = await supabase.rpc("get_session_response_counts", {
-      p_session_id: sessionId,
-    });
+    let loadingTimerId: number | undefined;
 
-    if (error) {
-      setCounts(EMPTY_COUNTS);
-      setMessage(`Erreur suivi des réponses : ${error.message}`);
-      return;
+    if (options.showLoading) {
+      loadingTimerId = window.setTimeout(() => {
+        setCountsLoading(true);
+      }, 350);
     }
 
-    const row = Array.isArray(data) ? data[0] : data;
-    setCounts({
-      transport_count: Number(row?.transport_count ?? 0),
-      dejeuner_count: Number(row?.dejeuner_count ?? 0),
-      equipement_count: Number(row?.equipement_count ?? 0),
-      autres_count: Number(row?.autres_count ?? 0),
-    });
+    try {
+      const { data, error } = await supabase.rpc("get_session_response_counts", {
+        p_session_id: sessionId,
+      });
+
+      if (error) {
+        setCounts(EMPTY_COUNTS);
+        setMessage(`Erreur suivi des réponses : ${error.message}`);
+        return;
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+      setCounts({
+        transport_count: Number(row?.transport_count ?? 0),
+        dejeuner_count: Number(row?.dejeuner_count ?? 0),
+        equipement_count: Number(row?.equipement_count ?? 0),
+        autres_count: Number(row?.autres_count ?? 0),
+      });
+    } finally {
+      if (loadingTimerId !== undefined) {
+        window.clearTimeout(loadingTimerId);
+      }
+      if (options.showLoading) {
+        setCountsLoading(false);
+      }
+    }
   }
 
   async function loadTransportReportRows(
@@ -4831,12 +4883,16 @@ async function saveSalleReportRow(params: {
     ) return;
     if (!selectedSessionId) return;
 
-    const timeoutId = window.setTimeout(() => {
-      void loadSessionCounts(selectedSessionId);
-    }, 0);
+    void loadSessionCounts(selectedSessionId, { showLoading: teacherSessionTab === "counts" });
+
+    if (teacherSessionTab !== "counts") return;
+
+    const intervalId = window.setInterval(() => {
+      void loadSessionCounts(selectedSessionId, { showLoading: true });
+    }, 3000);
 
     return () => {
-      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
     };
   }, [teacherMenu, teacherSessionTab, selectedSessionId]);
 
@@ -5903,33 +5959,42 @@ async function refreshStudentAnalysisData() {
       return;
     }
 
-    // IMPORTANT : la fonction SQL submit_transport_response_student
-    // ne doit écrire que dans responses_transport.
-    // Aucun INSERT / UPSERT vers group_reports ne doit être fait côté Supabase ici.
-    const { error } = await supabase.rpc("submit_transport_response_student", {
-      p_session_code: normalizedSessionCode,
-      p_email: normalizedStudentEmail,
-      p_trips: payload,
-    });
+    setStudentSavingQuestionnaire("transport");
+    setTransportMessage("Enregistrement en cours...");
 
-    if (error) {
-      setTransportMessage(error.message);
-      return;
+    try {
+      // IMPORTANT : la fonction SQL submit_transport_response_student
+      // ne doit écrire que dans responses_transport.
+      // Aucun INSERT / UPSERT vers group_reports ne doit être fait côté Supabase ici.
+      const { error } = await supabase.rpc("submit_transport_response_student", {
+        p_session_code: normalizedSessionCode,
+        p_email: normalizedStudentEmail,
+        p_trips: payload,
+      });
+
+      if (error) {
+        setTransportMessage(error.message);
+        return;
+      }
+
+      const { data: sessionData } = await supabase.rpc("get_open_session_by_code", {
+        p_session_code: normalizedSessionCode,
+      });
+
+      const sessionId = sessionData?.[0]?.id;
+      if (sessionId) {
+        await refreshStudentTransportData(sessionId);
+      }
+
+      const nextCompletion = { ...studentCompletion, transport: true };
+      setStudentCompletion(nextCompletion);
+      saveStudentDraftSnapshot({ completion: { transport: true } });
+      setTransportMessage("Questionnaire transport enregistré.");
+    } catch (err) {
+      setTransportMessage(err instanceof Error ? err.message : "Erreur réseau pendant l'enregistrement.");
+    } finally {
+      setStudentSavingQuestionnaire(null);
     }
-
-    const { data: sessionData } = await supabase.rpc("get_open_session_by_code", {
-      p_session_code: normalizedSessionCode,
-    });
-
-    const sessionId = sessionData?.[0]?.id;
-    if (sessionId) {
-      await refreshStudentTransportData(sessionId);
-    }
-
-const nextCompletion = { ...studentCompletion, transport: true };
-setStudentCompletion(nextCompletion);
-saveStudentDraftSnapshot({ completion: { transport: true } });
-setTransportMessage("Questionnaire transport enregistré.");
   }
 
   async function handleSaveDejeuner() {
@@ -5966,26 +6031,35 @@ setTransportMessage("Questionnaire transport enregistré.");
       boissons: dejeuner.boissons,
     };
 
-    const { error } = await supabase.rpc("submit_dejeuner_response_student", {
-      p_session_code: normalizedSessionCode,
-      p_email: normalizedStudentEmail,
-      p_payload: payload,
-    });
+    setStudentSavingQuestionnaire("dejeuner");
+    setDejeunerMessage("Enregistrement en cours...");
 
-    if (error) {
-      setDejeunerMessage(error.message);
-      return;
+    try {
+      const { error } = await supabase.rpc("submit_dejeuner_response_student", {
+        p_session_code: normalizedSessionCode,
+        p_email: normalizedStudentEmail,
+        p_payload: payload,
+      });
+
+      if (error) {
+        setDejeunerMessage(error.message);
+        return;
+      }
+
+      if (studentSelectedSessionId) {
+        await loadDejeunerReportableRows(studentSelectedSessionId);
+        await loadDejeunerReportRows(studentSelectedSessionId, setStudentDejeunerReportRowsDb);
+      }
+
+      const nextCompletion = { ...studentCompletion, dejeuner: true };
+      setStudentCompletion(nextCompletion);
+      saveStudentDraftSnapshot({ completion: { dejeuner: true } });
+      setDejeunerMessage("Questionnaire déjeuner enregistré.");
+    } catch (err) {
+      setDejeunerMessage(err instanceof Error ? err.message : "Erreur réseau pendant l'enregistrement.");
+    } finally {
+      setStudentSavingQuestionnaire(null);
     }
-
-    if (studentSelectedSessionId) {
-      await loadDejeunerReportableRows(studentSelectedSessionId);
-      await loadDejeunerReportRows(studentSelectedSessionId, setStudentDejeunerReportRowsDb);
-    }
-
-const nextCompletion = { ...studentCompletion, dejeuner: true };
-setStudentCompletion(nextCompletion);
-saveStudentDraftSnapshot({ completion: { dejeuner: true } });
-setDejeunerMessage("Questionnaire déjeuner enregistré.");
   }
 
   async function handleSaveEquipement() {
@@ -6021,26 +6095,35 @@ setDejeunerMessage("Questionnaire déjeuner enregistré.");
   equipement,
 });
 
-    const { error } = await supabase.rpc("submit_equipement_response_student", {
-      p_session_code: normalizedSessionCode,
-      p_email: normalizedStudentEmail,
-      p_payload: payload,
-    });
+    setStudentSavingQuestionnaire("equipement");
+    setEquipementMessage("Enregistrement en cours...");
 
-    if (error) {
-      setEquipementMessage(error.message);
-      return;
+    try {
+      const { error } = await supabase.rpc("submit_equipement_response_student", {
+        p_session_code: normalizedSessionCode,
+        p_email: normalizedStudentEmail,
+        p_payload: payload,
+      });
+
+      if (error) {
+        setEquipementMessage(error.message);
+        return;
+      }
+
+      if (studentSelectedSessionId) {
+        await loadEquipementReportableRows(studentSelectedSessionId);
+        await loadEquipementReportRows(studentSelectedSessionId, setStudentEquipementReportRowsDb);
+      }
+
+      const nextCompletion = { ...studentCompletion, equipement: true };
+      setStudentCompletion(nextCompletion);
+      saveStudentDraftSnapshot({ completion: { equipement: true } });
+      setEquipementMessage("Questionnaire équipement enregistré.");
+    } catch (err) {
+      setEquipementMessage(err instanceof Error ? err.message : "Erreur réseau pendant l'enregistrement.");
+    } finally {
+      setStudentSavingQuestionnaire(null);
     }
-
-    if (studentSelectedSessionId) {
-      await loadEquipementReportableRows(studentSelectedSessionId);
-      await loadEquipementReportRows(studentSelectedSessionId, setStudentEquipementReportRowsDb);
-    }
-
-const nextCompletion = { ...studentCompletion, equipement: true };
-setStudentCompletion(nextCompletion);
-saveStudentDraftSnapshot({ completion: { equipement: true } });
-setEquipementMessage("Questionnaire équipement enregistré.");
   }
 
   async function handleSaveAutres() {
@@ -6066,29 +6149,38 @@ setEquipementMessage("Questionnaire équipement enregistré.");
       fruits_importes: autres.imported_fruits,
     };
 
-    const { error } = await supabase.rpc("submit_autres_consommations_response_student", {
-      p_session_code: normalizedSessionCode,
-      p_email: normalizedStudentEmail,
-      p_payload: payload,
-    });
+    setStudentSavingQuestionnaire("autres");
+    setAutresMessage("Enregistrement en cours...");
 
-    if (error) {
-      setAutresMessage(error.message);
-      return;
+    try {
+      const { error } = await supabase.rpc("submit_autres_consommations_response_student", {
+        p_session_code: normalizedSessionCode,
+        p_email: normalizedStudentEmail,
+        p_payload: payload,
+      });
+
+      if (error) {
+        setAutresMessage(error.message);
+        return;
+      }
+
+      if (studentSelectedSessionId) {
+        await loadAutresReportableRows(studentSelectedSessionId);
+        await loadAutresReportRows(studentSelectedSessionId, setStudentAutresReportRowsDb);
+      }
+
+      const nextCompletion = { ...studentCompletion, autres: true };
+      setStudentCompletion(nextCompletion);
+      saveStudentDraftSnapshot({ completion: { autres: true } });
+      setAutresMessage("Questionnaire autres consommations enregistré.");
+      window.alert(
+        "Questionnaires terminés. Vous pouvez passer à l'analyse si le professeur l'a autorisée."
+      );
+    } catch (err) {
+      setAutresMessage(err instanceof Error ? err.message : "Erreur réseau pendant l'enregistrement.");
+    } finally {
+      setStudentSavingQuestionnaire(null);
     }
-
-    if (studentSelectedSessionId) {
-      await loadAutresReportableRows(studentSelectedSessionId);
-      await loadAutresReportRows(studentSelectedSessionId, setStudentAutresReportRowsDb);
-    }
-
-const nextCompletion = { ...studentCompletion, autres: true };
-setStudentCompletion(nextCompletion);
-saveStudentDraftSnapshot({ completion: { autres: true } });
-setAutresMessage("Questionnaire autres consommations enregistré.");
-    window.alert(
-      "Questionnaires terminés. Vous pouvez passer à l'analyse si le professeur l'a autorisée."
-    );
   }
 
   function toggleBoisson(value: string) {
@@ -7591,9 +7683,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 <button
                   style={studentCompletion.transport ? styles.secondaryButton : styles.primaryButton}
                   onClick={handleSaveTransport}
-                  disabled={studentCompletion.transport}
+                  disabled={studentCompletion.transport || studentSavingQuestionnaire === "transport"}
                 >
-                  {studentCompletion.transport ? "Transport validé ✓" : "Valider transport"}
+                  {studentSavingQuestionnaire === "transport" ? (
+                    <LoadingSpinner label={lang === "en" ? "Saving..." : "Enregistrement..."} />
+                  ) : studentCompletion.transport ? "Transport validé ✓" : "Valider transport"}
                 </button>
                 <button style={styles.secondaryButton} onClick={() => setScreen("student_login")}>
                   Retour
@@ -7837,9 +7931,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 <button
   style={studentCompletion.dejeuner ? styles.secondaryButton : styles.primaryButton}
   onClick={handleSaveDejeuner}
-  disabled={studentCompletion.dejeuner}
+  disabled={studentCompletion.dejeuner || studentSavingQuestionnaire === "dejeuner"}
 >
-  {studentCompletion.dejeuner ? "Déjeuner validé ✓" : "Valider déjeuner"}
+  {studentSavingQuestionnaire === "dejeuner" ? (
+    <LoadingSpinner label={lang === "en" ? "Saving..." : "Enregistrement..."} />
+  ) : studentCompletion.dejeuner ? "Déjeuner validé ✓" : "Valider déjeuner"}
 </button>
                 <button style={styles.secondaryButton} onClick={() => goToStudentQuestionnaire("transport")}>
                   Retour transport
@@ -8011,9 +8107,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 <button
   style={studentCompletion.equipement ? styles.secondaryButton : styles.primaryButton}
   onClick={handleSaveEquipement}
-  disabled={studentCompletion.equipement}
+  disabled={studentCompletion.equipement || studentSavingQuestionnaire === "equipement"}
 >
-  {studentCompletion.equipement ? "Équipement validé ✓" : "Valider équipement"}
+  {studentSavingQuestionnaire === "equipement" ? (
+    <LoadingSpinner label={lang === "en" ? "Saving..." : "Enregistrement..."} />
+  ) : studentCompletion.equipement ? "Équipement validé ✓" : "Valider équipement"}
 </button>
                 <button style={styles.secondaryButton} onClick={() => goToStudentQuestionnaire("dejeuner")}>
                   Retour déjeuner
@@ -8150,9 +8248,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 <button
                   style={studentCompletion.autres ? styles.secondaryButton : styles.primaryButton}
                   onClick={handleSaveAutres}
-                  disabled={studentCompletion.autres}
+                  disabled={studentCompletion.autres || studentSavingQuestionnaire === "autres"}
                 >
-                  {studentCompletion.autres ? "Autres consommations validé ✓" : "Valider autres consommations"}
+                  {studentSavingQuestionnaire === "autres" ? (
+                    <LoadingSpinner label={lang === "en" ? "Saving..." : "Enregistrement..."} />
+                  ) : studentCompletion.autres ? "Autres consommations validé ✓" : "Valider autres consommations"}
                 </button>
                 <button style={styles.secondaryButton} onClick={() => goToStudentQuestionnaire("equipement")}>
                   Retour équipement
@@ -9543,6 +9643,27 @@ if (screen === "student_vote") {
 
               {teacherSessionTab === "counts" && (
                 <>
+                  <div style={styles.countsToolbar}>
+                    <div style={styles.countsRefreshInfo}>
+                      {countsLoading ? (
+                        <LoadingSpinner tone="dark" label={lang === "en" ? "Updating..." : "Actualisation..."} />
+                      ) : (
+                        lang === "en" ? "Automatic refresh every 3 seconds" : "Actualisation automatique toutes les 3 secondes"
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      style={styles.secondaryButton}
+                      onClick={() => {
+                        if (selectedSessionId) {
+                          void loadSessionCounts(selectedSessionId, { showLoading: true });
+                        }
+                      }}
+                    >
+                      {lang === "en" ? "Refresh" : "Actualiser"}
+                    </button>
+                  </div>
+
                   <div style={styles.statsGrid}>
                     <div style={styles.statCard}>
                       <div style={styles.statLabel}>Transport</div>
@@ -11128,6 +11249,48 @@ panelTitle: {
     display: "flex",
     justifyContent: "flex-end",
     marginTop: 24,
+  },
+
+  loadingInline: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    lineHeight: 1,
+    whiteSpace: "nowrap" as const,
+  },
+
+  spinnerIcon: {
+    width: 16,
+    height: 16,
+    borderRadius: 999,
+    border: "2px solid rgba(255,255,255,0.55)",
+    borderTopColor: "#ffffff",
+    animation: "carbon-app-spin 0.75s linear infinite",
+    display: "inline-block",
+    flex: "0 0 auto",
+  },
+
+  countsToolbar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 14,
+    flexWrap: "wrap" as const,
+  },
+
+  countsRefreshInfo: {
+    display: "inline-flex",
+    alignItems: "center",
+    minHeight: 38,
+    padding: "8px 12px",
+    borderRadius: 999,
+    background: "#e2e8f0",
+    border: "1px solid #cbd5e1",
+    color: "#334155",
+    fontSize: 13,
+    fontWeight: 800,
   },
 
   column: {
