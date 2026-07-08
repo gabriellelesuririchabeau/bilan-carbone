@@ -6635,10 +6635,10 @@ if (screen === "home") {
 </div>
 
           </div>
+          <div style={styles.landingLanguageDock}>
+            <LanguageToggle lang={lang} setLang={setLang} />
+          </div>
         </div>
-      </div>
-      <div style={styles.landingLanguageDock}>
-        <LanguageToggle lang={lang} setLang={setLang} />
       </div>
     </div>
   );
@@ -6690,9 +6690,10 @@ if (screen === "teacher_login") {
   </div>
 </form>
         {!!message && <div style={styles.infoMessage}>{message}</div>}
-      </div>
-      <div style={styles.authLanguageDock}>
-        <LanguageToggle lang={lang} setLang={setLang} />
+
+        <div style={styles.authLanguageDock}>
+          <LanguageToggle lang={lang} setLang={setLang} />
+        </div>
       </div>
     </div>
   );
@@ -6731,6 +6732,10 @@ if (screen === "student_login") {
         </div>
 
         {!!message && <div style={styles.infoMessage}>{message}</div>}
+
+        <div style={styles.authLanguageDock}>
+          <LanguageToggle lang={lang} setLang={setLang} />
+        </div>
       </div>
     </div>
   );
@@ -10065,14 +10070,14 @@ panelTitle: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "24px 24px 86px 24px",
+    padding: 24,
     fontFamily: "Arial, sans-serif",
     boxSizing: "border-box" as const,
   },
 
   landingShell: {
     width: "calc(100vw - 48px)",
-    height: "calc(100vh - 110px)",
+    height: "calc(100vh - 48px)",
     display: "grid",
     gridTemplateColumns: "1.35fr 0.95fr",
     borderRadius: 24,
@@ -10094,12 +10099,13 @@ panelTitle: {
   },
 
   landingPanel: {
+    position: "relative",
     background: "#343741",
     color: "#ffffff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: 40,
+    padding: "40px 40px 104px",
   },
 
   landingPanelInner: {
@@ -10175,17 +10181,17 @@ panelTitle: {
   landingLanguageDock: {
     position: "absolute",
     left: "50%",
-    bottom: 26,
+    bottom: 24,
     transform: "translateX(-50%)",
     zIndex: 20,
   },
 
   authLanguageDock: {
-    position: "absolute",
-    left: "50%",
-    bottom: 26,
-    transform: "translateX(-50%)",
-    zIndex: 20,
+    width: "100%",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 4,
   },
 
   languageToggle: {
@@ -10193,7 +10199,7 @@ panelTitle: {
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
-    padding: "8px 12px",
+    padding: "8px 10px",
     borderRadius: 999,
     background: "rgba(255,255,255,0.92)",
     boxShadow: "0 10px 24px rgba(15,23,42,0.16)",
@@ -10209,13 +10215,13 @@ panelTitle: {
   },
 
   languageFlagButton: {
-    width: 38,
-    height: 38,
+    width: 52,
+    height: 40,
     border: "1px solid rgba(15,23,42,0.12)",
     borderRadius: 999,
     background: "rgba(255,255,255,0.78)",
     cursor: "pointer",
-    fontSize: 20,
+    fontSize: 24,
     lineHeight: 1,
     display: "inline-flex",
     alignItems: "center",
@@ -10224,13 +10230,13 @@ panelTitle: {
   },
 
   languageFlagButtonActive: {
-    width: 38,
-    height: 38,
+    width: 52,
+    height: 40,
     border: "2px solid #ef7d32",
     borderRadius: 999,
     background: "#ffffff",
     cursor: "pointer",
-    fontSize: 20,
+    fontSize: 24,
     lineHeight: 1,
     display: "inline-flex",
     alignItems: "center",
@@ -10254,11 +10260,12 @@ panelTitle: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "24px 24px 86px 24px",
+    padding: 24,
     fontFamily: "Arial, sans-serif",
   },
 
   authCard: {
+    position: "relative",
     width: 680,
     maxWidth: "100%",
     background: "#ffffff",
