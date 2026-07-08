@@ -158,6 +158,582 @@ function t(lang: Lang, key: TranslationKey) {
   return I18N[lang]?.[key] ?? I18N.fr[key];
 }
 
+
+const DISPLAY_TRANSLATIONS_EN: Record<string, string> = {
+  "Bilan carbone de la séance de cours": "Carbon footprint of the class session",
+  "BILAN CARBONE DE LA SÉANCE DE COURS": "CARBON FOOTPRINT OF THE CLASS SESSION",
+  "Activité pédagogique développée par G. Lesur-Irichabeau & J. Hanoteau": "Educational activity developed by G. Lesur-Irichabeau & J. Hanoteau",
+  "Choisissez votre profil pour accéder à l'application.": "Choose your profile to access the application.",
+  "Étudiant": "Student",
+  "Professeur": "Teacher",
+  "Administrateur": "Administrator",
+  "Administration": "Administration",
+  "Connexion étudiant": "Student login",
+  "Connexion professeur": "Teacher login",
+  "Connexion administrateur": "Administrator login",
+  "Adresse e-mail": "Email address",
+  "Mot de passe": "Password",
+  "Code session": "Session code",
+  "Se connecter": "Sign in",
+  "Entrer": "Enter",
+  "Retour": "Back",
+  "Déconnexion": "Log out",
+  "Mise en œuvre": "Implementation",
+  "Collecte des données": "Data collection",
+  "Analyses": "Analysis",
+  "Analyse": "Analysis",
+  "Vote": "Vote",
+  "Synthèse": "Summary",
+  "Bilans": "Reports",
+  "Session ouverte": "Open session",
+  "Sessions": "Sessions",
+  "Professeurs": "Teachers",
+  "Accès professeur": "Teacher access",
+  "Code": "Code",
+  "Code session actif": "Active session code",
+  "Code session actif :": "Active session code:",
+  "Code session :": "Session code:",
+  "Code généré :": "Generated code:",
+  "Code :": "Code:",
+  "ID :": "ID:",
+  "Mail :": "Email:",
+  "Email professeur": "Teacher email",
+  "Nom professeur": "Teacher name",
+  "Chaque étudiant d'une même classe répond individuellement aux questionnaires.": "Each student in the class answers the questionnaires individually.",
+  "Chaque groupe se voit attribuer une thématique. Vous accédez ensuite aux données à reporter.": "Each group is assigned a theme. You then access the data to report.",
+  "Une fois le bilan établi, vous proposerez des pistes d'amélioration discutées en classe.": "Once the carbon footprint has been calculated, you will suggest improvement ideas to discuss in class.",
+  "Ces pistes d'amélioration seront ensuite résumées et soumises au vote.": "These improvement ideas will then be summarized and submitted to a vote.",
+  "Une synthèse permettra de comparer les résultats entre les thématiques.": "A summary will allow you to compare results across themes.",
+  "Commencer la collecte": "Start data collection",
+  "L'accès à l'analyse n'a pas encore été autorisé par le professeur.": "Access to the analysis has not yet been authorized by the teacher.",
+  "L'accès au vote n'a pas encore été autorisé par le professeur.": "Access to the vote has not yet been authorized by the teacher.",
+  "L'accès à la synthèse n'a pas encore été autorisé par le professeur.": "Access to the summary has not yet been authorized by the teacher.",
+  "Questionnaire suivant": "Next questionnaire",
+  "Réinitialiser ce questionnaire": "Reset this questionnaire",
+  "Retour transport": "Back to transport",
+  "Retour déjeuner": "Back to lunch",
+  "Retour équipement": "Back to equipment",
+  "Transport validé ✓": "Transport validated ✓",
+  "Déjeuner validé ✓": "Lunch validated ✓",
+  "Équipement validé ✓": "Equipment validated ✓",
+  "Autres consommations validé ✓": "Other consumption validated ✓",
+  "Valider transport": "Validate transport",
+  "Valider déjeuner": "Validate lunch",
+  "Valider équipement": "Validate equipment",
+  "Valider autres consommations": "Validate other consumption",
+  "Transport": "Transport",
+  "Déjeuner": "Lunch",
+  "Équipement": "Equipment",
+  "Autres consommations": "Other consumption",
+  "Salle de cours": "Classroom",
+  "salle de cours": "classroom",
+  "autres consommations": "other consumption",
+  "déjeuner": "lunch",
+  "équipement": "equipment",
+  "transport": "transport",
+  "Trajet": "Trip",
+  "Trajet ": "Trip ",
+  "Moyen de transport": "Mode of transport",
+  "Sélectionner": "Select",
+  "Distance parcourue (km)": "Distance travelled (km)",
+  "Distance cumulée (km)": "Cumulative distance (km)",
+  "Distance totale (km)": "Total distance (km)",
+  "Type de voiture": "Car type",
+  "Nombre de personnes dans la voiture": "Number of people in the car",
+  "Nombre de personnes": "Number of people",
+  "Supprimer ce trajet": "Delete this trip",
+  "Ajouter un trajet": "Add a trip",
+  "Pour la voiture, la comptabilisation du nombre de personnes se fait au prorata : 0,5 si un passager en plus du conducteur, 0,33 si deux passagers, etc.": "For cars, the number of people is counted proportionally: 0.5 if there is one passenger in addition to the driver, 0.33 if there are two passengers, and so on.",
+  "Pour la voiture, si plusieurs passagers sont présents, la comptabilisation se fait au prorata : 0,5 personne si un passager en plus du conducteur, 0,33 si deux passagers, etc.": "For cars, when several passengers are present, the count is proportional: 0.5 person with one passenger in addition to the driver, 0.33 with two passengers, and so on.",
+  "Plat principal": "Main dish",
+  "Sandwich": "Sandwich",
+  "Quiche / pizza": "Quiche / pizza",
+  "Quiche/Pizza": "Quiche/Pizza",
+  "Plat de pâtes": "Pasta dish",
+  "Salade composée": "Mixed salad",
+  "Protéines": "Proteins",
+  "Viande rouge": "Red meat",
+  "Viande blanche": "White meat",
+  "Poisson": "Fish",
+  "Œufs": "Eggs",
+  "Oeufs": "Eggs",
+  "Accompagnements": "Side dishes",
+  "Accompagnement": "Side dish",
+  "Desserts et fruits": "Desserts and fruit",
+  "Fruit local": "Local fruit",
+  "Fruit importé": "Imported fruit",
+  "Fruits locaux": "Local fruit",
+  "Fruits importés": "Imported fruit",
+  "Laitage": "Dairy product",
+  "Dessert": "Dessert",
+  "Boissons": "Drinks",
+  "Grignotage": "Snacks",
+  "Kebab": "Kebab",
+  "Hamburger": "Hamburger",
+  "Sandwich Jambon-beurre": "Ham and butter sandwich",
+  "Sandwich Fromage": "Cheese sandwich",
+  "Sandwich poisson crudités": "Fish and raw vegetables sandwich",
+  "Sandwich Poisson crudités": "Fish and raw vegetables sandwich",
+  "Sandwich Thon crudités": "Tuna and raw vegetables sandwich",
+  "Sandwich Crudités": "Raw vegetables sandwich",
+  "Panini": "Panini",
+  "Quiche": "Quiche",
+  "Pizza": "Pizza",
+  "Spaghetti bolognaise": "Spaghetti Bolognese",
+  "Lasagnes": "Lasagna",
+  "Tagliatelles carbonara": "Tagliatelle carbonara",
+  "Salade de pommes de terre": "Potato salad",
+  "Salade niçoise": "Niçoise salad",
+  "Salade Thon crudités": "Tuna and raw vegetables salad",
+  "Salade de riz": "Rice salad",
+  "Salade de pâtes": "Pasta salad",
+  "Bœuf": "Beef",
+  "Boeuf": "Beef",
+  "Agneau": "Lamb",
+  "Porc": "Pork",
+  "Volaille": "Poultry",
+  "Poulet": "Chicken",
+  "Œufs (omelette)": "Eggs (omelet)",
+  "Oeufs (omelette)": "Eggs (omelet)",
+  "Frites / chips": "Fries / crisps",
+  "Légumes": "Vegetables",
+  "Salade": "Salad",
+  "Pâtes": "Pasta",
+  "Riz": "Rice",
+  "Eau du robinet": "Tap water",
+  "Eau bouteille": "Bottled water",
+  "Soda": "Soda",
+  "Café": "Coffee",
+  "café": "coffee",
+  "Thé": "Tea",
+  "thé": "tea",
+  "Chocolat au lait (boisson)": "Milk chocolate drink",
+  "Chocolat au lait": "Milk chocolate",
+  "Chocolat chaud": "Hot chocolate",
+  "Glace": "Ice cream",
+  "Pâtisserie": "Pastry",
+  "Pomme": "Apple",
+  "Raisin": "Grapes",
+  "Poire": "Pear",
+  "Banane": "Banana",
+  "Ananas": "Pineapple",
+  "Mangue": "Mango",
+  "Barre chocolatée": "Chocolate bar",
+  "Barres chocolatées": "Chocolate bars",
+  "Viennoiseries": "Pastries",
+  "Biscuits": "Biscuits",
+  "Bonbons": "Sweets",
+  "Chips": "Crisps",
+  "Équipements utilisés": "Equipment used",
+  "Matériel": "Equipment",
+  "Activité": "Activity",
+  "Ordinateur portable": "Laptop",
+  "Ordinateur de bureau": "Desktop computer",
+  "Ordinateur portable et ordinateur de bureau et/ou tablette": "Laptop and desktop computer and/or tablet",
+  "Tablette": "Tablet",
+  "Smartphone": "Smartphone",
+  "Papeterie": "Stationery",
+  "Nombre d'emails envoyés sans pièce jointe": "Number of emails sent without attachment",
+  "Nombre d'emails envoyés avec pièce jointe": "Number of emails sent with attachment",
+  "Email sans PJ": "Email without attachment",
+  "Email avec PJ": "Email with attachment",
+  "Réseaux sociaux": "Social media",
+  "Utilisation de l’IA": "Use of AI",
+  "Temps pour préparer le cours": "Time to prepare the class",
+  "Temps pendant le cours": "Time during class",
+  "Marche à pied": "Walking",
+  "Bus": "Bus",
+  "Métro, tramway, train": "Metro, tramway, train",
+  "Trottinette électrique": "Electric scooter",
+  "Vélo": "Bike",
+  "Vélo électrique": "Electric bike",
+  "2 roues thermique": "Petrol two-wheeler",
+  "Voiture électrique": "Electric car",
+  "Voiture hybride": "Hybrid car",
+  "Voiture diesel": "Diesel car",
+  "Voiture essence": "Petrol car",
+  "Données à reporter": "Data to report",
+  "Report des données": "Data report",
+  "Visualiser le bilan carbone": "View carbon footprint",
+  "Bilan carbone": "Carbon footprint",
+  "Bilan carbone ": "Carbon footprint ",
+  "Analyse - Groupe": "Analysis - Group",
+  "Consultation en lecture seule du report saisi par les étudiants.": "Read-only view of the report entered by students.",
+  "Consultez les données utiles à votre thématique puis renseignez le tableau de report correspondant.": "Review the data relevant to your theme, then fill in the corresponding reporting table.",
+  "Thématique attribuée :": "Assigned theme:",
+  "Accès limité au groupe": "Access limited to group",
+  "Groupe assigné :": "Assigned group:",
+  "Étudiant :": "Student:",
+  "Élément": "Item",
+  "Sous-catégorie": "Subcategory",
+  "Quantité": "Quantity",
+  "Facteur": "Factor",
+  "Total": "Total",
+  "Total émissions": "Total emissions",
+  "Total émissions :": "Total emissions:",
+  "Total du tableau :": "Table total:",
+  "Nombre de répondants": "Number of respondents",
+  "Moyenne par thématique": "Average by theme",
+  "Aucune donnée carbone à visualiser pour le moment.": "No carbon data to visualize yet.",
+  "Aucune donnée disponible.": "No data available.",
+  "Aucune donnée disponible pour la synthèse.": "No data available for the summary.",
+  "Le tableau de calcul de cette thématique reste à implémenter.": "The calculation table for this theme still needs to be implemented.",
+  "Aucune donnée à reporter pour le moment. Les réponses transport validées apparaîtront ici automatiquement.": "No data to report yet. Validated transport responses will appear here automatically.",
+  "Aucune donnée déjeuner à reporter pour le moment. Les réponses déjeuner validées apparaîtront ici automatiquement.": "No lunch data to report yet. Validated lunch responses will appear here automatically.",
+  "Aucune donnée équipement à reporter pour le moment. Les réponses équipement validées apparaîtront ici automatiquement.": "No equipment data to report yet. Validated equipment responses will appear here automatically.",
+  "Aucune donnée autres consommations à reporter pour le moment. Les réponses validées apparaîtront ici automatiquement.": "No other-consumption data to report yet. Validated responses will appear here automatically.",
+  "Propositions": "Proposals",
+  "Modifier les propositions": "Edit proposals",
+  "Valider les propositions": "Validate proposals",
+  "Propositions du groupe": "Group proposals",
+  "Proposition 1": "Proposal 1",
+  "Proposition 2": "Proposal 2",
+  "Proposition 3": "Proposal 3",
+  "Aucun choix": "No choice",
+  "Proposition introuvable": "Proposal not found",
+  "Propositions à soumettre au vote": "Proposals to submit to the vote",
+  "Propositions actuellement soumises au vote": "Proposals currently submitted to the vote",
+  "Aperçu avant soumission": "Preview before submission",
+  "Prévisualiser les propositions collées": "Preview pasted proposals",
+  "Soumettre ces propositions au vote": "Submit these proposals to the vote",
+  "Soumission en cours...": "Submitting...",
+  "Résultats des votes": "Vote results",
+  "Retour aux propositions": "Back to proposals",
+  "Soumettez d’abord les propositions au vote pour voir les résultats.": "Submit the proposals to the vote first to see the results.",
+  "Aucune proposition n’a encore été soumise au vote.": "No proposal has been submitted to the vote yet.",
+  "Aucune proposition consolidée n'est encore disponible.": "No consolidated proposal is available yet.",
+  "Aucun vote enregistré pour le moment.": "No vote recorded yet.",
+  "Vote étudiant": "Student vote",
+  "Mes choix": "My choices",
+  "Choix 1": "Choice 1",
+  "Choix 2": "Choice 2",
+  "Choix 3": "Choice 3",
+  "Choix 1 :": "Choice 1:",
+  "Choix 2 :": "Choice 2:",
+  "Choix 3 :": "Choice 3:",
+  "Effacer choix 1": "Clear choice 1",
+  "Effacer choix 2": "Clear choice 2",
+  "Effacer choix 3": "Clear choice 3",
+  "Valider mon vote": "Submit my vote",
+  "Mettre à jour mon vote": "Update my vote",
+  "Vote soumis": "Vote submitted",
+  "Modifications non soumises": "Changes not submitted",
+  "Le vote n'est pas encore accessible. Attendez l'autorisation du professeur.": "The vote is not yet available. Wait for the teacher's authorization.",
+  "Sélectionnez jusqu’à 3 propositions par ordre de priorité.": "Select up to 3 proposals in order of priority.",
+  "Télécharger le fichier .txt à soumettre à l’IA": "Download the .txt file to submit to the AI",
+  "Soumission en cours.": "Submitting.",
+  "1. Téléchargez le fichier .txt à soumettre à l’IA. 2. Faites générer par l’IA une liste numérotée, avec une seule proposition par ligne. 3. Copiez-collez la réponse de l’IA dans la zone ci-dessous. 4. Prévisualisez les propositions puis soumettez-les au vote.": "1. Download the .txt file to submit to the AI. 2. Ask the AI to generate a numbered list, with one proposal per line. 3. Copy and paste the AI response into the area below. 4. Preview the proposals, then submit them to the vote.",
+  "Collez ici la réponse de l’IA, par exemple : 1. Réduire l’usage de la voiture individuelle 2. Installer plus d’options végétariennes 3. Encourager le covoiturage entre étudiants": "Paste the AI response here, for example: 1. Reduce the use of private cars 2. Install more vegetarian options 3. Encourage carpooling between students",
+  "Compteur de réponses": "Response counter",
+  "Utilisateurs": "Users",
+  "Utilisateurs autorisés": "Authorized users",
+  "Gestion des sessions": "Session management",
+  "Paramètres de la session": "Session settings",
+  "PARAMÉTRER LA SESSION": "SET UP THE SESSION",
+  "Session active": "Active session",
+  "Session sélectionnée": "Selected session",
+  "Aucune session sélectionnée": "No session selected",
+  "Aucune session sélectionnée.": "No session selected.",
+  "Toutes les sessions": "All sessions",
+  "Filtrer les sessions": "Filter sessions",
+  "Filtrer par nom ou email professeur": "Filter by teacher name or email",
+  "Mes sessions": "My sessions",
+  "Aucune session créée pour le moment.": "No session created yet.",
+  "Aucune session trouvée.": "No session found.",
+  "Ouvrir": "Open",
+  "Supprimer": "Delete",
+  "Créer une session": "Create a session",
+  "Créer la session": "Create session",
+  "Nom de la session": "Session name",
+  "Campus": "Campus",
+  "Programme": "Program",
+  "Niveau": "Level",
+  "Autre programme": "Other program",
+  "Sélectionner un campus": "Select a campus",
+  "Sélectionner un programme": "Select a program",
+  "Ex. 1, 2, 3...": "E.g. 1, 2, 3...",
+  "Ex. SECTION 1 ou 210426": "E.g. SECTION 1 or 210426",
+  "Méthode d'assignation": "Assignment method",
+  "Assignation prédéfinie": "Predefined assignment",
+  "Assignation aléatoire": "Random assignment",
+  "Étudiants à répartir aléatoirement": "Students to assign randomly",
+  "Liste avec assignation prédéfinie": "List with predefined assignment",
+  "Aperçu de l'assignation validée :": "Validated assignment preview:",
+  "Valider l'assignation aléatoire": "Validate random assignment",
+  "Exporter l'assignation": "Export assignment",
+  "Enregistrer": "Save",
+  "Modifier les paramètres": "Edit settings",
+  "Aucune assignation trouvée pour cette session.": "No assignment found for this session.",
+  "Aucune assignation valide détectée.": "No valid assignment detected.",
+  "Validez l'assignation aléatoire pour afficher le tableau avant export.": "Validate the random assignment to display the table before export.",
+  "assignation(s) valide(s) détectée(s).": "valid assignment(s) detected.",
+  "étudiant(s) valide(s) détecté(s) avant répartition.": "valid student(s) detected before assignment.",
+  "étudiant(s) réparti(s).": "student(s) assigned.",
+  "Ajouter un étudiant": "Add a student",
+  "Ajouter l'étudiant": "Add student",
+  "Rechercher par nom, prénom, groupe ou email...": "Search by last name, first name, group or email...",
+  "email;prenom;nom;groupe etudiant1@exemple.com;Marie;Durand;1": "email;first_name;last_name;group student1@example.com;Marie;Durand;1",
+  "email;prenom;nom etudiant1@exemple.com;Marie;Durand etudiant2@exemple.com;Lucas;Martin": "email;first_name;last_name student1@example.com;Marie;Durand student2@example.com;Lucas;Martin",
+  "Gestion des professeurs et des sessions · connecté en": "Teacher and session management · connected as",
+  "Créer un professeur": "Create a teacher",
+  "Créer directement un compte professeur avec nom, email et mot de passe.": "Create a teacher account directly with name, email and password.",
+  "Créez directement un compte professeur avec nom, email et mot de passe.": "Create a teacher account directly with name, email and password.",
+  "Ajouter un professeur": "Add a teacher",
+  "Création en cours...": "Creating...",
+  "Modifier un professeur": "Edit a teacher",
+  "Nom du professeur": "Teacher name",
+  "Email du professeur": "Teacher email",
+  "Mot de passe temporaire": "Temporary password",
+  "Recherche": "Search",
+  "Rechercher un professeur par nom ou par email.": "Search for a teacher by name or email.",
+  "Rechercher par nom ou email": "Search by name or email",
+  "Aucun professeur trouvé.": "No teacher found.",
+  "Actions": "Actions",
+  "Actions ▾": "Actions ▾",
+  "Statut": "Status",
+  "Rôle": "Role",
+  "Modifier": "Edit",
+  "Annuler": "Cancel",
+  "Enregistrer les modifications": "Save changes",
+  "Désactiver": "Deactivate",
+  "Réactiver": "Reactivate",
+  "Passer admin": "Make admin",
+  "Repasser prof": "Switch back to teacher",
+  "Nom non renseigné": "Name not provided",
+  "L'adresse mail est obligatoire.": "Email address is required.",
+  "Le code session est obligatoire.": "Session code is required.",
+  "Mail et code session requis.": "Email and session code are required.",
+  "Code session invalide, email non autorisé ou email non assigné à un groupe pour cette session.": "Invalid session code, unauthorized email, or email not assigned to a group for this session.",
+  "Session introuvable ou fermée pour ce code.": "Session not found or closed for this code.",
+  "Email non assigné à un groupe pour cette session.": "Email not assigned to a group for this session.",
+  "Accès limité au groupe ": "Access limited to group ",
+  "Redirection automatique vers votre groupe.": "Automatic redirection to your group.",
+  "Redirection automatique vers votre groupe": "Automatic redirection to your group",
+  ". Redirection automatique vers votre groupe.": ". Automatic redirection to your group.",
+  "Ouvre d'abord une session.": "Open a session first.",
+  "Session ou email étudiant manquant.": "Session or student email missing.",
+  "Sélectionnez au moins une proposition avant de valider.": "Select at least one proposal before validating.",
+  "Vous ne pouvez pas voter deux fois pour la même proposition.": "You cannot vote twice for the same proposal.",
+  "Cette proposition est déjà sélectionnée pour un autre rang.": "This proposal is already selected for another rank.",
+  "Vote enregistré.": "Vote saved.",
+  "Ajoutez au moins une proposition avant de valider.": "Add at least one proposal before validating.",
+  "Évitez les propositions en doublon.": "Avoid duplicate proposals.",
+  "Propositions soumises au vote avec succès.": "Proposals successfully submitted to the vote.",
+  "Aucune proposition importée à soumettre.": "No imported proposal to submit.",
+  "Aucune proposition valide détectée dans le texte collé.": "No valid proposal detected in the pasted text.",
+  "Aucune proposition validée à exporter.": "No validated proposal to export.",
+  "Des propositions consolidées existent déjà. Les remplacer ?": "Consolidated proposals already exist. Replace them?",
+  "Des propositions ou des votes existent déjà. Soumettre ces nouvelles propositions peut écraser l'existant et rendre les votes incohérents. Continuer ?": "Some proposals or votes already exist. Submitting these new proposals may overwrite existing data and make votes inconsistent. Continue?",
+  "Voulez-vous réactiver la modification des propositions du groupe": "Do you want to reactivate proposal editing for group",
+  "Voulez-vous supprimer la session": "Do you want to delete session",
+  "Voulez-vous vraiment supprimer ce trajet ?": "Do you really want to delete this trip?",
+  "⚠️ Voulez-vous vraiment réinitialiser ce questionnaire ?": "⚠️ Do you really want to reset this questionnaire?",
+  "Supprimer définitivement ce professeur ?": "Permanently delete this teacher?",
+  "Vous devez d'abord valider le questionnaire précédent.": "You must validate the previous questionnaire first.",
+  "Vous devez être connecté en admin.": "You must be logged in as admin.",
+  "Ce compte n'a pas les droits administrateur.": "This account does not have administrator rights.",
+  "Accès refusé : vous n'avez pas les droits administrateur.": "Access denied: you do not have administrator rights.",
+  "Interface administrateur ouverte.": "Administrator interface opened.",
+  "Connexion refusée.": "Login refused.",
+  "Connexion administrateur réussie.": "Administrator login successful.",
+  "Connexion professeur réussie.": "Teacher login successful.",
+  "Connexion professeur (admin) réussie.": "Teacher login (admin) successful.",
+  "Professeur non connecté.": "Teacher not connected.",
+  "Tous les champs sont obligatoires pour créer une session.": "All fields are required to create a session.",
+  "Session créée :": "Session created:",
+  "Session ouverte :": "Open session:",
+  "Session supprimée :": "Session deleted:",
+  "Paramètres enregistrés pour": "Settings saved for",
+  "Paramètres enregistrés, mais erreur assignations :": "Settings saved, but assignment error:",
+  "Paramètres enregistrés, mais erreur suppression assignations :": "Settings saved, but assignment deletion error:",
+  "Aucune assignation à exporter.": "No assignment to export.",
+  "Validez d'abord l'assignation aléatoire avant d'enregistrer.": "Validate the random assignment before saving.",
+  "Aucune assignation valide détectée. Vérifiez le format : email;prenom;nom;groupe.": "No valid assignment detected. Check the format: email;first_name;last_name;group.",
+  "Aucun étudiant valide à répartir. Format attendu : email;prenom;nom.": "No valid student to assign. Expected format: email;first_name;last_name.",
+  "Assignation aléatoire validée. Vous pouvez maintenant l'exporter ou l'enregistrer.": "Random assignment validated. You can now export or save it.",
+  "Ajout impossible : l'email de l'étudiant est obligatoire.": "Cannot add: student email is required.",
+  "Ajout impossible : prénom et nom sont obligatoires.": "Cannot add: first name and last name are required.",
+  "Cet étudiant est déjà présent dans l'assignation.": "This student is already present in the assignment.",
+  "Ajout impossible : le groupe doit être compris entre 1 et 10.": "Cannot add: group must be between 1 and 10.",
+  "Étudiant ajouté au groupe": "Student added to group",
+  "Pensez à enregistrer les paramètres.": "Remember to save the settings.",
+  "Nom, email et mot de passe obligatoires.": "Name, email and password are required.",
+  "Nom et email obligatoires pour la modification.": "Name and email are required to edit.",
+  "Professeur créé avec succès :": "Teacher successfully created:",
+  "Professeur modifié.": "Teacher updated.",
+  "Professeur supprimé.": "Teacher deleted.",
+  "Erreur réseau": "Network error",
+  "Erreur": "Error",
+  "Erreur chargement": "Loading error",
+  "Erreur sauvegarde": "Save error",
+  "Erreur création professeur :": "Teacher creation error:",
+  "Erreur modification professeur :": "Teacher update error:",
+  "Erreur suppression professeur :": "Teacher deletion error:",
+  "Erreur désactivation professeur :": "Teacher deactivation error:",
+  "Erreur réactivation professeur :": "Teacher reactivation error:",
+  "Erreur promotion admin :": "Admin promotion error:",
+  "Erreur retour au rôle professeur :": "Error switching back to teacher role:",
+  "Erreur enregistrement votes :": "Vote saving error:",
+  "Erreur soumission propositions :": "Proposal submission error:",
+  "Erreur sauvegarde propositions :": "Proposal saving error:",
+  "Erreur chargement propositions :": "Proposal loading error:",
+  "Erreur chargement résultats vote :": "Vote results loading error:",
+  "Erreur chargement votes étudiant :": "Student votes loading error:",
+  "Erreur mise à jour accès analyse :": "Analysis access update error:",
+  "Erreur mise à jour accès synthèse :": "Summary access update error:",
+  "Erreur mise à jour accès vote :": "Vote access update error:",
+  "Erreur suivi des réponses :": "Response tracking error:",
+  "Realtime Supabase indisponible pour group_reports. Vérifiez que la table est activée dans la publication supabase_realtime.": "Supabase Realtime unavailable for group_reports. Check that the table is enabled in the supabase_realtime publication.",
+  "Realtime Supabase indisponible pour responses_transport. Vérifiez que la table est activée dans la publication supabase_realtime.": "Supabase Realtime unavailable for responses_transport. Check that the table is enabled in the supabase_realtime publication.",
+  "Le questionnaire transport a déjà été validé.": "The transport questionnaire has already been validated.",
+  "Le questionnaire déjeuner a déjà été validé.": "The lunch questionnaire has already been validated.",
+  "Le questionnaire équipement a déjà été validé.": "The equipment questionnaire has already been validated.",
+  "Le questionnaire autres consommations a déjà été validé.": "The other-consumption questionnaire has already been validated.",
+  "Ajoute au moins un trajet valide.": "Add at least one valid trip.",
+  "Indiquer la distance parcourue pour ce moyen de transport.": "Enter the distance travelled for this mode of transport.",
+  "Indiquer le type de voiture pour ce moyen de transport.": "Enter the car type for this mode of transport.",
+  "Questionnaire transport enregistré.": "Transport questionnaire saved.",
+  "Questionnaire déjeuner enregistré.": "Lunch questionnaire saved.",
+  "Questionnaire équipement enregistré.": "Equipment questionnaire saved.",
+  "Questionnaire autres consommations enregistré.": "Other-consumption questionnaire saved.",
+  "Questionnaires terminés. Vous pouvez passer à l'analyse si le professeur l'a autorisée.": "Questionnaires completed. You can move on to the analysis if the teacher has authorized it.",
+  "🔓 Analyse accessible aux étudiants": "🔓 Analysis accessible to students",
+  "🔒 Analyse non accessible aux étudiants": "🔒 Analysis not accessible to students",
+  "🔓 Synthèse accessible aux étudiants": "🔓 Summary accessible to students",
+  "🔒 Synthèse non accessible aux étudiants": "🔒 Summary not accessible to students",
+  "🔓 Vote accessible aux étudiants": "🔓 Vote accessible to students",
+  "🔒 Vote non accessible aux étudiants": "🔒 Vote not accessible to students",
+  "🥇 Résultat 1": "🥇 Result 1",
+  "🥈 Résultat 2": "🥈 Result 2",
+  "🥉 Résultat 3": "🥉 Result 3",
+  "Tu reçois une liste de propositions étudiantes classées par groupe.": "You receive a list of student proposals grouped by group.",
+  "Consignes impératives :": "Mandatory instructions:",
+  "- Conserver 1 idée = 1 proposition": "- Keep 1 idea = 1 proposal",
+  "- Proposer seulement 10 propositions": "- Propose only 10 proposals",
+  "- Ne jamais fusionner deux propositions différentes": "- Never merge two different proposals",
+  "- Ne jamais mettre plusieurs idées dans une seule ligne": "- Never put several ideas on a single line",
+  "- Regrouper des propositions si elles semblent proches ou sont du même type": "- Group proposals if they seem similar or are of the same type",
+  "- Ne pas inventer d'idée nouvelle": "- Do not invent any new idea",
+  "- Reformuler uniquement si nécessaire pour clarifier": "- Rephrase only if needed for clarity",
+  "- Si deux propositions sont vraiment identiques, tu peux n'en garder qu'une seule": "- If two proposals are truly identical, you may keep only one",
+  "- Produire une liste finale simple, claire, directement exploitable pour un vote": "- Produce a simple, clear final list that can be used directly for a vote",
+  "Format de sortie STRICT :": "STRICT output format:",
+  "- Texte brut uniquement": "- Plain text only",
+  "- Une seule proposition par ligne": "- One proposal per line",
+  "- Chaque ligne doit commencer par un numéro": "- Each line must start with a number",
+  "Exemple attendu :": "Expected example:",
+  "1. Réduire l'usage de la voiture individuelle": "1. Reduce the use of private cars",
+  "2. Installer plus d'options végétariennes": "2. Install more vegetarian options",
+  "3. Encourager le covoiturage entre étudiants": "3. Encourage carpooling between students",
+  "Interdictions :": "Forbidden:",
+  "- Pas de sous-points": "- No sub-points",
+  "- Pas de paragraphes": "- No paragraphs",
+  "- Pas de titres": "- No titles",
+  "- Pas de commentaire": "- No comments",
+  "- Pas de ligne du type '1. Proposition A / Proposition B / Proposition C'": "- No line such as '1. Proposal A / Proposal B / Proposal C'",
+  "Réponds uniquement avec la liste finale numérotée.": "Reply only with the final numbered list.",
+  "Réponds sous forme de texte brut compatible import.": "Reply as plain text compatible with import.",
+  "Une proposition par ligne numérotée.": "One numbered proposal per line.",
+  "# CONSOLIDATION DES PROPOSITIONS ÉTUDIANTES": "# CONSOLIDATION OF STUDENT PROPOSALS",
+  "## INSTRUCTIONS": "## INSTRUCTIONS",
+  "## DONNÉES DES GROUPES": "## GROUP DATA",
+  "## RAPPEL": "## REMINDER",
+  "Session créée": "Session created",
+  "Session supprimée": "Session deleted",
+  "Paramètres enregistrés": "Settings saved",
+  "Fichier de consolidation exporté": "Consolidation file exported",
+  "proposition(s) détectée(s)": "proposal(s) detected",
+  "Vérifiez-les puis cliquez sur": "Check them, then click",
+  "Modification réactivée pour le groupe": "Editing reactivated for group",
+  "validées": "validated",
+  "Groupe": "Group",
+  "Prénom": "First name",
+  "Nom": "Last name",
+  "Email": "Email",
+  "Session": "Session",
+  "Paris": "Paris",
+  "Marseille": "Marseille",
+  "Toulon": "Toulon",
+  "Bastia": "Bastia",
+  "Avignon": "Avignon",
+  "Dakar": "Dakar",
+  "Bayonne": "Bayonne",
+  "Bordeaux": "Bordeaux",
+  "Mont-de-Marsan": "Mont-de-Marsan",
+  "KEDGE Bachelor": "KEDGE Bachelor",
+  "Programme Grande École": "Programme Grande École"
+};
+
+const DISPLAY_TRANSLATION_ENTRIES = Object.entries(DISPLAY_TRANSLATIONS_EN).sort(
+  ([a], [b]) => b.length - a.length
+);
+
+let ACTIVE_DISPLAY_LANG: Lang = "fr";
+
+function normalizeDisplayText(value: string) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function preserveDisplaySpacing(original: string, translated: string) {
+  const leading = original.match(/^\s*/)?.[0] ?? "";
+  const trailing = original.match(/\s*$/)?.[0] ?? "";
+  return `${leading}${translated}${trailing}`;
+}
+
+function translateDisplayText(value: string) {
+  if (ACTIVE_DISPLAY_LANG !== "en") return value;
+
+  const normalized = normalizeDisplayText(value);
+  if (!normalized) return value;
+
+  const exact = DISPLAY_TRANSLATIONS_EN[normalized];
+  if (exact) return preserveDisplaySpacing(value, exact);
+
+  let translated = normalized;
+
+  for (const [fr, en] of DISPLAY_TRANSLATION_ENTRIES) {
+    if (fr.length < 4) continue;
+    if (translated.includes(fr)) {
+      translated = translated.split(fr).join(en);
+    }
+  }
+
+  return preserveDisplaySpacing(value, translated);
+}
+
+function translateReactTree(node: React.ReactNode): React.ReactNode {
+  if (typeof node === "string") return translateDisplayText(node);
+  if (typeof node === "number" || typeof node === "boolean" || node == null) return node;
+
+  if (Array.isArray(node)) {
+    return node.map((child, index) => (
+      <React.Fragment key={index}>{translateReactTree(child)}</React.Fragment>
+    ));
+  }
+
+  if (!React.isValidElement(node)) return node;
+
+  const props = node.props as Record<string, unknown>;
+  const nextProps: Record<string, unknown> = {};
+
+  (["placeholder", "title", "aria-label", "alt"] as const).forEach((propName) => {
+    const propValue = props[propName];
+    if (typeof propValue === "string") {
+      nextProps[propName] = translateDisplayText(propValue);
+    }
+  });
+
+  if (typeof props.children === "undefined") {
+    return React.cloneElement(node, nextProps);
+  }
+
+  return React.cloneElement(node, nextProps, translateReactTree(props.children as React.ReactNode));
+}
+
+function Translated({ children }: { children: React.ReactNode }) {
+  return <>{translateReactTree(children)}</>;
+}
+
 function getStoredLanguage(): Lang {
   try {
     const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
@@ -176,7 +752,7 @@ function LanguageToggle({
   setLang: React.Dispatch<React.SetStateAction<Lang>>;
   compact?: boolean;
 }) {
-  return (
+  return (<Translated>{(
     <div style={compact ? styles.languageToggleCompact : styles.languageToggle}>
       <button
         type="button"
@@ -197,7 +773,7 @@ function LanguageToggle({
         🇬🇧
       </button>
     </div>
-  );
+  )}</Translated>);
 }
 
 type TransportReportableRowRpc = {
@@ -726,7 +1302,7 @@ function renderSyntheseDashboard(
 ) {
   const maxAverage = Math.max(...items.map((item) => item.average), 0);
 
-  return (
+  return (<Translated>{(
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <div style={styles.syntheseGrid}>
         {items.map((item) => (
@@ -777,7 +1353,7 @@ function renderSyntheseDashboard(
         )}
       </div>
     </div>
-  );
+  )}</Translated>);
 }
 
 const CHART_COLORS = [
@@ -949,14 +1525,14 @@ function renderAssignmentsTable(assignments: StudentAssignmentDraft[], searchTex
     });
 
   if (!filteredAssignments.length) {
-    return (
+    return (<Translated>{(
       <div style={{ ...styles.emptyText, marginTop: 12 }}>
         Aucun étudiant ne correspond à la recherche.
       </div>
-    );
+    )}</Translated>);
   }
 
-  return (
+  return (<Translated>{(
     <div
       style={{
         maxHeight: 360,
@@ -989,7 +1565,7 @@ function renderAssignmentsTable(assignments: StudentAssignmentDraft[], searchTex
         </tbody>
       </table>
     </div>
-  );
+  )}</Translated>);
 }
 
 
@@ -1115,7 +1691,7 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
     setDraftValue(String(numericValue));
   }
 
-  return (
+  return (<Translated>{(
     <input
       type="number"
       min={min}
@@ -1142,7 +1718,7 @@ function DraftNumberInput({ value, style, min = 0, onCommit }: DraftNumberInputP
         }
       }}
     />
-  );
+  )}</Translated>);
 }
 
 type DejeunerStructureItem = {
@@ -1319,7 +1895,7 @@ function renderCarbonHistogram(title: string, rows: CarbonBarRow[]) {
   const maxTotal = Math.max(...filteredRows.map((row) => row.total), 0);
   const grandTotal = filteredRows.reduce((sum, row) => sum + row.total, 0);
 
-  return (
+  return (<Translated>{(
     <div style={styles.innerCardFull}>
       <h3 style={styles.innerTitle}>{title}</h3>
 
@@ -1433,7 +2009,7 @@ function renderCarbonHistogram(title: string, rows: CarbonBarRow[]) {
         </>
       )}
     </div>
-  );
+  )}</Translated>);
 }
 
 type StudentSidebarProps = {
@@ -1465,7 +2041,7 @@ function StudentSidebar({
   lang,
   setLang,
 }: StudentSidebarProps) {
-    return (
+    return (<Translated>{(
     <aside style={styles.sidebar}>
       <div style={styles.sidebarBrand}>
         <img src={kedgeLogo} alt="KEDGE Business School" style={styles.sidebarLogo} />
@@ -1572,7 +2148,7 @@ function StudentSidebar({
         </button>
       </div>
     </aside>
-  );
+  )}</Translated>);
 }
 
 type StudentQuestionnaireTabsProps = {
@@ -1597,7 +2173,7 @@ function StudentQuestionnaireTabs({
     return canAccess(target) ? styles.sidebarButton : styles.secondaryButton;
   };
 
-  return (
+  return (<Translated>{(
     <div style={styles.row}>
       <button style={buttonStyle("transport")} type="button" onClick={() => onNavigate("transport")}>
         {label("Transport", completion.transport)}
@@ -1612,12 +2188,13 @@ function StudentQuestionnaireTabs({
         {label(lang === "en" ? "Other consumption" : "Autres consommations", completion.autres)}
       </button>
     </div>
-  );
+  )}</Translated>);
 }
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [lang, setLang] = useState<Lang>(getStoredLanguage);
+  ACTIVE_DISPLAY_LANG = lang;
   const [isInitialSessionSetup, setIsInitialSessionSetup] = useState(false);
 
   useEffect(() => {
@@ -5429,7 +6006,7 @@ setAutresMessage("Questionnaire autres consommations enregistré.");
   }
 
   function renderTransportReportableBlock(rows: ReportableRow[], emptyText: string) {
-    return (
+    return (<Translated>{(
       <div style={styles.innerCardFull}>
         <h3 style={styles.innerTitle}>Données à reporter</h3>
 
@@ -5471,7 +6048,7 @@ setAutresMessage("Questionnaire autres consommations enregistré.");
           </div>
         )}
       </div>
-    );
+    )}</Translated>);
   }
 
 
@@ -5514,7 +6091,7 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
       .filter((group) => group.items.length > 0),
   })).filter((section) => section.groups.length > 0);
 
-  return (
+  return (<Translated>{(
     <div style={styles.innerCardFull}>
       <h3 style={styles.innerTitle}>Données à reporter</h3>
 
@@ -5598,7 +6175,7 @@ function renderDejeunerReportableBlock(rows: DejeunerReportableRowRpc[], emptyTe
         </div>
       )}
     </div>
-  );
+  )}</Translated>);
 }
 
 function renderEquipementReportableBlock(rows: EquipementReportableRowRpc[], emptyText: string) {
@@ -5643,7 +6220,7 @@ function renderEquipementReportableBlock(rows: EquipementReportableRowRpc[], emp
     return ia - ib;
   });
 
-  return (
+  return (<Translated>{(
     <div style={styles.innerCardFull}>
       <h3 style={styles.innerTitle}>Données à reporter</h3>
 
@@ -5703,7 +6280,7 @@ function renderEquipementReportableBlock(rows: EquipementReportableRowRpc[], emp
         </div>
       )}
     </div>
-  );
+  )}</Translated>);
 }
 
 function renderEquipementAnalysisTable(params: {
@@ -5741,7 +6318,7 @@ function renderEquipementAnalysisTable(params: {
     0
   );
 
-  return (
+  return (<Translated>{(
     <div style={styles.innerCardFull}>
       <h3 style={styles.innerTitle}>Analyse - Groupe {groupNumber}</h3>
       {readOnly ? (
@@ -5821,7 +6398,7 @@ function renderEquipementAnalysisTable(params: {
         </table>
       </div>
     </div>
-  );
+  )}</Translated>);
 }
 
 function renderDejeunerAnalysisTable(params: {
@@ -5872,7 +6449,7 @@ function renderDejeunerAnalysisTable(params: {
   let previousSection = "";
   let previousSubcategory = "";
 
-  return (
+  return (<Translated>{(
     <div style={styles.innerCardFull}>
       <h3 style={styles.innerTitle}>Analyse - Groupe {groupNumber}</h3>
       {readOnly ? (
@@ -5985,7 +6562,7 @@ function renderDejeunerAnalysisTable(params: {
         </table>
       </div>
     </div>
-  );
+  )}</Translated>);
 }
 
 function renderAutresReportableBlock(rows: AutresReportableRowRpc[], emptyText: string) {
@@ -6033,7 +6610,7 @@ function renderAutresReportableBlock(rows: AutresReportableRowRpc[], emptyText: 
     return ia - ib;
   });
 
-  return (
+  return (<Translated>{(
     <div style={styles.innerCardFull}>
       <h3 style={styles.innerTitle}>Données à reporter</h3>
 
@@ -6093,7 +6670,7 @@ function renderAutresReportableBlock(rows: AutresReportableRowRpc[], emptyText: 
         </div>
       )}
     </div>
-  );
+  )}</Translated>);
 }
 
 function renderAutresAnalysisTable(params: {
@@ -6121,7 +6698,7 @@ function renderAutresAnalysisTable(params: {
     0
   );
 
-  return (
+  return (<Translated>{(
     <div style={styles.innerCardFull}>
       <h3 style={styles.innerTitle}>Analyse - Groupe {groupNumber}</h3>
 
@@ -6220,7 +6797,7 @@ function renderAutresAnalysisTable(params: {
         </table>
       </div>
     </div>
-  );
+  )}</Translated>);
 }
 
 function renderTransportAnalysisTable(params: {
@@ -6254,7 +6831,7 @@ function renderTransportAnalysisTable(params: {
     0
   );
 
-  return (
+  return (<Translated>{(
     <div style={styles.innerCardFull}>
       <h3 style={styles.innerTitle}>Analyse - Groupe {groupNumber}</h3>
       {readOnly ? (
@@ -6360,7 +6937,7 @@ function renderTransportAnalysisTable(params: {
         </table>
       </div>
     </div>
-  );
+  )}</Translated>);
 }
 
 
@@ -6387,7 +6964,7 @@ function renderSalleAnalysisTable(params: {
     0
   );
 
-  return (
+  return (<Translated>{(
     <div style={styles.innerCardFull}>
       <h3 style={styles.innerTitle}>Analyse - Groupe {groupNumber}</h3>
 
@@ -6488,12 +7065,12 @@ function renderSalleAnalysisTable(params: {
         </table>
       </div>
     </div>
-  );
+  )}</Translated>);
 }
 
 
   if (screen === "student_mise_en_oeuvre") {
-    return (
+    return (<Translated>{(
       <div style={styles.appShell}>
         <StudentSidebar
           lang={lang}
@@ -6572,11 +7149,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </section>
         </main>
       </div>
-    );
+    )}</Translated>);
   }
 
 if (screen === "home") {
-  return (
+  return (<Translated>{(
     <div style={styles.landingPage}>
       <div style={styles.landingShell}>
         <div style={styles.landingImageWrap}>
@@ -6641,11 +7218,11 @@ if (screen === "home") {
         </div>
       </div>
     </div>
-  );
+  )}</Translated>);
 }
 
 if (screen === "teacher_login") {
-  return (
+  return (<Translated>{(
     <div style={styles.authPage}>
       <div style={styles.authCard}>
         <img src={kedgeLogo} alt="KEDGE Business School" style={styles.authLogo} />
@@ -6696,11 +7273,11 @@ if (screen === "teacher_login") {
         </div>
       </div>
     </div>
-  );
+  )}</Translated>);
 }
 
 if (screen === "student_login") {
-  return (
+  return (<Translated>{(
     <div style={styles.authPage}>
       <div style={styles.authCard}>
         <img src={kedgeLogo} alt="KEDGE Business School" style={styles.authLogo} />
@@ -6738,11 +7315,11 @@ if (screen === "student_login") {
         </div>
       </div>
     </div>
-  );
+  )}</Translated>);
 }
 
   if (screen === "student_transport") {
-    return (
+    return (<Translated>{(
       <div style={styles.appShell}>
         <StudentSidebar
           lang={lang}
@@ -6896,11 +7473,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </section>
         </main>
       </div>
-    );
+    )}</Translated>);
   }
 
   if (screen === "student_dejeuner") {
-    return (
+    return (<Translated>{(
       <div style={styles.appShell}>
         <StudentSidebar
           lang={lang}
@@ -7135,11 +7712,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </section>
         </main>
       </div>
-    );
+    )}</Translated>);
   }
 
   if (screen === "student_equipement") {
-    return (
+    return (<Translated>{(
       <div style={styles.appShell}>
 <StudentSidebar
           lang={lang}
@@ -7308,11 +7885,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </section>
         </main>
       </div>
-    );
+    )}</Translated>);
   }
 
   if (screen === "student_autres") {
-    return (
+    return (<Translated>{(
       <div style={styles.appShell}>
 <StudentSidebar
           lang={lang}
@@ -7441,11 +8018,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </section>
         </main>
       </div>
-    );
+    )}</Translated>);
   }
 
   if (screen === ("admin_dashboard" as Screen)) {
-    return (
+    return (<Translated>{(
       <div style={styles.appShell}>
         <aside style={styles.sidebar}>
           <div style={styles.sidebarBrand}>
@@ -7737,11 +8314,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </section>
         </main>
       </div>
-    );
+    )}</Translated>);
   }
 
   if (screen === "teacher_session_settings") {
-    return (
+    return (<Translated>{(
       <div style={styles.appShell}>
         <aside style={styles.sidebar}>
           <div style={styles.sidebarBrand}>
@@ -7986,11 +8563,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </section>
         </main>
       </div>
-    );
+    )}</Translated>);
   }
 
   if (screen === "student_analyses") {
-      return (
+      return (<Translated>{(
       <div style={styles.appShell}>
         <StudentSidebar
           lang={lang}
@@ -8318,11 +8895,11 @@ onClick={() => {
           </section>
         </main>
       </div>
-    );
+    )}</Translated>);
   }
 
   if (screen === "student_bilans") {
-    return (
+    return (<Translated>{(
       <div style={styles.appShell}>
         <StudentSidebar
           lang={lang}
@@ -8356,11 +8933,11 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </section>
         </main>
       </div>
-    );
+    )}</Translated>);
   }
 
   if (screen === "student_synthese") {
-    return (
+    return (<Translated>{(
       <div style={styles.appShell}>
         <StudentSidebar
           lang={lang}
@@ -8400,10 +8977,10 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </section>
         </main>
       </div>
-    );
+    )}</Translated>);
   }
 if (screen === "student_vote") {
-  return (
+  return (<Translated>{(
     <div style={styles.appShell}>
       <StudentSidebar
           lang={lang}
@@ -8546,10 +9123,10 @@ if (screen === "student_vote") {
         </section>
       </main>
     </div>
-  );
+  )}</Translated>);
 }
 
-  return (
+  return (<Translated>{(
     <div style={styles.appShell}>
       <aside style={styles.sidebar}>
         <div style={styles.sidebarBrand}>
@@ -9444,7 +10021,7 @@ style={
         </section>
       </main>
     </div>
-  );
+  )}</Translated>);
 }
 
 const styles: Record<string, React.CSSProperties> = {
