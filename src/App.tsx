@@ -2309,6 +2309,7 @@ function StudentQuestionnaireTabs({
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [lang, setLang] = useState<Lang>(getStoredLanguage);
+  const [privacyModalAudience, setPrivacyModalAudience] = useState<"student" | "teacher" | null>(null);
   ACTIVE_DISPLAY_LANG = lang;
   const [isInitialSessionSetup, setIsInitialSessionSetup] = useState(false);
 
