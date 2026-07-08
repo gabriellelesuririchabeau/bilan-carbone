@@ -1421,12 +1421,6 @@ const CHART_COLORS = [
   "#c2410c",
 ];
 
-const FR_NUMBER_FORMAT = new Intl.NumberFormat("fr-FR");
-const FR_DECIMAL_FORMAT = new Intl.NumberFormat("fr-FR", {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
-
 function getDisplayLocale() {
   return ACTIVE_DISPLAY_LANG === "en" ? "en-US" : "fr-FR";
 }
