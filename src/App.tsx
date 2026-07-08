@@ -661,7 +661,57 @@ const DISPLAY_TRANSLATIONS_EN: Record<string, string> = {
   "Bordeaux": "Bordeaux",
   "Mont-de-Marsan": "Mont-de-Marsan",
   "KEDGE Bachelor": "KEDGE Bachelor",
-  "Programme Grande École": "Programme Grande École"
+  "Programme Grande École": "Programme Grande École",
+  "Code de session": "Session code",
+  "Session :": "Session:",
+  "Synthèse finale de la session": "Final session summary",
+  "synthèse finale de la session": "final session summary",
+  "Synthèse étudiante": "Student summary",
+  "Cette zone servira à afficher la mise en œuvre pédagogique, avec une présentation proche du SCORM mais dans une application web multi-utilisateur.": "This area will display the pedagogical setup, with a SCORM-like presentation inside a multi-user web application.",
+  "Aucun étudiant ne correspond à la recherche.": "No student matches the search.",
+  "Accès professeur ouvert.": "Teacher access opened.",
+  "Erreur chargement rôle utilisateur :": "User role loading error:",
+  "Erreur chargement réponses transport :": "Transport responses loading error:",
+  "Erreur chargement données à reporter déjeuner :": "Lunch data-to-report loading error:",
+  "Erreur chargement données à reporter équipement :": "Equipment data-to-report loading error:",
+  "Erreur chargement données à reporter autres consommations :": "Other-consumption data-to-report loading error:",
+  "Erreur suppression anciens votes :": "Old votes deletion error:",
+  "Sauvegarde forcée sur votre groupe.": "Forced save to your group.",
+  "Erreur vérification accès étudiant :": "Student access verification error:",
+  "Erreur chargement session ouverte :": "Open session loading error:",
+  "Session étudiant recalée sur la session ouverte": "Student session reset to the open session",
+  "proposition(s) détectée(s).": "proposal(s) detected.",
+  "validées.": "validated.",
+  "validée.": "validated.",
+  "Erreur suppression anciens votes": "Old votes deletion error",
+  "Vidéoprojecteur": "Projector",
+  "Écran fixe": "Fixed screen",
+  "Ampoules": "Light bulbs",
+  "Chauffage": "Heating",
+  "Climatisation": "Air conditioning",
+  "Écran": "Screen",
+  "Le menu Bilans a été retiré. Utilisez le menu Synthèse.": "The Reports menu has been removed. Use the Summary menu.",
+  "Le menu Bilans a été retiré.": "The Reports menu has been removed.",
+  "Utilisez le menu Synthèse.": "Use the Summary menu.",
+  "finale de la session": "final session",
+  "étudiante": "student",
+  "session ouverte": "open session",
+  "rôle utilisateur": "user role",
+  "réponses transport": "transport responses",
+  "données à reporter": "data to report",
+  "réponse de l’IA": "AI response",
+  "Réduire l’usage de la voiture individuelle": "Reduce the use of private cars",
+  "Installer plus d’options végétariennes": "Offer more vegetarian options",
+  "Encourager le covoiturage entre étudiants": "Encourage student carpooling",
+  "Faites générer": "Ask the AI to generate",
+  "Copiez-collez": "Copy and paste",
+  "zone ci-dessous": "area below",
+  "une seule proposition par ligne": "one proposal per line",
+  "liste numérotée": "numbered list",
+  "collées": "pasted",
+  "soumettre à l’IA": "submit to the AI",
+  "Téléchargez": "Download",
+  "soumettez-les au vote": "submit them to the vote"
 };
 
 const DISPLAY_TRANSLATION_ENTRIES = Object.entries(DISPLAY_TRANSLATIONS_EN).sort(
@@ -1377,18 +1427,25 @@ const FR_DECIMAL_FORMAT = new Intl.NumberFormat("fr-FR", {
   maximumFractionDigits: 2,
 });
 
+function getDisplayLocale() {
+  return ACTIVE_DISPLAY_LANG === "en" ? "en-US" : "fr-FR";
+}
+
 function formatInteger(value: number | string | null | undefined) {
-  return FR_NUMBER_FORMAT.format(Number(value ?? 0));
+  return new Intl.NumberFormat(getDisplayLocale()).format(Number(value ?? 0));
 }
 
 function formatDecimal(value: number | string | null | undefined, digits = 2) {
   const numericValue = Number(value ?? 0);
 
   if (digits === 2) {
-    return FR_DECIMAL_FORMAT.format(numericValue);
+    return new Intl.NumberFormat(getDisplayLocale(), {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(numericValue);
   }
 
-  return new Intl.NumberFormat("fr-FR", {
+  return new Intl.NumberFormat(getDisplayLocale(), {
     minimumFractionDigits: 0,
     maximumFractionDigits: digits,
   }).format(numericValue);
@@ -1404,12 +1461,12 @@ function formatReportNumber(value: number | string | null | undefined, digits = 
     return "0";
   }
 
-  return new Intl.NumberFormat("fr-FR", {
+  const formatted = new Intl.NumberFormat(getDisplayLocale(), {
     minimumFractionDigits: 0,
     maximumFractionDigits: digits,
-  })
-    .format(numericValue)
-    .replace(/\./g, ",");
+  }).format(numericValue);
+
+  return ACTIVE_DISPLAY_LANG === "en" ? formatted : formatted.replace(/\./g, ",");
 }
 
 function formatFactorNumber(value: number | string | null | undefined) {
@@ -1422,12 +1479,12 @@ function formatFactorNumber(value: number | string | null | undefined) {
     return "0";
   }
 
-  return new Intl.NumberFormat("fr-FR", {
+  const formatted = new Intl.NumberFormat(getDisplayLocale(), {
     minimumFractionDigits: 0,
     maximumFractionDigits: 4,
-  })
-    .format(numericValue)
-    .replace(/\./g, ",");
+  }).format(numericValue);
+
+  return ACTIVE_DISPLAY_LANG === "en" ? formatted : formatted.replace(/\./g, ",");
 }
 
 function formatSessionCode(value: string | null | undefined) {
@@ -7352,6 +7409,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 completion={studentCompletion}
                 onNavigate={goToStudentQuestionnaire}
                 canAccess={canAccessStudentQuestionnaire}
+                lang={lang}
               />
             </div>
             <div style={{ ...styles.homeCard, width: "100%", padding: 0, background: "transparent", boxShadow: "none" }}>
@@ -7508,6 +7566,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 completion={studentCompletion}
                 onNavigate={goToStudentQuestionnaire}
                 canAccess={canAccessStudentQuestionnaire}
+                lang={lang}
               />
             </div>
             <div style={{ ...styles.homeCard, width: "100%", padding: 0, background: "transparent", boxShadow: "none" }}>
@@ -7750,6 +7809,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 completion={studentCompletion}
                 onNavigate={goToStudentQuestionnaire}
                 canAccess={canAccessStudentQuestionnaire}
+                lang={lang}
               />
             </div>
 
@@ -7923,6 +7983,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 completion={studentCompletion}
                 onNavigate={goToStudentQuestionnaire}
                 canAccess={canAccessStudentQuestionnaire}
+                lang={lang}
               />
             </div>
 
