@@ -3297,6 +3297,54 @@ export default function App() {
         .teacher-responsive-shell .qr-access-card,
         .admin-responsive-shell .qr-access-card {
           grid-template-columns: 1fr !important;
+          .teacher-responsive-shell .teacher-session-context {
+          min-width: 170px !important;
+          width: auto !important;
+          margin-bottom: 0 !important;
+        }
+
+        .teacher-responsive-shell .teacher-access-panel {
+          flex: 0 0 auto !important;
+          width: auto !important;
+          min-width: 360px !important;
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          gap: 8px !important;
+          margin-top: 0 !important;
+        }
+
+        .teacher-responsive-shell .teacher-access-panel div {
+          display: none !important;
+        }
+
+        .teacher-responsive-shell .teacher-access-panel button {
+          min-width: 105px !important;
+        }
+      }
+        .teacher-responsive-shell .teacher-session-context {
+          min-width: 170px !important;
+          width: auto !important;
+          margin-bottom: 0 !important;
+        }
+
+        .teacher-responsive-shell .teacher-access-panel {
+          flex: 0 0 auto !important;
+          width: auto !important;
+          min-width: 360px !important;
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          gap: 8px !important;
+          margin-top: 0 !important;
+        }
+
+        .teacher-responsive-shell .teacher-access-panel div {
+          display: none !important;
+        }
+
+        .teacher-responsive-shell .teacher-access-panel button {
+          min-width: 105px !important;
         }
       }
 
@@ -10892,51 +10940,154 @@ if (screen === "student_vote") {
 
   return (<Translated>{(
     <div style={styles.appShell} className="teacher-responsive-shell">
-      <aside style={styles.sidebar}>
+      <aside style={styles.sidebar} className="teacher-sidebar-organized">
         <div style={styles.sidebarBrand}>
           <img src={kedgeLogo} alt="KEDGE Business School" style={styles.sidebarLogo} />
         </div>
 
-        <button
-          style={teacherMenu === "sessions" ? styles.sidebarButtonActive : styles.sidebarButton}
-          onClick={() => setTeacherMenu("sessions")}
-        >
-          {t(lang, "sessions")}
-        </button>
+        {selectedSessionId ? (
+          <>
+            <div style={styles.teacherSidebarContext} className="teacher-session-context">
+              <div style={styles.teacherSidebarContextLabel}>
+                {lang === "en" ? "Active session" : "Session active"}
+              </div>
+              <div style={styles.teacherSidebarCode}>{formatSessionCode(selectedSessionCode)}</div>
+            </div>
 
-        <button
-          style={teacherMenu === "session_open" ? styles.sidebarButtonActive : styles.sidebarButton}
-          onClick={() => {
-            if (!selectedSessionId) {
-              setMessage("Ouvre d'abord une session.");
-              return;
-            }
-            setIsInitialSessionSetup(false);
-  setTeacherMenu("session_open");
-            setTeacherSessionTab("counts");
-          }}
-        >
-          {t(lang, "openSession")}
-        </button>
+            <button
+              style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
+              onClick={() => {
+                setTeacherMenu("session_open");
+                setTeacherSessionTab("counts");
+              }}
+            >
+              {lang === "en" ? "Response counter" : "Compteur de réponses"}
+            </button>
 
+            <button
+              style={teacherMenu === "session_open" && teacherSessionTab === "users" ? styles.sidebarButtonActive : styles.sidebarButton}
+              onClick={() => {
+                setTeacherMenu("session_open");
+                setTeacherSessionTab("users");
+              }}
+            >
+              {lang === "en" ? "Users" : "Utilisateurs"}
+            </button>
 
-        <button
-            style={{
-              ...(currentUserRole === "admin" ? styles.sidebarButton : styles.secondaryButton),
-              opacity: currentUserRole === "admin" ? 1 : 0.55,
-              cursor: currentUserRole === "admin" ? "pointer" : "not-allowed",
-            }}
-            disabled={currentUserRole !== "admin"}
-            onClick={() => {
-              if (currentUserRole !== "admin") return;
-              void handleGoToAdminFromTeacher();
-            }}
-          >
-            {t(lang, "administration")}
-          </button>
+            <button
+              style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
+              onClick={() => {
+                setTeacherMenu("session_open");
+                setTeacherSessionTab("analyses");
+              }}
+            >
+              {t(lang, "analyses")}
+            </button>
+
+            <button
+              style={teacherMenu === "session_open" && teacherSessionTab === "vote" ? styles.sidebarButtonActive : styles.sidebarButton}
+              onClick={() => {
+                setTeacherMenu("session_open");
+                setTeacherSessionTab("vote");
+              }}
+            >
+              {t(lang, "vote")}
+            </button>
+
+            <button
+              style={teacherMenu === "session_open" && teacherSessionTab === "synthese" ? styles.sidebarButtonActive : styles.sidebarButton}
+              onClick={() => {
+                setTeacherMenu("session_open");
+                setTeacherSessionTab("synthese");
+              }}
+            >
+              {t(lang, "synthese")}
+            </button>
+
+            <div style={styles.teacherSidebarDivider} />
+
+            <button
+              style={styles.sidebarButton}
+              onClick={() => {
+                setTeacherMenu("sessions");
+                setIsInitialSessionSetup(false);
+              }}
+            >
+              {lang === "en" ? "Other sessions" : "Autres sessions"}
+            </button>
+
+            <button
+              style={styles.sidebarButton}
+              onClick={() => {
+                setTeacherMenu("sessions");
+                setIsInitialSessionSetup(false);
+              }}
+            >
+              {lang === "en" ? "New session" : "Nouvelle session"}
+            </button>
+
+            <button
+              style={styles.sidebarButton}
+              onClick={() => {
+                setIsInitialSessionSetup(false);
+                setScreen("teacher_session_settings");
+              }}
+            >
+              {lang === "en" ? "Session settings" : "Gestion de la session"}
+            </button>
+
+            <button
+              style={styles.teacherProjectionButton}
+              onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "qr"), "_blank", "noopener,noreferrer")}
+            >
+              {lang === "en" ? "Projection" : "Projection"}
+            </button>
+
+            <div style={styles.teacherAccessPanel} className="teacher-access-panel">
+              <div style={styles.teacherAccessPanelTitle}>
+                {lang === "en" ? "Student access" : "Accès étudiants"}
+              </div>
+              <button
+                type="button"
+                style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff}
+                onClick={toggleStudentAnalysisAccess}
+              >
+                {studentAnalysisUnlocked ? "🔓" : "🔒"} {t(lang, "analyses")}
+              </button>
+              <button
+                type="button"
+                style={studentVoteUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff}
+                onClick={toggleStudentVoteAccess}
+              >
+                {studentVoteUnlocked ? "🔓" : "🔒"} {t(lang, "vote")}
+              </button>
+              <button
+                type="button"
+                style={studentSyntheseUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff}
+                onClick={toggleStudentSyntheseAccess}
+              >
+                {studentSyntheseUnlocked ? "🔓" : "🔒"} {t(lang, "synthese")}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <button
+              style={teacherMenu === "sessions" ? styles.sidebarButtonActive : styles.sidebarButton}
+              onClick={() => setTeacherMenu("sessions")}
+            >
+              {lang === "en" ? "Create / open session" : "Créer / ouvrir une session"}
+            </button>
+          </>
+        )}
 
         <div style={styles.sidebarFooter}>
           <LanguageToggle lang={lang} setLang={setLang} compact />
+          {currentUserRole === "admin" && (
+            <button style={styles.sidebarSmallButton} onClick={() => void handleGoToAdminFromTeacher()}>
+              {t(lang, "administration")}
+            </button>
+          )}
           <button style={styles.sidebarSmallButton} onClick={handleTeacherLogout}>
             {t(lang, "logout")}
           </button>
@@ -11105,81 +11256,51 @@ if (screen === "student_vote") {
 
           {teacherMenu === "session_open" && (
             <>
-              <h2 style={styles.panelTitle}>Session ouverte</h2>
+              <h2 style={styles.panelTitle}>
+                {selectedSessionCode
+                  ? `${lang === "en" ? "Open session" : "Session ouverte"} · ${formatSessionCode(selectedSessionCode)}`
+                  : (lang === "en" ? "Open session" : "Session ouverte")}
+              </h2>
 
-              <div style={styles.innerCardFull}>
-                <div style={styles.row}>
-                  <button
-                    style={teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
-                    onClick={() => setTeacherSessionTab("counts")}
-                  >
-                    Compteur de réponses
-                  </button>
-
-                  <button
-                    style={teacherSessionTab === "users" ? styles.sidebarButtonActive : styles.sidebarButton}
-                    onClick={() => setTeacherSessionTab("users")}
-                  >
-                    Utilisateurs
-                  </button>
-
-                  <button
-                    style={teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
-                    onClick={() => setTeacherSessionTab("analyses")}
-                  >
-                    Analyses {studentAnalysisUnlocked ? "🔓" : "🔒"}
-                  </button>
-
-                  <button
-                    style={teacherSessionTab === "vote" ? styles.sidebarButtonActive : styles.sidebarButton}
-                    onClick={() => setTeacherSessionTab("vote")}
-                  >
-                    Vote {studentVoteUnlocked ? "🔓" : "🔒"}
-                  </button>
-
-                  <button
-                    style={teacherSessionTab === "synthese" ? styles.sidebarButtonActive : styles.sidebarButton}
-                    onClick={() => setTeacherSessionTab("synthese")}
-                  >
-                    Synthèse {studentSyntheseUnlocked ? "🔓" : "🔒"}
-                  </button>
-                </div>
-              </div>
-
-              <div style={styles.innerCardFull}>
-                <h3 style={styles.innerTitle}>Session active</h3>
-                <div style={styles.emptyText}>
-                  {selectedSessionCode
-                    ? `Code session actif : ${formatSessionCode(selectedSessionCode)} — ID : ${selectedSessionId}`
-                    : "Aucune session sélectionnée"}
-                </div>
-
-                {selectedSessionCode ? (
-                  <>
+              {teacherSessionTab === "counts" && selectedSessionCode && (
+                <div style={styles.teacherLaunchGrid}>
+                  <div style={styles.teacherLaunchCard}>
+                    <h3 style={styles.innerTitle}>{lang === "en" ? "Student access" : "Accès étudiants"}</h3>
+                    <p style={styles.bodyText}>
+                      {lang === "en"
+                        ? "Project the QR code at the beginning of the activity. Students on a computer can still use the session code."
+                        : "Projetez le QR code au lancement de l'activité. Les étudiants sur ordinateur peuvent toujours utiliser le code session."}
+                    </p>
                     <SessionQrAccess sessionCode={selectedSessionCode} lang={lang} compact />
-                    <div style={styles.projectionControlBox}>
-                      <h4 style={styles.projectionControlTitle}>{t(lang, "projectionScreen")}</h4>
-                      <div style={styles.projectionControlRow}>
-                        <button type="button" style={styles.primaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "qr"), "_blank", "noopener,noreferrer")}>
-                          {t(lang, "openProjection")}
-                        </button>
-                        <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "bilans"), "_blank", "noopener,noreferrer")}>
-                          {t(lang, "projectionBilans")}
-                        </button>
-                        <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "propositions"), "_blank", "noopener,noreferrer")}>
-                          {t(lang, "projectionProposals")}
-                        </button>
-                        <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "vote"), "_blank", "noopener,noreferrer")}>
-                          {t(lang, "projectionVote")}
-                        </button>
-                        <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "synthese"), "_blank", "noopener,noreferrer")}>
-                          {t(lang, "projectionSynthesis")}
-                        </button>
-                      </div>
+                  </div>
+
+                  <div style={styles.teacherLaunchCard}>
+                    <h3 style={styles.innerTitle}>{t(lang, "projectionScreen")}</h3>
+                    <p style={styles.bodyText}>
+                      {lang === "en"
+                        ? "Open a clean projection screen for class debriefs."
+                        : "Ouvrez une fenêtre de projection propre pour les différents débriefs."}
+                    </p>
+                    <div style={styles.teacherProjectionActions}>
+                      <button type="button" style={styles.primaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "qr"), "_blank", "noopener,noreferrer")}>
+                        {t(lang, "openProjection")}
+                      </button>
+                      <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "bilans"), "_blank", "noopener,noreferrer")}>
+                        {t(lang, "projectionBilans")}
+                      </button>
+                      <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "propositions"), "_blank", "noopener,noreferrer")}>
+                        {t(lang, "projectionProposals")}
+                      </button>
+                      <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "vote"), "_blank", "noopener,noreferrer")}>
+                        {t(lang, "projectionVote")}
+                      </button>
+                      <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "synthese"), "_blank", "noopener,noreferrer")}>
+                        {t(lang, "projectionSynthesis")}
+                      </button>
                     </div>
-                  </>
-                ) : null}
-              </div>
+                  </div>
+                </div>
+              )}
 
               {teacherSessionTab === "counts" && (
                 <>
@@ -11325,16 +11446,6 @@ if (screen === "student_vote") {
 
               {teacherSessionTab === "analyses" && (
                 <>
-                  <div style={styles.innerCardFull}>
-                    <div style={styles.row}>
-                      <button style={styles.primaryButton} onClick={toggleStudentAnalysisAccess}>
-                        {studentAnalysisUnlocked
-                          ? "🔓 Analyse accessible aux étudiants"
-                          : "🔒 Analyse non accessible aux étudiants"}
-                      </button>
-                    </div>
-                  </div>
-
                   <div style={styles.innerCardFull}>
 <div style={styles.groupTabsRow}>
   {studentGroups.map((groupNumber) => (
@@ -11589,12 +11700,6 @@ style={
                         }}
                       >
                         Télécharger le fichier .txt à soumettre à l’IA
-                      </button>
-
-                      <button style={styles.primaryButton} onClick={toggleStudentVoteAccess}>
-                        {studentVoteUnlocked
-                          ? "🔓 Vote accessible aux étudiants"
-                          : "🔒 Vote non accessible aux étudiants"}
                       </button>
 
                       <button
@@ -11995,10 +12100,11 @@ const styles: Record<string, React.CSSProperties> = {
   projectionPage: {
     minHeight: "100vh",
     width: "100%",
-    boxSizing: "border-box",
-    padding: 28,
+    boxSizing: "border-box" as const,
+    padding: 32,
     background: "linear-gradient(180deg, #eef3f8 0%, #d7dee8 100%)",
     color: "#10213f",
+    overflowX: "hidden" as const,
   },
   projectionHeader: {
     display: "flex",
@@ -12019,10 +12125,13 @@ const styles: Record<string, React.CSSProperties> = {
   },
   projectionTitle: {
     margin: 0,
-    fontSize: "clamp(30px, 4.8vw, 68px)",
+    fontSize: "clamp(30px, 3.9vw, 54px)",
     lineHeight: 0.98,
     letterSpacing: 1,
     fontWeight: 950,
+    color: "#ffffff",
+    textShadow: "0 2px 8px rgba(0,0,0,0.22)",
+    maxWidth: 980,
   },
   projectionSessionCode: {
     display: "inline-flex",
@@ -12069,7 +12178,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   projectionHeroGrid: {
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1.05fr) minmax(320px, 0.75fr)",
+    gridTemplateColumns: "minmax(0, 1fr) minmax(360px, 0.9fr)",
     gap: 24,
     alignItems: "stretch",
   },
@@ -12122,9 +12231,13 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 28,
     background: "#ed7d31",
     color: "#10213f",
-    fontSize: "clamp(34px, 5.5vw, 82px)",
+    fontSize: "clamp(34px, 4.8vw, 66px)",
     fontWeight: 950,
     letterSpacing: 1.2,
+    maxWidth: "100%",
+    boxSizing: "border-box" as const,
+    overflowWrap: "anywhere" as const,
+    lineHeight: 1.05,
   },
   projectionDashboardWrap: {
     width: "100%",
@@ -13230,6 +13343,122 @@ panelTitle: {
     fontSize: 12,
     fontWeight: 700,
     textAlign: "left",
+  },
+
+  teacherSidebarContext: {
+    width: "100%",
+    boxSizing: "border-box" as const,
+    padding: "10px 12px",
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.10)",
+    color: "#ffffff",
+    border: "1px solid rgba(255,255,255,0.14)",
+    marginBottom: 6,
+  },
+
+  teacherSidebarContextLabel: {
+    fontSize: 11,
+    opacity: 0.74,
+    fontWeight: 800,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+
+  teacherSidebarCode: {
+    fontSize: 14,
+    fontWeight: 950,
+    overflowWrap: "anywhere" as const,
+    lineHeight: 1.15,
+  },
+
+  teacherSidebarDivider: {
+    width: "100%",
+    height: 1,
+    background: "rgba(255,255,255,0.18)",
+    margin: "8px 0",
+  },
+
+  teacherProjectionButton: {
+    border: "none",
+    borderRadius: 999,
+    padding: "10px 14px",
+    background: "#ed7d31",
+    color: "#12355b",
+    fontSize: 13,
+    fontWeight: 950,
+    cursor: "pointer",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.18)",
+  },
+
+  teacherAccessPanel: {
+    width: "100%",
+    boxSizing: "border-box" as const,
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 8,
+  },
+
+  teacherAccessPanelTitle: {
+    color: "rgba(255,255,255,0.76)",
+    fontSize: 11,
+    fontWeight: 900,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.4,
+  },
+
+  teacherAccessToggleOn: {
+    width: "100%",
+    border: "none",
+    borderRadius: 999,
+    padding: "8px 10px",
+    background: "#d1fae5",
+    color: "#065f46",
+    fontSize: 12,
+    fontWeight: 900,
+    cursor: "pointer",
+    textAlign: "center" as const,
+  },
+
+  teacherAccessToggleOff: {
+    width: "100%",
+    border: "none",
+    borderRadius: 999,
+    padding: "8px 10px",
+    background: "#fee2e2",
+    color: "#991b1b",
+    fontSize: 12,
+    fontWeight: 900,
+    cursor: "pointer",
+    textAlign: "center" as const,
+  },
+
+  teacherLaunchGrid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+    gap: 18,
+    marginBottom: 18,
+  },
+
+  teacherLaunchCard: {
+    background: "#f8fbff",
+    border: "1px solid #cfe0f2",
+    borderRadius: 24,
+    padding: 20,
+    boxShadow: "0 8px 18px rgba(15,23,42,0.06)",
+  },
+
+  teacherProjectionActions: {
+    display: "flex",
+    flexWrap: "wrap" as const,
+    gap: 10,
+    marginTop: 14,
+    justifyContent: "center",
   },
 
   analysisActionRow: {
