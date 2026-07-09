@@ -2793,9 +2793,9 @@ export default function App() {
         .student-responsive-shell aside.student-mobile-topbar .student-mobile-nav-scroller button {
           flex: 0 0 auto !important;
           width: auto !important;
-          min-width: 104px !important;
-          max-width: 150px !important;
-          min-height: 34px !important;
+          min-width: 92px !important;
+          max-width: 138px !important;
+          min-height: 32px !important;
           padding: 7px 10px !important;
           font-size: 12px !important;
           line-height: 1.05 !important;
@@ -2906,6 +2906,59 @@ export default function App() {
           padding: 8px 6px !important;
           font-size: 13px !important;
         }
+
+
+        /* Correctif v4 : la règle générique qui masquait le premier div de la sidebar
+           cachait aussi la navigation mobile. On la réaffiche explicitement. */
+        .student-responsive-shell aside.student-mobile-topbar > .student-mobile-nav-scroller {
+          display: flex !important;
+          visibility: visible !important;
+          height: auto !important;
+          opacity: 1 !important;
+        }
+
+        /* Sur mobile, le code est déjà affiché dans la barre compacte. */
+        .student-responsive-shell .student-session-meta {
+          display: none !important;
+        }
+
+        /* Correctif v4 : les règles globales donnaient width:100% aux checkboxes,
+           ce qui repoussait le texte hors de l'écran. */
+        .student-responsive-shell input[type="checkbox"] {
+          width: 34px !important;
+          min-width: 34px !important;
+          max-width: 34px !important;
+          height: 34px !important;
+          min-height: 34px !important;
+          max-height: 34px !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          flex: 0 0 34px !important;
+          box-sizing: border-box !important;
+          accent-color: #0b8ef3 !important;
+        }
+
+        .student-responsive-shell label:has(input[type="checkbox"]) {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          gap: 12px !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          min-height: 58px !important;
+          padding: 11px 12px !important;
+          box-sizing: border-box !important;
+          text-align: left !important;
+          white-space: normal !important;
+          overflow: hidden !important;
+          overflow-wrap: anywhere !important;
+          word-break: normal !important;
+        }
+
+        .student-responsive-shell label:has(input[type="checkbox"]) * {
+          max-width: 100% !important;
+        }
+
       }
     `;
 
@@ -8225,8 +8278,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               />
             </div>
             <div style={{ ...styles.homeCard, width: "100%", padding: 0, background: "transparent", boxShadow: "none" }}>
-              <div style={styles.subtleText}>Mail : {studentEmail}</div>
-              <div style={styles.subtleText}>
+              <div style={styles.subtleText} className="student-session-meta">Mail : {studentEmail}</div>
+              <div style={styles.subtleText} className="student-session-meta">
   Code session : {formatSessionCode(studentSelectedSessionCode || studentCodeSession)}
 </div>
               {transportTrips.map((trip, index) => (
@@ -8384,8 +8437,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
               />
             </div>
             <div style={{ ...styles.homeCard, width: "100%", padding: 0, background: "transparent", boxShadow: "none" }}>
-              <div style={styles.subtleText}>Mail : {studentEmail}</div>
-              <div style={styles.subtleText}>
+              <div style={styles.subtleText} className="student-session-meta">Mail : {studentEmail}</div>
+              <div style={styles.subtleText} className="student-session-meta">
   Code session : {formatSessionCode(studentSelectedSessionCode || studentCodeSession)}
 </div>
               <div style={styles.sectionCard}>
@@ -8630,8 +8683,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             </div>
 
             <div style={{ ...styles.homeCard, width: "100%", padding: 0, background: "transparent", boxShadow: "none" }}>
-              <div style={styles.subtleText}>Mail : {studentEmail}</div>
-              <div style={styles.subtleText}>
+              <div style={styles.subtleText} className="student-session-meta">Mail : {studentEmail}</div>
+              <div style={styles.subtleText} className="student-session-meta">
   Code session : {formatSessionCode(studentSelectedSessionCode || studentCodeSession)}
 </div>
 
@@ -8806,8 +8859,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             </div>
 
             <div style={{ ...styles.homeCard, width: "100%", padding: 0, background: "transparent", boxShadow: "none" }}>
-              <div style={styles.subtleText}>Mail : {studentEmail}</div>
-              <div style={styles.subtleText}>
+              <div style={styles.subtleText} className="student-session-meta">Mail : {studentEmail}</div>
+              <div style={styles.subtleText} className="student-session-meta">
   Code session : {formatSessionCode(studentSelectedSessionCode || studentCodeSession)}
 </div>
 
@@ -11843,9 +11896,9 @@ panelTitle: {
 
   studentMobileNavButton: {
     flex: "0 0 auto",
-    minWidth: 104,
-    maxWidth: 150,
-    minHeight: 34,
+    minWidth: 92,
+    maxWidth: 138,
+    minHeight: 32,
     background: "#e6e6e6",
     color: "#123b64",
     border: "none",
@@ -11861,9 +11914,9 @@ panelTitle: {
 
   studentMobileNavButtonActive: {
     flex: "0 0 auto",
-    minWidth: 104,
-    maxWidth: 150,
-    minHeight: 34,
+    minWidth: 92,
+    maxWidth: 138,
+    minHeight: 32,
     background: "#ef7d32",
     color: "#123b64",
     border: "none",
