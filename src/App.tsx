@@ -2361,6 +2361,190 @@ export default function App() {
     document.documentElement.lang = lang;
   }, [lang]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (document.getElementById("student-mobile-responsive-css")) return;
+
+    const style = document.createElement("style");
+    style.id = "student-mobile-responsive-css";
+    style.textContent = `
+      @media (max-width: 768px) {
+        .student-responsive-auth {
+          align-items: stretch !important;
+          justify-content: flex-start !important;
+          min-height: 100dvh !important;
+          padding: 12px !important;
+        }
+
+        .student-responsive-auth > div {
+          width: 100% !important;
+          max-width: none !important;
+          border-radius: 22px !important;
+          padding: 22px 16px !important;
+          gap: 16px !important;
+          box-sizing: border-box !important;
+        }
+
+        .student-responsive-auth h1 {
+          font-size: 24px !important;
+          line-height: 1.15 !important;
+        }
+
+        .student-responsive-auth input,
+        .student-responsive-auth select,
+        .student-responsive-auth textarea {
+          min-height: 48px !important;
+          font-size: 16px !important;
+          padding: 13px 14px !important;
+        }
+
+        .student-responsive-auth button {
+          min-height: 46px !important;
+          font-size: 15px !important;
+        }
+
+        .student-responsive-auth [style*="display: flex"] {
+          width: 100% !important;
+        }
+
+        .student-responsive-shell {
+          display: flex !important;
+          flex-direction: column !important;
+          grid-template-columns: none !important;
+          min-height: 100dvh !important;
+        }
+
+        .student-responsive-shell aside {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 30 !important;
+          display: grid !important;
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 8px !important;
+          padding: 10px !important;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18) !important;
+        }
+
+        .student-responsive-shell aside > div:first-child {
+          grid-column: 1 / -1 !important;
+          margin-bottom: 0 !important;
+        }
+
+        .student-responsive-shell aside img {
+          max-width: 82px !important;
+          margin: 0 auto !important;
+        }
+
+        .student-responsive-shell aside button {
+          font-size: 12px !important;
+          min-height: 40px !important;
+          padding: 9px 8px !important;
+          line-height: 1.12 !important;
+        }
+
+        .student-responsive-shell aside > div:last-child {
+          grid-column: 1 / -1 !important;
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          justify-content: center !important;
+          flex-wrap: wrap !important;
+          gap: 8px !important;
+          margin-top: 2px !important;
+        }
+
+        .student-responsive-shell main {
+          padding: 10px !important;
+          gap: 10px !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+
+        .student-responsive-shell header {
+          min-height: auto !important;
+          padding: 10px !important;
+          border-radius: 0 !important;
+        }
+
+        .student-responsive-shell header > div {
+          min-height: auto !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+          background: transparent !important;
+        }
+
+        .student-responsive-shell header div:first-child {
+          font-size: 19px !important;
+          line-height: 1.12 !important;
+          letter-spacing: 0.3px !important;
+        }
+
+        .student-responsive-shell header div:nth-child(2) {
+          font-size: 9px !important;
+          line-height: 1.2 !important;
+        }
+
+        .student-responsive-shell section {
+          border-radius: 22px !important;
+          padding: 12px !important;
+          min-height: auto !important;
+          gap: 12px !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+
+        .student-responsive-shell h2 {
+          font-size: 24px !important;
+          line-height: 1.15 !important;
+        }
+
+        .student-responsive-shell h3 {
+          font-size: 18px !important;
+          line-height: 1.2 !important;
+        }
+
+        .student-responsive-shell p,
+        .student-responsive-shell label,
+        .student-responsive-shell span,
+        .student-responsive-shell div {
+          max-width: 100%;
+        }
+
+        .student-responsive-shell input,
+        .student-responsive-shell select,
+        .student-responsive-shell textarea {
+          min-height: 48px !important;
+          font-size: 16px !important;
+          padding: 13px 14px !important;
+          box-sizing: border-box !important;
+        }
+
+        .student-responsive-shell main button {
+          width: 100% !important;
+          min-height: 46px !important;
+          font-size: 15px !important;
+          justify-content: center !important;
+        }
+
+        .student-responsive-shell [style*="grid-template-columns"] {
+          grid-template-columns: 1fr !important;
+        }
+
+        .student-responsive-shell table {
+          min-width: 680px !important;
+        }
+
+        .student-responsive-shell td,
+        .student-responsive-shell th {
+          font-size: 14px !important;
+          padding: 10px 12px !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }, []);
+
   const [teacherMenu, setTeacherMenu] = useState<TeacherMenu>("sessions");
   const [teacherSessionTab, setTeacherSessionTab] = useState<TeacherSessionTab>("counts");
   const [teacherAnalysesTab, setTeacherAnalysesTab] =
@@ -7359,7 +7543,7 @@ function renderSalleAnalysisTable(params: {
 
   if (screen === "student_mise_en_oeuvre") {
     return (<Translated>{(
-      <div style={styles.appShell}>
+      <div style={styles.appShell} className="student-responsive-shell">
         <StudentSidebar
           lang={lang}
           setLang={setLang}
@@ -7581,7 +7765,7 @@ if (screen === "teacher_login") {
 
 if (screen === "student_login") {
   return (<Translated>{(
-    <div style={styles.authPage}>
+    <div style={styles.authPage} className="student-responsive-auth">
       <div style={styles.authCard}>
         <img src={kedgeLogo} alt="KEDGE Business School" style={styles.authLogo} />
 
@@ -7638,7 +7822,7 @@ if (screen === "student_login") {
 
   if (screen === "student_transport") {
     return (<Translated>{(
-      <div style={styles.appShell}>
+      <div style={styles.appShell} className="student-responsive-shell">
         <StudentSidebar
           lang={lang}
           setLang={setLang}
@@ -7799,7 +7983,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
   if (screen === "student_dejeuner") {
     return (<Translated>{(
-      <div style={styles.appShell}>
+      <div style={styles.appShell} className="student-responsive-shell">
         <StudentSidebar
           lang={lang}
           setLang={setLang}
@@ -8041,7 +8225,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
   if (screen === "student_equipement") {
     return (<Translated>{(
-      <div style={styles.appShell}>
+      <div style={styles.appShell} className="student-responsive-shell">
 <StudentSidebar
           lang={lang}
           setLang={setLang}
@@ -8217,7 +8401,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
   if (screen === "student_autres") {
     return (<Translated>{(
-      <div style={styles.appShell}>
+      <div style={styles.appShell} className="student-responsive-shell">
 <StudentSidebar
           lang={lang}
           setLang={setLang}
@@ -8353,7 +8537,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
   if (screen === ("admin_dashboard" as Screen)) {
     return (<Translated>{(
-      <div style={styles.appShell}>
+      <div style={styles.appShell} className="student-responsive-shell">
         <aside style={styles.sidebar}>
           <div style={styles.sidebarBrand}>
             <img src={kedgeLogo} alt="KEDGE Business School" style={styles.sidebarLogo} />
@@ -8898,7 +9082,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
   if (screen === "student_analyses") {
       return (<Translated>{(
-      <div style={styles.appShell}>
+      <div style={styles.appShell} className="student-responsive-shell">
         <StudentSidebar
           lang={lang}
           setLang={setLang}
@@ -9268,7 +9452,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
   if (screen === "student_synthese") {
     return (<Translated>{(
-      <div style={styles.appShell}>
+      <div style={styles.appShell} className="student-responsive-shell">
         <StudentSidebar
           lang={lang}
           setLang={setLang}
@@ -9311,7 +9495,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   }
 if (screen === "student_vote") {
   return (<Translated>{(
-    <div style={styles.appShell}>
+    <div style={styles.appShell} className="student-responsive-shell">
       <StudentSidebar
           lang={lang}
           setLang={setLang}
