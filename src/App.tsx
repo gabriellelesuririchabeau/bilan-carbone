@@ -1010,6 +1010,17 @@ type StudentAssignmentDraft = {
   group_number: number;
 };
 
+type StudentProgressRow = {
+  student_email: string;
+  first_name: string;
+  last_name: string;
+  group_number: number;
+  transport_done: boolean;
+  dejeuner_done: boolean;
+  equipement_done: boolean;
+  autres_done: boolean;
+};
+
 const DEJEUNER_ANALYSIS_ROWS: DejeunerAnalysisRow[] = [
 { rowKey: "kebab", category: "Sandwich", label: "Kebab", factor: 3570, quantity: 0 },
 { rowKey: "hamburger", category: "Sandwich", label: "Hamburger", factor: 4375, quantity: 0 },
@@ -2437,6 +2448,8 @@ const [autoAssignNewStudentGroup, setAutoAssignNewStudentGroup] = useState(true)
 
   const [counts, setCounts] = useState<ResponseCounts>(EMPTY_COUNTS);
   const [countsLoading, setCountsLoading] = useState(false);
+  const [studentProgressRows, setStudentProgressRows] = useState<StudentProgressRow[]>([]);
+  const [studentProgressLoading, setStudentProgressLoading] = useState(false);
   const [studentSavingQuestionnaire, setStudentSavingQuestionnaire] = useState<QuestionnaireKey | null>(null);
   const [message, setMessage] = useState("");
   const [teacherTransportReportRowsDb, setTeacherTransportReportRowsDb] = useState<GroupReportRow[]>([]);
@@ -3973,6 +3986,73 @@ async function handleCreateTeacher(name: string, email: string, password: string
     }
   }
 
+
+  async function loadStudentProgress(
+    sessionId: string,
+    options: { showLoading?: boolean } = {}
+  ) {
+    if (!sessionId) {
+      setStudentProgressRows([]);
+      return;
+    }
+
+    let loadingTimerId: number | undefined;
+
+    if (options.showLoading) {
+      loadingTimerId = window.setTimeout(() => {
+        setStudentProgressLoading(true);
+      }, 350);
+    }
+
+    try {
+      const { data, error } = await supabase.rpc("get_session_student_progress", {
+        p_session_id: sessionId,
+      });
+
+      if (error) {
+        setStudentProgressRows([]);
+        setMessage(`Erreur chargement suivi étudiant : ${error.message}`);
+        return;
+      }
+
+      setStudentProgressRows(
+        ((data ?? []) as any[]).map((row) => ({
+          student_email: String(row.student_email ?? ""),
+          first_name: String(row.first_name ?? ""),
+          last_name: String(row.last_name ?? ""),
+          group_number: Number(row.group_number ?? 0),
+          transport_done: Boolean(row.transport_done),
+          dejeuner_done: Boolean(row.dejeuner_done),
+          equipement_done: Boolean(row.equipement_done),
+          autres_done: Boolean(row.autres_done),
+        }))
+      );
+    } finally {
+      if (loadingTimerId !== undefined) {
+        window.clearTimeout(loadingTimerId);
+      }
+      if (options.showLoading) {
+        setStudentProgressLoading(false);
+      }
+    }
+  }
+
+  async function refreshSessionMonitoring(
+    sessionId: string,
+    options: { showLoading?: boolean } = {}
+  ) {
+    if (!sessionId) {
+      setCounts(EMPTY_COUNTS);
+      setStudentProgressRows([]);
+      return;
+    }
+
+    await Promise.all([
+      loadSessionCounts(sessionId, options),
+      loadStudentProgress(sessionId, options),
+    ]);
+  }
+
   async function loadTransportReportRows(
     sessionId: string,
     setRows: React.Dispatch<React.SetStateAction<GroupReportRow[]>>
@@ -4883,12 +4963,12 @@ async function saveSalleReportRow(params: {
     ) return;
     if (!selectedSessionId) return;
 
-    void loadSessionCounts(selectedSessionId, { showLoading: teacherSessionTab === "counts" });
+    void refreshSessionMonitoring(selectedSessionId, { showLoading: teacherSessionTab === "counts" });
 
     if (teacherSessionTab !== "counts") return;
 
     const intervalId = window.setInterval(() => {
-      void loadSessionCounts(selectedSessionId, { showLoading: true });
+      void refreshSessionMonitoring(selectedSessionId, { showLoading: true });
     }, 3000);
 
     return () => {
@@ -9644,23 +9724,21 @@ if (screen === "student_vote") {
               {teacherSessionTab === "counts" && (
                 <>
                   <div style={styles.countsToolbar}>
-                    <div style={styles.countsRefreshInfo}>
-                      {countsLoading ? (
-                        <LoadingSpinner tone="dark" label={lang === "en" ? "Updating..." : "Actualisation..."} />
-                      ) : (
-                        lang === "en" ? "Automatic refresh every 3 seconds" : "Actualisation automatique toutes les 3 secondes"
-                      )}
-                    </div>
                     <button
                       type="button"
                       style={styles.secondaryButton}
+                      disabled={countsLoading || studentProgressLoading}
                       onClick={() => {
                         if (selectedSessionId) {
-                          void loadSessionCounts(selectedSessionId, { showLoading: true });
+                          void refreshSessionMonitoring(selectedSessionId, { showLoading: true });
                         }
                       }}
                     >
-                      {lang === "en" ? "Refresh" : "Actualiser"}
+                      {countsLoading || studentProgressLoading ? (
+                        <LoadingSpinner tone="dark" label={lang === "en" ? "Refreshing..." : "Actualisation..."} />
+                      ) : (
+                        lang === "en" ? "Refresh" : "Actualiser"
+                      )}
                     </button>
                   </div>
 
@@ -9670,17 +9748,69 @@ if (screen === "student_vote") {
                       <div style={styles.statValue}>{counts.transport_count}</div>
                     </div>
                     <div style={styles.statCard}>
-                      <div style={styles.statLabel}>Déjeuner</div>
+                      <div style={styles.statLabel}>{lang === "en" ? "Lunch" : "Déjeuner"}</div>
                       <div style={styles.statValue}>{counts.dejeuner_count}</div>
                     </div>
                     <div style={styles.statCard}>
-                      <div style={styles.statLabel}>Équipement</div>
+                      <div style={styles.statLabel}>{lang === "en" ? "Equipment" : "Équipement"}</div>
                       <div style={styles.statValue}>{counts.equipement_count}</div>
                     </div>
                     <div style={styles.statCard}>
-                      <div style={styles.statLabel}>Autres consommations</div>
+                      <div style={styles.statLabel}>{lang === "en" ? "Other consumption" : "Autres consommations"}</div>
                       <div style={styles.statValue}>{counts.autres_count}</div>
                     </div>
+                  </div>
+
+                  <div style={{ ...styles.innerCardFull, marginTop: 18 }}>
+                    <h3 style={styles.innerTitle}>
+                      {lang === "en" ? "Student questionnaire progress" : "Suivi des questionnaires par étudiant"}
+                    </h3>
+
+                    {studentProgressRows.length === 0 ? (
+                      <div style={styles.emptyText}>
+                        {lang === "en"
+                          ? "No student assignment found for this session."
+                          : "Aucune assignation étudiant trouvée pour cette session."}
+                      </div>
+                    ) : (
+                      <div style={styles.progressTableWrap}>
+                        <table style={{ ...styles.reportTable, marginTop: 0 }}>
+                          <thead>
+                            <tr>
+                              <th style={styles.reportTh}>{lang === "en" ? "Last name" : "Nom"}</th>
+                              <th style={styles.reportTh}>{lang === "en" ? "First name" : "Prénom"}</th>
+                              <th style={{ ...styles.reportTh, textAlign: "center" }}>{lang === "en" ? "Group" : "Groupe"}</th>
+                              <th style={{ ...styles.reportTh, textAlign: "center" }}>Transport</th>
+                              <th style={{ ...styles.reportTh, textAlign: "center" }}>{lang === "en" ? "Lunch" : "Déjeuner"}</th>
+                              <th style={{ ...styles.reportTh, textAlign: "center" }}>{lang === "en" ? "Equipment" : "Équipement"}</th>
+                              <th style={{ ...styles.reportTh, textAlign: "center" }}>{lang === "en" ? "Other" : "Autres"}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {studentProgressRows.map((student) => {
+                              const key = `${student.student_email}-${student.group_number}`;
+                              const renderCheck = (done: boolean) => (
+                                <span style={done ? styles.progressCheckDone : styles.progressCheckEmpty}>
+                                  {done ? "✓" : ""}
+                                </span>
+                              );
+
+                              return (
+                                <tr key={key}>
+                                  <td style={styles.reportTd}>{student.last_name || "—"}</td>
+                                  <td style={styles.reportTd}>{student.first_name || "—"}</td>
+                                  <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 800 }}>{student.group_number || "—"}</td>
+                                  <td style={{ ...styles.reportTd, textAlign: "center" }}>{renderCheck(student.transport_done)}</td>
+                                  <td style={{ ...styles.reportTd, textAlign: "center" }}>{renderCheck(student.dejeuner_done)}</td>
+                                  <td style={{ ...styles.reportTd, textAlign: "center" }}>{renderCheck(student.equipement_done)}</td>
+                                  <td style={{ ...styles.reportTd, textAlign: "center" }}>{renderCheck(student.autres_done)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -11274,7 +11404,7 @@ panelTitle: {
   countsToolbar: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     gap: 12,
     marginBottom: 14,
     flexWrap: "wrap" as const,
@@ -11291,6 +11421,46 @@ panelTitle: {
     color: "#334155",
     fontSize: 13,
     fontWeight: 800,
+  },
+
+  progressTableWrap: {
+    maxHeight: 420,
+    overflowY: "auto" as const,
+    overflowX: "auto" as const,
+    marginTop: 14,
+    border: "1px solid #d8e0ec",
+    borderRadius: 16,
+    background: "#ffffff",
+  },
+
+  progressCheckDone: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#dcfce7",
+    border: "2px solid #22c55e",
+    color: "#166534",
+    fontWeight: 900,
+    fontSize: 18,
+    lineHeight: 1,
+  },
+
+  progressCheckEmpty: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#ffffff",
+    border: "2px solid #cbd5e1",
+    color: "#ffffff",
+    fontWeight: 900,
+    fontSize: 18,
+    lineHeight: 1,
   },
 
   column: {
