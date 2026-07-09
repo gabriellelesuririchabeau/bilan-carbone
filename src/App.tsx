@@ -2267,7 +2267,7 @@ function StudentSidebar({
               onGo("student_analyses");
             }}
           >
-            {t(lang, "analyses")} {analysisUnlocked ? "🔓" : "🔒"}
+            {t(lang, "analyses")}
           </button>
 
           <button
@@ -2286,7 +2286,7 @@ function StudentSidebar({
               onGo("student_vote");
             }}
           >
-            {t(lang, "vote")} {voteUnlocked ? "🔓" : "🔒"}
+            {t(lang, "vote")}
           </button>
 
           <button
@@ -2305,7 +2305,7 @@ function StudentSidebar({
               onGo("student_synthese");
             }}
           >
-            {t(lang, "synthese")} {syntheseUnlocked ? "🔓" : "🔒"}
+            {t(lang, "synthese")}
           </button>
         </div>
 
@@ -2314,9 +2314,16 @@ function StudentSidebar({
             {sessionCode ? `${t(lang, "code")} : ${formatSessionCode(sessionCode)}` : ""}
           </div>
 
-          <div className="student-mobile-language">
-            <LanguageToggle lang={lang} setLang={setLang} mini />
-          </div>
+          <button
+            type="button"
+            className="student-mobile-lang-button"
+            style={styles.studentMobileLangButton}
+            onClick={() => setLang((current) => (current === "fr" ? "en" : "fr"))}
+            aria-label={lang === "fr" ? "Passer en anglais" : "Switch to French"}
+            title={lang === "fr" ? "Passer en anglais" : "Switch to French"}
+          >
+            {lang === "fr" ? "🇫🇷 FR" : "🇬🇧 EN"}
+          </button>
 
           <button
             type="button"
@@ -2485,6 +2492,7 @@ function StudentQuestionnaireTabs({
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [lang, setLang] = useState<Lang>(getStoredLanguage);
+  const isStudentMobileMain = useStudentMobileLayout();
   const [privacyModalAudience, setPrivacyModalAudience] = useState<"student" | "teacher" | null>(null);
   ACTIVE_DISPLAY_LANG = lang;
   const [isInitialSessionSetup, setIsInitialSessionSetup] = useState(false);
@@ -2957,6 +2965,38 @@ export default function App() {
 
         .student-responsive-shell label:has(input[type="checkbox"]) * {
           max-width: 100% !important;
+        }
+
+        .student-mobile-utility-row {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) auto auto !important;
+          align-items: center !important;
+          gap: 6px !important;
+        }
+
+        .student-mobile-utility-row .student-mobile-lang-button {
+          display: inline-flex !important;
+          width: 58px !important;
+          min-width: 58px !important;
+          max-width: 58px !important;
+          height: 26px !important;
+          min-height: 26px !important;
+          padding: 0 6px !important;
+          font-size: 12px !important;
+        }
+
+        .student-mobile-session-pill {
+          min-width: 0 !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+
+        .student-responsive-shell .student-mobile-report-cards input,
+        .student-responsive-shell .student-mobile-report-cards select {
+          min-height: 42px !important;
+          padding: 9px 10px !important;
+          font-size: 16px !important;
         }
 
       }
@@ -6897,6 +6937,143 @@ async function refreshStudentAnalysisData() {
     }));
   }
 
+
+  function renderMobileNumericReportCards(rows: Array<{
+    key: string;
+    label: string;
+    value: number;
+    factor: number;
+    category?: string;
+  }>, onSaveValue: (row: { key: string; label: string; value: number; factor: number; category?: string }, value: number) => Promise<void> | void, readOnly = false) {
+    return (
+      <div className="student-mobile-report-cards" style={styles.studentMobileReportCards}>
+        {rows.map((row, index) => {
+          const total = Number(row.value || 0) * Number(row.factor || 0);
+          const showCategory = Boolean(row.category) && (index === 0 || rows[index - 1]?.category !== row.category);
+
+          return (
+            <React.Fragment key={row.key}>
+              {showCategory ? (
+                <div style={styles.studentMobileReportCategory}>{row.category}</div>
+              ) : null}
+
+              <div style={styles.studentMobileReportCard}>
+                <div style={styles.studentMobileReportLabel}>{row.label}</div>
+                <div style={styles.studentMobileReportGrid}>
+                  <div style={styles.studentMobileReportFieldLabel}>Quantité</div>
+                  <div style={styles.studentMobileReportFieldValue}>
+                    {readOnly ? (
+                      <span>{formatReportNumber(row.value)}</span>
+                    ) : (
+                      <DraftNumberInput
+                        value={row.value}
+                        style={styles.studentMobileReportInput}
+                        onCommit={async (value) => {
+                          await onSaveValue(row, value);
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div style={styles.studentMobileReportMeta}>
+                  Facteur : {formatFactorNumber(row.factor)} · Total : {formatReportNumber(total)}
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderMobileTransportReportCards(rows: Array<{
+    rowKey: string;
+    label: string;
+    persons: number;
+    distanceTotalKm: number;
+    factor: number;
+  }>, params: {
+    sessionId: string;
+    groupNumber: number;
+    updatedBy: string | null;
+    readOnly: boolean;
+    onSave?: (params: {
+      sessionId: string;
+      groupNumber: number;
+      rowKey: string;
+      label: string;
+      persons: number;
+      distanceTotalKm: number;
+      factor: number;
+      updatedBy: string | null;
+    }) => Promise<void>;
+  }) {
+    return (
+      <div className="student-mobile-report-cards" style={styles.studentMobileReportCards}>
+        {rows.map((row) => {
+          const total = Number(row.distanceTotalKm || 0) * Number(row.factor || 0);
+
+          return (
+            <div key={row.rowKey} style={styles.studentMobileReportCard}>
+              <div style={styles.studentMobileReportLabel}>{row.label}</div>
+              <div style={styles.studentMobileTransportGrid}>
+                <div style={styles.studentMobileReportFieldLabel}>Personnes</div>
+                <div style={styles.studentMobileReportFieldLabel}>Distance</div>
+                <div style={styles.studentMobileReportFieldValue}>
+                  {params.readOnly ? (
+                    <span>{formatReportNumber(row.persons)}</span>
+                  ) : (
+                    <DraftNumberInput
+                      value={row.persons}
+                      style={styles.studentMobileReportInput}
+                      onCommit={async (value) => {
+                        await params.onSave?.({
+                          sessionId: params.sessionId,
+                          groupNumber: params.groupNumber,
+                          rowKey: row.rowKey,
+                          label: row.label,
+                          persons: value,
+                          distanceTotalKm: row.distanceTotalKm,
+                          factor: row.factor,
+                          updatedBy: params.updatedBy,
+                        });
+                      }}
+                    />
+                  )}
+                </div>
+                <div style={styles.studentMobileReportFieldValue}>
+                  {params.readOnly ? (
+                    <span>{formatReportNumber(row.distanceTotalKm)}</span>
+                  ) : (
+                    <DraftNumberInput
+                      value={row.distanceTotalKm}
+                      style={styles.studentMobileReportInput}
+                      onCommit={async (value) => {
+                        await params.onSave?.({
+                          sessionId: params.sessionId,
+                          groupNumber: params.groupNumber,
+                          rowKey: row.rowKey,
+                          label: row.label,
+                          persons: row.persons,
+                          distanceTotalKm: value,
+                          factor: row.factor,
+                          updatedBy: params.updatedBy,
+                        });
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+              <div style={styles.studentMobileReportMeta}>
+                Facteur : {formatFactorNumber(row.factor)} · Total : {formatReportNumber(total)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   function renderTransportReportableBlock(rows: ReportableRow[], emptyText: string) {
     return (<Translated>{(
       <div style={styles.innerCardFull}>
@@ -7232,6 +7409,29 @@ function renderEquipementAnalysisTable(params: {
         Total émissions : {formatReportNumber(tableTotal)}
       </div>
 
+      {isStudentMobileMain ? (
+        renderMobileNumericReportCards(
+          orderedRows.map((row) => ({
+            key: row.rowKey,
+            label: row.label,
+            value: Number(row.quantity || 0),
+            factor: Number(row.factor || 0),
+            category: row.category === "Équipements utilisés" ? "Matériel" : row.category,
+          })),
+          async (row, value) => {
+            await onSave?.({
+              sessionId,
+              groupNumber,
+              rowKey: row.key,
+              label: row.label,
+              quantity: value,
+              factor: row.factor,
+              updatedBy,
+            });
+          },
+          readOnly
+        )
+      ) : (
       <div style={{ overflowX: "auto", marginTop: 14 }}>
         <table style={styles.reportTable}>
           <thead>
@@ -7289,6 +7489,7 @@ function renderEquipementAnalysisTable(params: {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )}</Translated>);
 }
@@ -7365,6 +7566,29 @@ function renderDejeunerAnalysisTable(params: {
         Total du tableau : {formatReportNumber(tableTotal)} gCO2
       </div>
 
+      {isStudentMobileMain ? (
+        renderMobileNumericReportCards(
+          orderedRows.map(({ section, subcategory, row }) => ({
+            key: row.rowKey,
+            label: row.label,
+            value: Number(row.quantity || 0),
+            factor: Number(row.factor || 0),
+            category: `${section} · ${subcategory}`,
+          })),
+          async (row, value) => {
+            await onSave?.({
+              sessionId,
+              groupNumber,
+              rowKey: row.key,
+              label: row.label,
+              quantity: value,
+              factor: row.factor,
+              updatedBy,
+            });
+          },
+          readOnly
+        )
+      ) : (
       <div style={{ overflowX: "auto" }}>
         <table style={styles.reportTable}>
           <thead>
@@ -7453,6 +7677,7 @@ function renderDejeunerAnalysisTable(params: {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )}</Translated>);
 }
@@ -7615,6 +7840,29 @@ function renderAutresAnalysisTable(params: {
         Total émissions : {formatReportNumber(tableTotal)}
       </div>
 
+      {isStudentMobileMain ? (
+        renderMobileNumericReportCards(
+          orderedRows.map((row) => ({
+            key: row.rowKey,
+            label: row.label,
+            value: Number(row.quantity || 0),
+            factor: Number(row.factor || 0),
+            category: row.category,
+          })),
+          async (row, value) => {
+            await onSave?.({
+              sessionId,
+              groupNumber,
+              rowKey: row.key,
+              label: row.label,
+              quantity: value,
+              factor: row.factor,
+              updatedBy,
+            });
+          },
+          readOnly
+        )
+      ) : (
       <div style={{ overflowX: "auto", marginTop: 14 }}>
         <table style={styles.reportTable}>
           <thead>
@@ -7688,6 +7936,7 @@ function renderAutresAnalysisTable(params: {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )}</Translated>);
 }
@@ -7759,6 +8008,15 @@ function renderTransportAnalysisTable(params: {
         Pour la voiture, si plusieurs passagers sont présents, la comptabilisation se fait au prorata : 0,5 personne si un passager en plus du conducteur, 0,33 si deux passagers, etc.
       </div>
 
+      {isStudentMobileMain ? (
+        renderMobileTransportReportCards(rows, {
+          sessionId,
+          groupNumber,
+          updatedBy,
+          readOnly,
+          onSave,
+        })
+      ) : (
       <div style={{ overflowX: "auto" }}>
         <table style={styles.reportTable}>
           <thead>
@@ -7828,6 +8086,7 @@ function renderTransportAnalysisTable(params: {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )}</Translated>);
 }
@@ -7881,6 +8140,69 @@ function renderSalleAnalysisTable(params: {
         Total émissions : {formatReportNumber(tableTotal)}
       </div>
 
+      {isStudentMobileMain ? (
+        <div className="student-mobile-report-cards" style={styles.studentMobileReportCards}>
+          {rows.map((row) => {
+            const total = Number(row.quantity || 0) * Number(row.factor || 0);
+
+            return (
+              <div key={row.rowKey} style={styles.studentMobileReportCard}>
+                <div style={styles.studentMobileReportLabel}>{row.label}</div>
+                <div style={styles.studentMobileReportGrid}>
+                  <div style={styles.studentMobileReportFieldLabel}>Quantité</div>
+                  <div style={styles.studentMobileReportFieldValue}>
+                    {readOnly ? (
+                      row.rowKey === "chauffage" || row.rowKey === "climatisation" ? (
+                        <span>{Number(row.quantity || 0) > 0 ? "Oui" : "Non"}</span>
+                      ) : (
+                        <span>{formatReportNumber(row.quantity)}</span>
+                      )
+                    ) : row.rowKey === "chauffage" || row.rowKey === "climatisation" ? (
+                      <select
+                        value={Number(row.quantity || 0) > 0 ? 1 : 0}
+                        style={styles.studentMobileReportInput}
+                        onChange={async (e) => {
+                          await onSave?.({
+                            sessionId,
+                            groupNumber,
+                            rowKey: row.rowKey,
+                            label: row.label,
+                            quantity: Number(e.target.value),
+                            factor: row.factor,
+                            updatedBy,
+                          });
+                        }}
+                      >
+                        <option value={0}>Non</option>
+                        <option value={1}>Oui</option>
+                      </select>
+                    ) : (
+                      <DraftNumberInput
+                        value={row.quantity}
+                        style={styles.studentMobileReportInput}
+                        onCommit={async (value) => {
+                          await onSave?.({
+                            sessionId,
+                            groupNumber,
+                            rowKey: row.rowKey,
+                            label: row.label,
+                            quantity: value,
+                            factor: row.factor,
+                            updatedBy,
+                          });
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div style={styles.studentMobileReportMeta}>
+                  Facteur : {formatFactorNumber(row.factor)} · Total : {formatReportNumber(total)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
       <div style={{ overflowX: "auto", marginTop: 14 }}>
         <table style={styles.reportTable}>
           <thead>
@@ -7956,6 +8278,7 @@ function renderSalleAnalysisTable(params: {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )}</Translated>);
 }
@@ -11969,6 +12292,105 @@ panelTitle: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+
+  studentMobileLangButton: {
+    flex: "0 0 auto",
+    width: 58,
+    height: 26,
+    minHeight: 26,
+    background: "#ffffff",
+    color: "#123b64",
+    border: "1px solid rgba(255,255,255,0.22)",
+    borderRadius: 999,
+    padding: "0 6px",
+    fontSize: 12,
+    fontWeight: 900,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 1px 4px rgba(15,23,42,0.18)",
+  },
+
+  studentMobileReportCards: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    marginTop: 12,
+  },
+
+  studentMobileReportCategory: {
+    marginTop: 8,
+    padding: "8px 12px",
+    borderRadius: 14,
+    background: "#dbe7f3",
+    color: "#123b64",
+    fontWeight: 900,
+    fontSize: 15,
+    textAlign: "left",
+  },
+
+  studentMobileReportCard: {
+    background: "#ffffff",
+    border: "1px solid #d8e2ee",
+    borderRadius: 18,
+    padding: 12,
+    boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
+  },
+
+  studentMobileReportLabel: {
+    color: "#123b64",
+    fontWeight: 900,
+    fontSize: 16,
+    lineHeight: 1.2,
+    textAlign: "left",
+    marginBottom: 10,
+  },
+
+  studentMobileReportGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 6,
+  },
+
+  studentMobileTransportGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 8,
+  },
+
+  studentMobileReportFieldLabel: {
+    color: "#64748b",
+    fontWeight: 800,
+    fontSize: 12,
+    textAlign: "left",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+
+  studentMobileReportFieldValue: {
+    minWidth: 0,
+  },
+
+  studentMobileReportInput: {
+    width: "100%",
+    minHeight: 42,
+    borderRadius: 14,
+    border: "1px solid #c8d6e8",
+    padding: "9px 10px",
+    fontSize: 16,
+    boxSizing: "border-box",
+    background: "#fff",
+  },
+
+  studentMobileReportMeta: {
+    marginTop: 10,
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 700,
+    textAlign: "left",
   },
 
   analysisActionRow: {
