@@ -814,18 +814,29 @@ function LanguageToggle({
   lang,
   setLang,
   compact = false,
+  mini = false,
 }: {
   lang: Lang;
   setLang: React.Dispatch<React.SetStateAction<Lang>>;
   compact?: boolean;
+  mini?: boolean;
 }) {
+  const containerStyle = mini
+    ? styles.languageToggleMini
+    : compact
+      ? styles.languageToggleCompact
+      : styles.languageToggle;
+
+  const inactiveButtonStyle = mini ? styles.languageFlagButtonMini : styles.languageFlagButton;
+  const activeButtonStyle = mini ? styles.languageFlagButtonMiniActive : styles.languageFlagButtonActive;
+
   return (<Translated>{(
-    <div style={compact ? styles.languageToggleCompact : styles.languageToggle}>
+    <div style={containerStyle}>
       <button
         type="button"
         aria-label="Français"
         title="Français"
-        style={lang === "fr" ? styles.languageFlagButtonActive : styles.languageFlagButton}
+        style={lang === "fr" ? activeButtonStyle : inactiveButtonStyle}
         onClick={() => setLang("fr")}
       >
         🇫🇷
@@ -834,7 +845,7 @@ function LanguageToggle({
         type="button"
         aria-label="English"
         title="English"
-        style={lang === "en" ? styles.languageFlagButtonActive : styles.languageFlagButton}
+        style={lang === "en" ? activeButtonStyle : inactiveButtonStyle}
         onClick={() => setLang("en")}
       >
         🇬🇧
@@ -842,6 +853,27 @@ function LanguageToggle({
     </div>
   )}</Translated>);
 }
+
+function useStudentMobileLayout() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(max-width: 820px), (pointer: coarse) and (max-width: 1024px)");
+    const update = () => setIsMobile(mediaQuery.matches);
+
+    update();
+    mediaQuery.addEventListener?.("change", update);
+
+    return () => {
+      mediaQuery.removeEventListener?.("change", update);
+    };
+  }, []);
+
+  return isMobile;
+}
+
 
 function LoadingSpinner({
   label,
@@ -2197,7 +2229,110 @@ function StudentSidebar({
   lang,
   setLang,
 }: StudentSidebarProps) {
+  const isStudentMobile = useStudentMobileLayout();
+
+  if (isStudentMobile) {
     return (<Translated>{(
+      <aside style={styles.studentMobileTopbar} className="student-mobile-topbar">
+        <div style={styles.studentMobileNavScroller} className="student-mobile-nav-scroller">
+          <button
+            type="button"
+            style={active === "mise_en_oeuvre" ? styles.studentMobileNavButtonActive : styles.studentMobileNavButton}
+            onClick={() => onGo("student_mise_en_oeuvre")}
+          >
+            {t(lang, "miseEnOeuvre")}
+          </button>
+
+          <button
+            type="button"
+            style={active === "collecte" ? styles.studentMobileNavButtonActive : styles.studentMobileNavButton}
+            onClick={() => onGo("student_transport")}
+          >
+            {t(lang, "dataCollection")}
+          </button>
+
+          <button
+            type="button"
+            style={active === "analyses" ? styles.studentMobileNavButtonActive : styles.studentMobileNavButton}
+            onClick={async () => {
+              const refreshedAccess = await onBeforeOpenAnalysis?.();
+              const canOpenAnalysis =
+                typeof refreshedAccess === "boolean" ? refreshedAccess : analysisUnlocked;
+
+              if (!canOpenAnalysis) {
+                window.alert(t(lang, "lockAnalysis"));
+                return;
+              }
+
+              onGo("student_analyses");
+            }}
+          >
+            {t(lang, "analyses")} {analysisUnlocked ? "🔓" : "🔒"}
+          </button>
+
+          <button
+            type="button"
+            style={active === "vote" ? styles.studentMobileNavButtonActive : styles.studentMobileNavButton}
+            onClick={async () => {
+              const refreshedAccess = await onBeforeOpenVote?.();
+              const canOpenVote =
+                typeof refreshedAccess === "boolean" ? refreshedAccess : voteUnlocked;
+
+              if (!canOpenVote) {
+                window.alert(t(lang, "lockVote"));
+                return;
+              }
+
+              onGo("student_vote");
+            }}
+          >
+            {t(lang, "vote")} {voteUnlocked ? "🔓" : "🔒"}
+          </button>
+
+          <button
+            type="button"
+            style={active === "synthese" ? styles.studentMobileNavButtonActive : styles.studentMobileNavButton}
+            onClick={async () => {
+              const refreshedAccess = await onBeforeOpenSynthese?.();
+              const canOpenSynthese =
+                typeof refreshedAccess === "boolean" ? refreshedAccess : syntheseUnlocked;
+
+              if (!canOpenSynthese) {
+                window.alert(t(lang, "lockSynthese"));
+                return;
+              }
+
+              onGo("student_synthese");
+            }}
+          >
+            {t(lang, "synthese")} {syntheseUnlocked ? "🔓" : "🔒"}
+          </button>
+        </div>
+
+        <div style={styles.studentMobileUtilityRow} className="student-mobile-utility-row">
+          <div style={styles.studentMobileSessionPill} title={sessionId ?? ""}>
+            {sessionCode ? `${t(lang, "code")} : ${formatSessionCode(sessionCode)}` : ""}
+          </div>
+
+          <div className="student-mobile-language">
+            <LanguageToggle lang={lang} setLang={setLang} mini />
+          </div>
+
+          <button
+            type="button"
+            style={styles.studentMobileLogoutButton}
+            onClick={() => onGo("home" as Screen)}
+            aria-label={t(lang, "logout")}
+            title={t(lang, "logout")}
+          >
+            ⎋
+          </button>
+        </div>
+      </aside>
+    )}</Translated>);
+  }
+
+  return (<Translated>{(
     <aside style={styles.sidebar}>
       <div style={styles.sidebarBrand}>
         <img src={kedgeLogo} alt="KEDGE Business School" style={styles.sidebarLogo} />
@@ -2616,6 +2751,160 @@ export default function App() {
         .student-responsive-shell th {
           font-size: 14px !important;
           padding: 10px 12px !important;
+        }
+      }
+
+      @media (max-width: 820px), (pointer: coarse) and (max-width: 1024px) {
+        .student-responsive-shell {
+          background: #d9d9d9 !important;
+        }
+
+        .student-responsive-shell aside.student-mobile-topbar {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 90 !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 5px !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          padding: calc(5px + env(safe-area-inset-top, 0px)) 7px 6px !important;
+          box-sizing: border-box !important;
+          border-radius: 0 !important;
+          box-shadow: 0 7px 16px rgba(15, 23, 42, 0.25) !important;
+        }
+
+        .student-mobile-nav-scroller {
+          display: flex !important;
+          flex-direction: row !important;
+          gap: 6px !important;
+          width: 100% !important;
+          overflow-x: auto !important;
+          overflow-y: hidden !important;
+          padding: 0 0 2px !important;
+          -webkit-overflow-scrolling: touch !important;
+          scrollbar-width: none !important;
+        }
+
+        .student-mobile-nav-scroller::-webkit-scrollbar {
+          display: none !important;
+        }
+
+        .student-responsive-shell aside.student-mobile-topbar .student-mobile-nav-scroller button {
+          flex: 0 0 auto !important;
+          width: auto !important;
+          min-width: 104px !important;
+          max-width: 150px !important;
+          min-height: 34px !important;
+          padding: 7px 10px !important;
+          font-size: 12px !important;
+          line-height: 1.05 !important;
+          white-space: normal !important;
+          overflow-wrap: normal !important;
+        }
+
+        .student-mobile-utility-row {
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          gap: 6px !important;
+          width: 100% !important;
+          min-height: 28px !important;
+        }
+
+        .student-mobile-language {
+          flex: 0 0 auto !important;
+        }
+
+        .student-responsive-shell aside.student-mobile-topbar .student-mobile-language button {
+          width: 34px !important;
+          height: 26px !important;
+          min-height: 26px !important;
+          font-size: 15px !important;
+          padding: 0 !important;
+        }
+
+        .student-responsive-shell aside.student-mobile-topbar .student-mobile-utility-row > button {
+          width: 36px !important;
+          min-width: 36px !important;
+          height: 26px !important;
+          min-height: 26px !important;
+          padding: 0 !important;
+          font-size: 15px !important;
+        }
+
+        .student-responsive-shell main {
+          padding: 6px !important;
+          gap: 8px !important;
+        }
+
+        .student-responsive-shell main > header {
+          display: none !important;
+        }
+
+        .student-responsive-shell section {
+          border-radius: 18px !important;
+          padding: 10px !important;
+          gap: 10px !important;
+        }
+
+        .student-responsive-shell h2 {
+          font-size: clamp(22px, 6.4vw, 30px) !important;
+          line-height: 1.05 !important;
+          margin: 0 0 4px !important;
+        }
+
+        .student-responsive-shell h3 {
+          font-size: 17px !important;
+          line-height: 1.15 !important;
+        }
+
+        .student-responsive-shell p {
+          font-size: 14px !important;
+          line-height: 1.35 !important;
+        }
+
+        .student-responsive-shell table {
+          width: 100% !important;
+          min-width: 0 !important;
+          table-layout: auto !important;
+        }
+
+        .student-responsive-shell th,
+        .student-responsive-shell td {
+          font-size: 13px !important;
+          line-height: 1.2 !important;
+          padding: 8px 7px !important;
+          white-space: normal !important;
+          overflow-wrap: break-word !important;
+          word-break: normal !important;
+        }
+
+        .student-responsive-shell td input,
+        .student-responsive-shell td select {
+          min-height: 38px !important;
+          padding: 8px 10px !important;
+          font-size: 16px !important;
+        }
+
+        .student-responsive-shell input,
+        .student-responsive-shell select,
+        .student-responsive-shell textarea {
+          min-height: 42px !important;
+          font-size: 16px !important;
+          padding: 10px 12px !important;
+        }
+
+        .student-questionnaire-tabs {
+          grid-template-columns: 1fr 1fr !important;
+          gap: 7px !important;
+        }
+
+        .student-questionnaire-tabs button {
+          min-height: 44px !important;
+          padding: 8px 6px !important;
+          font-size: 13px !important;
         }
       }
     `;
@@ -11483,6 +11772,150 @@ panelTitle: {
     justifyContent: "center",
     padding: 0,
     boxShadow: "0 0 0 3px rgba(239,125,50,0.18)",
+  },
+
+  languageToggleMini: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    padding: 0,
+    margin: 0,
+    width: "auto",
+  },
+
+  languageFlagButtonMini: {
+    width: 34,
+    height: 26,
+    border: "1px solid rgba(15,23,42,0.16)",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.78)",
+    cursor: "pointer",
+    fontSize: 15,
+    lineHeight: 1,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+  },
+
+  languageFlagButtonMiniActive: {
+    width: 34,
+    height: 26,
+    border: "2px solid #ef7d32",
+    borderRadius: 999,
+    background: "#ffffff",
+    cursor: "pointer",
+    fontSize: 15,
+    lineHeight: 1,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    boxShadow: "0 0 0 2px rgba(239,125,50,0.18)",
+  },
+
+  studentMobileTopbar: {
+    background: "linear-gradient(180deg, #12203a 0%, #243754 100%)",
+    color: "#fff",
+    padding: "6px 7px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 5,
+    width: "100%",
+    boxSizing: "border-box",
+    position: "sticky",
+    top: 0,
+    zIndex: 90,
+    boxShadow: "0 7px 16px rgba(15,23,42,0.25)",
+  },
+
+  studentMobileNavScroller: {
+    display: "flex",
+    flexDirection: "row",
+    gap: 6,
+    width: "100%",
+    overflowX: "auto",
+    overflowY: "hidden",
+    paddingBottom: 2,
+    WebkitOverflowScrolling: "touch",
+  },
+
+  studentMobileNavButton: {
+    flex: "0 0 auto",
+    minWidth: 104,
+    maxWidth: 150,
+    minHeight: 34,
+    background: "#e6e6e6",
+    color: "#123b64",
+    border: "none",
+    borderRadius: 999,
+    padding: "7px 10px",
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: "pointer",
+    textAlign: "center",
+    lineHeight: 1.05,
+    whiteSpace: "normal",
+  },
+
+  studentMobileNavButtonActive: {
+    flex: "0 0 auto",
+    minWidth: 104,
+    maxWidth: 150,
+    minHeight: 34,
+    background: "#ef7d32",
+    color: "#123b64",
+    border: "none",
+    borderRadius: 999,
+    padding: "7px 10px",
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: "pointer",
+    textAlign: "center",
+    lineHeight: 1.05,
+    whiteSpace: "normal",
+  },
+
+  studentMobileUtilityRow: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6,
+    width: "100%",
+    minHeight: 28,
+  },
+
+  studentMobileSessionPill: {
+    flex: "1 1 auto",
+    minWidth: 0,
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 10,
+    fontWeight: 700,
+    lineHeight: 1.1,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    textAlign: "left",
+  },
+
+  studentMobileLogoutButton: {
+    flex: "0 0 auto",
+    width: 36,
+    height: 26,
+    minHeight: 26,
+    background: "rgba(255,255,255,0.14)",
+    color: "#ffffff",
+    border: "1px solid rgba(255,255,255,0.18)",
+    borderRadius: 999,
+    padding: 0,
+    fontSize: 15,
+    fontWeight: 800,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   analysisActionRow: {
