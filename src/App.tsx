@@ -8792,45 +8792,14 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
 if ((screen as string) === "projection") {
   const activeSessionCode = formatSessionCode(selectedSessionCode || projectionSessionCode || initialUrlSessionCode);
-  const projectionStages: Array<{ key: ProjectionStage; label: string }> = [
-    { key: "qr", label: t(lang, "projectionQr") },
-    { key: "bilans", label: t(lang, "projectionBilans") },
-    { key: "propositions", label: t(lang, "projectionProposals") },
-    { key: "vote", label: t(lang, "projectionVote") },
-    { key: "synthese", label: t(lang, "projectionSynthesis") },
-  ];
-
-  const projectionStageUrl = (stage: ProjectionStage) => buildProjectionUrl(activeSessionCode, stage);
+  const studentJoinUrl = buildStudentJoinUrl(activeSessionCode);
 
   return (<Translated>{(
     <div style={styles.projectionPage}>
-      <header style={styles.projectionHeader}>
-        <div>
-          <div style={styles.projectionKicker}>{t(lang, "projectionScreen")}</div>
-          <h1 style={styles.projectionTitle}>{t(lang, "appTitleUpper")}</h1>
-          <div style={styles.projectionSessionCode}>{activeSessionCode || "—"}</div>
-        </div>
-        <LanguageToggle lang={lang} setLang={setLang} compact />
+      <header style={styles.projectionHeaderClean}>
+        <h1 style={styles.projectionTitleClean}>{t(lang, "appTitleUpper")}</h1>
+        <div style={styles.projectionSessionCodeClean}>{activeSessionCode || "—"}</div>
       </header>
-
-      <nav style={styles.projectionNav}>
-        {projectionStages.map((item) => (
-          <a
-            key={item.key}
-            href={projectionStageUrl(item.key)}
-            style={item.key === projectionStage ? styles.projectionNavButtonActive : styles.projectionNavButton}
-            onClick={(event) => {
-              event.preventDefault();
-              setProjectionStage(item.key);
-              if (typeof window !== "undefined") {
-                window.history.replaceState(null, "", projectionStageUrl(item.key));
-              }
-            }}
-          >
-            {item.label}
-          </a>
-        ))}
-      </nav>
 
       {projectionLoading ? (
         <div style={styles.projectionCard}>
@@ -8843,25 +8812,34 @@ if ((screen as string) === "projection") {
       ) : null}
 
       {projectionStage === "qr" && (
-        <section style={styles.projectionHeroGrid}>
-          <div style={styles.projectionCardLarge}>
-            <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Join the activity" : "Rejoindre l’activité"}</h2>
-            <p style={styles.projectionInstruction}>
+        <section style={styles.projectionQrStage}>
+          <div style={styles.projectionQrMainCard}>
+            <h2 style={styles.projectionQrTitle}>{lang === "en" ? "Join the activity" : "Rejoindre l’activité"}</h2>
+            <p style={styles.projectionQrInstruction}>
               {lang === "en"
                 ? "Scan the QR code, then enter your email address. The session code is already filled in."
                 : "Scannez le QR code, puis renseignez votre adresse mail. Le code session sera déjà rempli."}
             </p>
-            <div style={styles.projectionBigCode}>{activeSessionCode}</div>
-            <p style={styles.projectionInstructionSmall}>
-              {lang === "en" ? "On a computer, use the LMS link and enter the code above." : "Sur ordinateur, utilisez le lien LMS et saisissez le code ci-dessus."}
+            <div style={styles.projectionQrCode}>{activeSessionCode}</div>
+            <p style={styles.projectionQrSmallText}>
+              {lang === "en"
+                ? "On a computer, use the LMS link and enter the code above."
+                : "Sur ordinateur, utilisez le lien LMS et saisissez le code ci-dessus."}
             </p>
           </div>
-          <SessionQrAccess sessionCode={activeSessionCode} lang={lang} />
+
+          <div style={styles.projectionQrCanvasCard}>
+            <h2 style={styles.projectionQrSideTitle}>{lang === "en" ? "Student access" : "Accès étudiant"}</h2>
+            <div style={styles.projectionQrCanvasWrap}>
+              <QRCodeCanvas value={studentJoinUrl} size={280} includeMargin level="M" />
+            </div>
+            <div style={styles.projectionQrSideCode}>{activeSessionCode}</div>
+          </div>
         </section>
       )}
 
       {projectionStage === "bilans" && (
-        <section style={styles.projectionSection}>
+        <section style={styles.projectionSectionClean}>
           <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Thematic carbon reports" : "Bilans carbone thématiques"}</h2>
           {teacherSyntheseData.length === 0 ? (
             <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No data available yet." : "Aucune donnée disponible pour le moment."}</p></div>
@@ -8872,7 +8850,7 @@ if ((screen as string) === "projection") {
       )}
 
       {projectionStage === "propositions" && (
-        <section style={styles.projectionSection}>
+        <section style={styles.projectionSectionClean}>
           <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Proposals submitted to vote" : "Propositions soumises au vote"}</h2>
           {!consolidatedProposals.length ? (
             <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No proposal has been submitted yet." : "Aucune proposition n’a encore été soumise au vote."}</p></div>
@@ -8890,7 +8868,7 @@ if ((screen as string) === "projection") {
       )}
 
       {projectionStage === "vote" && (
-        <section style={styles.projectionSection}>
+        <section style={styles.projectionSectionClean}>
           <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Vote results" : "Résultats des votes"}</h2>
           {teacherVoteResults.every((item) => item.totalVotes === 0) ? (
             <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No vote has been recorded yet." : "Aucun vote enregistré pour le moment."}</p></div>
@@ -8909,7 +8887,7 @@ if ((screen as string) === "projection") {
       )}
 
       {projectionStage === "synthese" && (
-        <section style={styles.projectionSection}>
+        <section style={styles.projectionSectionClean}>
           <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Final synthesis" : "Synthèse finale"}</h2>
           {teacherSyntheseData.length === 0 ? (
             <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No data available yet." : "Aucune donnée disponible pour la synthèse."}</p></div>
@@ -10181,6 +10159,13 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <section style={styles.bigPanel}>
             <h2 style={styles.panelTitle}>Paramètres de la session</h2>
 
+            {selectedSessionCode ? (
+              <div style={styles.innerCardFull}>
+                <h3 style={styles.innerTitle}>{lang === "en" ? "Student QR access" : "Accès étudiant par QR code"}</h3>
+                <SessionQrAccess sessionCode={selectedSessionCode} lang={lang} compact />
+              </div>
+            ) : null}
+
             <div style={styles.innerCardFull}>
               <label style={styles.label}>Code de session</label>
               <input style={styles.input} value={settingsTitle} onChange={(e) => setSettingsTitle(e.target.value)} />
@@ -10954,99 +10939,131 @@ if (screen === "student_vote") {
               <div style={styles.teacherSidebarCode}>{formatSessionCode(selectedSessionCode)}</div>
             </div>
 
-            <button
-              style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
-              onClick={() => {
-                setTeacherMenu("session_open");
-                setTeacherSessionTab("counts");
-              }}
-            >
-              {lang === "en" ? "Response counter" : "Compteur de réponses"}
-            </button>
+            <details open style={styles.sidebarSection}>
+              <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Monitoring" : "Suivi"}</summary>
+              <button
+                style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("session_open");
+                  setTeacherSessionTab("counts");
+                }}
+              >
+                {lang === "en" ? "Response counter" : "Compteur de réponses"}
+              </button>
 
-            <button
-              style={teacherMenu === "session_open" && teacherSessionTab === "users" ? styles.sidebarButtonActive : styles.sidebarButton}
-              onClick={() => {
-                setTeacherMenu("session_open");
-                setTeacherSessionTab("users");
-              }}
-            >
-              {lang === "en" ? "Users" : "Utilisateurs"}
-            </button>
+              <button
+                style={teacherMenu === "session_open" && teacherSessionTab === "users" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("session_open");
+                  setTeacherSessionTab("users");
+                }}
+              >
+                {lang === "en" ? "Users" : "Utilisateurs"}
+              </button>
+            </details>
 
-            <button
-              style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
-              onClick={() => {
-                setTeacherMenu("session_open");
-                setTeacherSessionTab("analyses");
-              }}
-            >
-              {t(lang, "analyses")}
-            </button>
+            <details open style={styles.sidebarSection}>
+              <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Debrief" : "Débrief"}</summary>
+              <button
+                style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("session_open");
+                  setTeacherSessionTab("analyses");
+                }}
+              >
+                {t(lang, "analyses")}
+              </button>
 
-            <button
-              style={teacherMenu === "session_open" && teacherSessionTab === "vote" ? styles.sidebarButtonActive : styles.sidebarButton}
-              onClick={() => {
-                setTeacherMenu("session_open");
-                setTeacherSessionTab("vote");
-              }}
-            >
-              {t(lang, "vote")}
-            </button>
+              <button
+                style={teacherMenu === "session_open" && teacherSessionTab === "vote" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("session_open");
+                  setTeacherSessionTab("vote");
+                }}
+              >
+                {t(lang, "vote")}
+              </button>
 
-            <button
-              style={teacherMenu === "session_open" && teacherSessionTab === "synthese" ? styles.sidebarButtonActive : styles.sidebarButton}
-              onClick={() => {
-                setTeacherMenu("session_open");
-                setTeacherSessionTab("synthese");
-              }}
-            >
-              {t(lang, "synthese")}
-            </button>
+              <button
+                style={teacherMenu === "session_open" && teacherSessionTab === "synthese" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("session_open");
+                  setTeacherSessionTab("synthese");
+                }}
+              >
+                {t(lang, "synthese")}
+              </button>
+            </details>
 
-            <div style={styles.teacherSidebarDivider} />
+            <details open style={styles.sidebarSection}>
+              <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Projection" : "Projection"}</summary>
+              <button
+                style={styles.sidebarButton}
+                onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "qr"), "bilan_carbone_projection", "noopener,noreferrer")}
+              >
+                {t(lang, "projectionQr")}
+              </button>
+              <button
+                style={styles.sidebarButton}
+                onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "bilans"), "bilan_carbone_projection", "noopener,noreferrer")}
+              >
+                {t(lang, "projectionBilans")}
+              </button>
+              <button
+                style={styles.sidebarButton}
+                onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "propositions"), "bilan_carbone_projection", "noopener,noreferrer")}
+              >
+                {t(lang, "projectionProposals")}
+              </button>
+              <button
+                style={styles.sidebarButton}
+                onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "vote"), "bilan_carbone_projection", "noopener,noreferrer")}
+              >
+                {t(lang, "projectionVote")}
+              </button>
+              <button
+                style={styles.sidebarButton}
+                onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "synthese"), "bilan_carbone_projection", "noopener,noreferrer")}
+              >
+                {t(lang, "projectionSynthesis")}
+              </button>
+            </details>
 
-            <button
-              style={styles.sidebarButton}
-              onClick={() => {
-                setTeacherMenu("sessions");
-                setIsInitialSessionSetup(false);
-              }}
-            >
-              {lang === "en" ? "Other sessions" : "Autres sessions"}
-            </button>
+            <details open style={styles.sidebarSection}>
+              <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Session" : "Session"}</summary>
+              <button
+                style={styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("sessions");
+                  setIsInitialSessionSetup(false);
+                }}
+              >
+                {lang === "en" ? "Other sessions" : "Autres sessions"}
+              </button>
 
-            <button
-              style={styles.sidebarButton}
-              onClick={() => {
-                setTeacherMenu("sessions");
-                setIsInitialSessionSetup(false);
-              }}
-            >
-              {lang === "en" ? "New session" : "Nouvelle session"}
-            </button>
+              <button
+                style={styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("sessions");
+                  setIsInitialSessionSetup(false);
+                }}
+              >
+                {lang === "en" ? "New session" : "Nouvelle session"}
+              </button>
 
-            <button
-              style={styles.sidebarButton}
-              onClick={() => {
-                setIsInitialSessionSetup(false);
-                setScreen("teacher_session_settings");
-              }}
-            >
-              {lang === "en" ? "Session settings" : "Gestion de la session"}
-            </button>
+              <button
+                style={styles.sidebarButton}
+                onClick={() => {
+                  setIsInitialSessionSetup(false);
+                  setScreen("teacher_session_settings");
+                }}
+              >
+                {lang === "en" ? "Session settings" : "Gestion de la session"}
+              </button>
+            </details>
 
-            <button
-              style={styles.teacherProjectionButton}
-              onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "qr"), "_blank", "noopener,noreferrer")}
-            >
-              {lang === "en" ? "Projection" : "Projection"}
-            </button>
-
-            <div style={styles.teacherAccessPanel} className="teacher-access-panel">
-              <div style={styles.teacherAccessPanelTitle}>
-                {lang === "en" ? "Student access" : "Accès étudiants"}
-              </div>
+            <details open style={styles.sidebarSection}>
+              <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Student access" : "Accès étudiants"}</summary>
               <button
                 type="button"
                 style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff}
@@ -11068,7 +11085,7 @@ if (screen === "student_vote") {
               >
                 {studentSyntheseUnlocked ? "🔓" : "🔒"} {t(lang, "synthese")}
               </button>
-            </div>
+            </details>
           </>
         ) : (
           <>
@@ -11261,46 +11278,6 @@ if (screen === "student_vote") {
                   ? `${lang === "en" ? "Open session" : "Session ouverte"} · ${formatSessionCode(selectedSessionCode)}`
                   : (lang === "en" ? "Open session" : "Session ouverte")}
               </h2>
-
-              {teacherSessionTab === "counts" && selectedSessionCode && (
-                <div style={styles.teacherLaunchGrid}>
-                  <div style={styles.teacherLaunchCard}>
-                    <h3 style={styles.innerTitle}>{lang === "en" ? "Student access" : "Accès étudiants"}</h3>
-                    <p style={styles.bodyText}>
-                      {lang === "en"
-                        ? "Project the QR code at the beginning of the activity. Students on a computer can still use the session code."
-                        : "Projetez le QR code au lancement de l'activité. Les étudiants sur ordinateur peuvent toujours utiliser le code session."}
-                    </p>
-                    <SessionQrAccess sessionCode={selectedSessionCode} lang={lang} compact />
-                  </div>
-
-                  <div style={styles.teacherLaunchCard}>
-                    <h3 style={styles.innerTitle}>{t(lang, "projectionScreen")}</h3>
-                    <p style={styles.bodyText}>
-                      {lang === "en"
-                        ? "Open a clean projection screen for class debriefs."
-                        : "Ouvrez une fenêtre de projection propre pour les différents débriefs."}
-                    </p>
-                    <div style={styles.teacherProjectionActions}>
-                      <button type="button" style={styles.primaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "qr"), "_blank", "noopener,noreferrer")}>
-                        {t(lang, "openProjection")}
-                      </button>
-                      <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "bilans"), "_blank", "noopener,noreferrer")}>
-                        {t(lang, "projectionBilans")}
-                      </button>
-                      <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "propositions"), "_blank", "noopener,noreferrer")}>
-                        {t(lang, "projectionProposals")}
-                      </button>
-                      <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "vote"), "_blank", "noopener,noreferrer")}>
-                        {t(lang, "projectionVote")}
-                      </button>
-                      <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "synthese"), "_blank", "noopener,noreferrer")}>
-                        {t(lang, "projectionSynthesis")}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {teacherSessionTab === "counts" && (
                 <>
@@ -12117,6 +12094,42 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#fff",
     boxShadow: "0 14px 35px rgba(15,23,42,0.22)",
   },
+
+  projectionHeaderClean: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 28,
+    padding: "26px 34px",
+    borderRadius: 28,
+    background: "#17243b",
+    color: "#fff",
+    boxShadow: "0 14px 35px rgba(15,23,42,0.22)",
+    marginBottom: 28,
+  },
+
+  projectionTitleClean: {
+    margin: 0,
+    fontSize: "clamp(38px, 5vw, 76px)",
+    lineHeight: 0.96,
+    letterSpacing: 1.2,
+    fontWeight: 950,
+    color: "#ffffff",
+    textShadow: "0 2px 8px rgba(0,0,0,0.22)",
+    maxWidth: 1200,
+  },
+
+  projectionSessionCodeClean: {
+    flex: "0 0 auto",
+    padding: "16px 24px",
+    borderRadius: 999,
+    background: "#ed7d31",
+    color: "#10213f",
+    fontSize: "clamp(26px, 2.8vw, 44px)",
+    fontWeight: 950,
+    letterSpacing: 1,
+    boxShadow: "0 10px 24px rgba(0,0,0,0.22)",
+  },
   projectionKicker: {
     fontSize: 16,
     fontWeight: 800,
@@ -12182,10 +12195,116 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 24,
     alignItems: "stretch",
   },
+
+  projectionQrStage: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1.1fr) minmax(420px, 0.8fr)",
+    gap: 28,
+    alignItems: "stretch",
+  },
+
+  projectionQrMainCard: {
+    minHeight: "calc(100vh - 210px)",
+    padding: "44px 46px",
+    borderRadius: 36,
+    background: "#ffffff",
+    boxShadow: "0 16px 36px rgba(15,23,42,0.13)",
+    display: "flex",
+    flexDirection: "column" as const,
+    justifyContent: "center",
+    alignItems: "center",
+    textAlign: "center" as const,
+  },
+
+  projectionQrCanvasCard: {
+    minHeight: "calc(100vh - 210px)",
+    padding: "44px 34px",
+    borderRadius: 36,
+    background: "#ffffff",
+    boxShadow: "0 16px 36px rgba(15,23,42,0.13)",
+    display: "flex",
+    flexDirection: "column" as const,
+    justifyContent: "center",
+    alignItems: "center",
+    textAlign: "center" as const,
+  },
+
+  projectionQrTitle: {
+    margin: 0,
+    color: "#7b3f86",
+    fontSize: "clamp(54px, 7vw, 104px)",
+    fontWeight: 950,
+    lineHeight: 0.92,
+  },
+
+  projectionQrInstruction: {
+    maxWidth: 920,
+    color: "#17243b",
+    fontSize: "clamp(30px, 3vw, 48px)",
+    lineHeight: 1.16,
+    fontWeight: 900,
+    margin: "28px 0 0",
+  },
+
+  projectionQrCode: {
+    margin: "34px 0 22px",
+    padding: "28px 42px",
+    borderRadius: 30,
+    background: "#ed7d31",
+    color: "#10213f",
+    fontSize: "clamp(50px, 6vw, 92px)",
+    fontWeight: 950,
+    letterSpacing: 1.4,
+    maxWidth: "100%",
+    boxSizing: "border-box" as const,
+    overflowWrap: "anywhere" as const,
+    lineHeight: 1.02,
+  },
+
+  projectionQrSmallText: {
+    color: "#53657f",
+    fontSize: "clamp(20px, 1.8vw, 28px)",
+    lineHeight: 1.28,
+    fontWeight: 800,
+    margin: 0,
+  },
+
+  projectionQrSideTitle: {
+    margin: "0 0 24px",
+    color: "#12355b",
+    fontSize: "clamp(30px, 3vw, 48px)",
+    lineHeight: 1.05,
+    fontWeight: 950,
+  },
+
+  projectionQrCanvasWrap: {
+    padding: 18,
+    borderRadius: 28,
+    background: "#ffffff",
+    boxShadow: "inset 0 0 0 1px #d8e2ee, 0 12px 30px rgba(15,23,42,0.12)",
+  },
+
+  projectionQrSideCode: {
+    marginTop: 26,
+    padding: "14px 22px",
+    borderRadius: 999,
+    background: "#17243b",
+    color: "#ffffff",
+    fontSize: "clamp(20px, 2vw, 30px)",
+    fontWeight: 950,
+    letterSpacing: 0.8,
+  },
   projectionSection: {
     display: "flex",
     flexDirection: "column",
     gap: 22,
+  },
+
+  projectionSectionClean: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 24,
+    minHeight: "calc(100vh - 220px)",
   },
   projectionCard: {
     padding: 28,
@@ -12345,7 +12464,7 @@ const styles: Record<string, React.CSSProperties> = {
   appShell: {
     minHeight: "100vh",
     display: "grid",
-    gridTemplateColumns: "180px 1fr",
+    gridTemplateColumns: "230px 1fr",
     background: "#e5e5e5",
     fontFamily: "Arial, sans-serif",
   },
@@ -12356,6 +12475,9 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 10,
+    overflowY: "auto" as const,
+    maxHeight: "100vh",
+    boxSizing: "border-box" as const,
   },
   sidebarBrand: {
     fontSize: 28,
@@ -13377,6 +13499,29 @@ panelTitle: {
     height: 1,
     background: "rgba(255,255,255,0.18)",
     margin: "8px 0",
+  },
+
+  sidebarSection: {
+    width: "100%",
+    boxSizing: "border-box" as const,
+    padding: "8px 8px 10px",
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 8,
+  },
+
+  sidebarSectionTitle: {
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 12,
+    fontWeight: 950,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.5,
+    cursor: "pointer",
+    marginBottom: 8,
+    userSelect: "none" as const,
   },
 
   teacherProjectionButton: {
