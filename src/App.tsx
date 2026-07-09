@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
 import kedgeLogo from "./assets/KEDGE_BS_blanc.png";
 import homeIllustration from "./assets/home-illustration.png";
 
@@ -64,6 +65,55 @@ import { EMPTY_COUNTS, buildTransportRowsForGroup } from "./utils/teacher";
 
 
 type Lang = "fr" | "en";
+type ProjectionStage = "qr" | "bilans" | "propositions" | "vote" | "synthese";
+
+function getUrlParams() {
+  if (typeof window === "undefined") return new URLSearchParams();
+  return new URLSearchParams(window.location.search);
+}
+
+function getInitialSessionCodeFromUrl() {
+  return String(getUrlParams().get("session") ?? "").trim().toUpperCase();
+}
+
+function getInitialProjectionStage(): ProjectionStage {
+  const value = String(getUrlParams().get("stage") ?? getUrlParams().get("screen") ?? "qr").trim();
+  if (["qr", "bilans", "propositions", "vote", "synthese"].includes(value)) {
+    return value as ProjectionStage;
+  }
+  return "qr";
+}
+
+function shouldOpenProjectionFromUrl() {
+  return String(getUrlParams().get("view") ?? "") === "projection";
+}
+
+function shouldOpenStudentLoginFromUrl() {
+  const params = getUrlParams();
+  return params.get("student") === "1" || params.get("role") === "student";
+}
+
+function getAppBaseUrl() {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+function buildStudentJoinUrl(sessionCode: string) {
+  const cleanCode = formatSessionCode(sessionCode);
+  const params = new URLSearchParams();
+  params.set("student", "1");
+  params.set("session", cleanCode);
+  return `${getAppBaseUrl()}?${params.toString()}`;
+}
+
+function buildProjectionUrl(sessionCode: string, stage: ProjectionStage = "qr") {
+  const cleanCode = formatSessionCode(sessionCode);
+  const params = new URLSearchParams();
+  params.set("view", "projection");
+  params.set("session", cleanCode);
+  params.set("stage", stage);
+  return `${getAppBaseUrl()}?${params.toString()}`;
+}
 
 const LANGUAGE_STORAGE_KEY = "bilan-carbone:language";
 
@@ -850,6 +900,120 @@ function LanguageToggle({
       >
         🇬🇧
       </button>
+    </div>
+  )}</Translated>);
+}
+
+
+function SessionQrAccess({
+  sessionCode,
+  lang,
+  compact = false,
+}: {
+  sessionCode: string;
+  lang: Lang;
+  compact?: boolean;
+}) {
+  const [qrStatus, setQrStatus] = useState("");
+  const cleanCode = formatSessionCode(sessionCode);
+  const studentJoinUrl = useMemo(() => buildStudentJoinUrl(cleanCode), [cleanCode]);
+  const canvasId = useMemo(
+    () => `student-session-qr-${cleanCode.replace(/[^A-Z0-9]/gi, "-") || "session"}-${compact ? "mini" : "full"}`,
+    [cleanCode, compact]
+  );
+
+  function flashStatus(nextStatus: string) {
+    setQrStatus(nextStatus);
+    window.setTimeout(() => setQrStatus(""), 2200);
+  }
+
+  async function copyStudentLink() {
+    try {
+      await navigator.clipboard.writeText(studentJoinUrl);
+      flashStatus(lang === "en" ? "Link copied." : "Lien copié.");
+    } catch {
+      window.prompt(lang === "en" ? "Copy this link:" : "Copiez ce lien :", studentJoinUrl);
+    }
+  }
+
+  async function copyQrCode() {
+    const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
+
+    if (!canvas || !navigator.clipboard) {
+      await copyStudentLink();
+      return;
+    }
+
+    const ClipboardItemCtor = (window as any).ClipboardItem;
+    if (!ClipboardItemCtor) {
+      await copyStudentLink();
+      return;
+    }
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        void copyStudentLink();
+        return;
+      }
+
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItemCtor({ "image/png": blob }),
+        ]);
+        flashStatus(lang === "en" ? "QR code copied." : "QR code copié.");
+      } catch {
+        void copyStudentLink();
+      }
+    });
+  }
+
+  function downloadQrCode() {
+    const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
+    if (!canvas) return;
+
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL("image/png");
+    link.download = `qr-session-${cleanCode || "bilan-carbone"}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  if (!cleanCode) return null;
+
+  return (<Translated>{(
+    <div style={compact ? styles.qrAccessCardCompact : styles.qrAccessCard} className="qr-access-card">
+      <div style={styles.qrAccessTextBlock}>
+        <h3 style={compact ? styles.qrAccessTitleCompact : styles.qrAccessTitle}>
+          {t(lang, "qrStudentAccess")}
+        </h3>
+        <p style={styles.qrAccessDescription}>{t(lang, "scanQrInstruction")}</p>
+        <div style={styles.qrAccessCode}>{cleanCode}</div>
+      </div>
+
+      <div style={styles.qrCanvasWrap}>
+        <QRCodeCanvas
+          id={canvasId}
+          value={studentJoinUrl}
+          size={compact ? 136 : 190}
+          includeMargin
+          level="M"
+        />
+      </div>
+
+      <div style={styles.qrActionRow}>
+        <button type="button" style={styles.secondaryButton} onClick={copyQrCode}>
+          {t(lang, "copyQr")}
+        </button>
+        <button type="button" style={styles.secondaryButton} onClick={copyStudentLink}>
+          {t(lang, "copyLink")}
+        </button>
+        <button type="button" style={styles.secondaryButton} onClick={downloadQrCode}>
+          {t(lang, "downloadQr")}
+        </button>
+      </div>
+
+      {qrStatus ? <div style={styles.qrStatus}>{qrStatus}</div> : null}
     </div>
   )}</Translated>);
 }
@@ -2490,7 +2654,19 @@ function StudentQuestionnaireTabs({
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("home");
+  const initialProjectionMode = shouldOpenProjectionFromUrl();
+  const initialStudentDeepLink = shouldOpenStudentLoginFromUrl();
+  const initialUrlSessionCode = getInitialSessionCodeFromUrl();
+  const [screen, setScreen] = useState<Screen>(
+    initialProjectionMode
+      ? ("projection" as Screen)
+      : initialStudentDeepLink
+        ? "student_login"
+        : "home"
+  );
+  const [projectionStage, setProjectionStage] = useState<ProjectionStage>(getInitialProjectionStage);
+  const [projectionSessionCode, setProjectionSessionCode] = useState(initialUrlSessionCode);
+  const [projectionLoading, setProjectionLoading] = useState(false);
   const [lang, setLang] = useState<Lang>(getStoredLanguage);
   const isStudentMobileMain = useStudentMobileLayout();
   const [privacyModalAudience, setPrivacyModalAudience] = useState<"student" | "teacher" | null>(null);
@@ -3000,6 +3176,113 @@ export default function App() {
         }
 
       }
+
+      @media (max-width: 1024px) {
+        .teacher-responsive-shell,
+        .admin-responsive-shell {
+          display: flex !important;
+          flex-direction: column !important;
+          grid-template-columns: none !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-height: 100dvh !important;
+          overflow-x: hidden !important;
+        }
+
+        .teacher-responsive-shell aside,
+        .admin-responsive-shell aside {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 80 !important;
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          gap: 8px !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          overflow-x: auto !important;
+          padding: calc(8px + env(safe-area-inset-top, 0px)) 10px 8px !important;
+          box-sizing: border-box !important;
+          border-radius: 0 !important;
+          -webkit-overflow-scrolling: touch !important;
+        }
+
+        .teacher-responsive-shell aside > div:first-child,
+        .admin-responsive-shell aside > div:first-child {
+          display: none !important;
+        }
+
+        .teacher-responsive-shell aside button,
+        .admin-responsive-shell aside button {
+          flex: 0 0 auto !important;
+          width: auto !important;
+          min-width: 112px !important;
+          min-height: 38px !important;
+          padding: 8px 12px !important;
+          font-size: 12px !important;
+          border-radius: 999px !important;
+          white-space: nowrap !important;
+        }
+
+        .teacher-responsive-shell aside > div:last-child,
+        .admin-responsive-shell aside > div:last-child {
+          flex: 0 0 auto !important;
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          gap: 8px !important;
+          margin-top: 0 !important;
+        }
+
+        .teacher-responsive-shell main,
+        .admin-responsive-shell main {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          padding: 10px !important;
+          box-sizing: border-box !important;
+        }
+
+        .teacher-responsive-shell header,
+        .admin-responsive-shell header {
+          min-height: auto !important;
+          padding: 12px 10px !important;
+        }
+
+        .teacher-responsive-shell header div:first-child,
+        .admin-responsive-shell header div:first-child {
+          font-size: clamp(18px, 5vw, 28px) !important;
+          line-height: 1.05 !important;
+        }
+
+        .teacher-responsive-shell section,
+        .admin-responsive-shell section {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          padding: 14px !important;
+          border-radius: 20px !important;
+          box-sizing: border-box !important;
+        }
+
+        .teacher-responsive-shell table,
+        .admin-responsive-shell table {
+          min-width: 720px !important;
+        }
+
+        .teacher-responsive-shell .qr-access-card,
+        .admin-responsive-shell .qr-access-card {
+          grid-template-columns: 1fr !important;
+        }
+      }
+
+
+      @media (max-width: 820px) {
+        .qr-access-card {
+          grid-template-columns: 1fr !important;
+        }
+      }
+
     `;
 
     document.head.appendChild(style);
@@ -3044,7 +3327,7 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
   const [editingTeacherEmail, setEditingTeacherEmail] = useState("");
 
   const [studentEmail, setStudentEmail] = useState("");
-  const [studentCodeSession, setStudentCodeSession] = useState("");
+  const [studentCodeSession, setStudentCodeSession] = useState(() => initialUrlSessionCode);
   const [studentAssignedGroup, setStudentAssignedGroup] = useState<number | null>(null);
 const [studentAssignedFirstName, setStudentAssignedFirstName] = useState("");
 const [studentAssignedLastName, setStudentAssignedLastName] = useState("");
@@ -5554,6 +5837,7 @@ async function saveSalleReportRow(params: {
 }
 
   useEffect(() => {
+    if ((screen as string) === "projection" || shouldOpenStudentLoginFromUrl()) return;
     let active = true;
     supabase.auth.getUser().then(async ({ data }) => {
       const user = data.user;
@@ -5578,6 +5862,73 @@ async function saveSalleReportRow(params: {
     });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if ((screen as string) !== "projection") return;
+    const cleanCode = formatSessionCode(projectionSessionCode || initialUrlSessionCode);
+    if (!cleanCode) return;
+
+    let active = true;
+
+    async function loadProjectionSession() {
+      setProjectionLoading(true);
+      setMessage("");
+
+      try {
+        const { data, error } = await supabase.rpc("get_open_session_by_code", {
+          p_session_code: cleanCode,
+        });
+
+        if (error) {
+          setMessage(error.message);
+          return;
+        }
+
+        const session = Array.isArray(data) ? data[0] : data;
+        if (!session?.id) {
+          setMessage(lang === "en" ? "Session not found or closed." : "Session introuvable ou fermée.");
+          return;
+        }
+
+        if (!active) return;
+
+        const nextSessionId = String(session.id);
+        const nextSessionCode = formatSessionCode(String(session.session_code ?? cleanCode));
+
+        setSelectedSessionId(nextSessionId);
+        setSelectedSessionCode(nextSessionCode);
+        setProjectionSessionCode(nextSessionCode);
+
+        await Promise.all([
+          refreshSessionMonitoring(nextSessionId, { showLoading: false }),
+          loadTransportReportRows(nextSessionId, setTeacherTransportReportRowsDb),
+          loadTransportReportableRows(nextSessionId, setTeacherTransportReportableRows),
+          loadTeacherDejeunerReportableRows(nextSessionId),
+          loadDejeunerReportRows(nextSessionId, setTeacherDejeunerReportRowsDb),
+          loadTeacherEquipementReportableRows(nextSessionId),
+          loadEquipementReportRows(nextSessionId, setTeacherEquipementReportRowsDb),
+          loadTeacherAutresReportableRows(nextSessionId),
+          loadAutresReportRows(nextSessionId, setTeacherAutresReportRowsDb),
+          loadSalleReportRows(nextSessionId, setTeacherSalleReportRowsDb),
+          loadConsolidatedProposals(nextSessionId),
+          loadTeacherVoteRows(nextSessionId),
+        ]);
+      } finally {
+        if (active) setProjectionLoading(false);
+      }
+    }
+
+    void loadProjectionSession();
+
+    const intervalId = window.setInterval(() => {
+      void loadProjectionSession();
+    }, 10000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [screen, projectionSessionCode, lang]);
 
   useEffect(() => {
     if (!studentSelectedSessionId) return;
@@ -8367,6 +8718,138 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     )}</Translated>);
   }
 
+if ((screen as string) === "projection") {
+  const activeSessionCode = formatSessionCode(selectedSessionCode || projectionSessionCode || initialUrlSessionCode);
+  const projectionStages: Array<{ key: ProjectionStage; label: string }> = [
+    { key: "qr", label: t(lang, "projectionQr") },
+    { key: "bilans", label: t(lang, "projectionBilans") },
+    { key: "propositions", label: t(lang, "projectionProposals") },
+    { key: "vote", label: t(lang, "projectionVote") },
+    { key: "synthese", label: t(lang, "projectionSynthesis") },
+  ];
+
+  const projectionStageUrl = (stage: ProjectionStage) => buildProjectionUrl(activeSessionCode, stage);
+
+  return (<Translated>{(
+    <div style={styles.projectionPage}>
+      <header style={styles.projectionHeader}>
+        <div>
+          <div style={styles.projectionKicker}>{t(lang, "projectionScreen")}</div>
+          <h1 style={styles.projectionTitle}>{t(lang, "appTitleUpper")}</h1>
+          <div style={styles.projectionSessionCode}>{activeSessionCode || "—"}</div>
+        </div>
+        <LanguageToggle lang={lang} setLang={setLang} compact />
+      </header>
+
+      <nav style={styles.projectionNav}>
+        {projectionStages.map((item) => (
+          <a
+            key={item.key}
+            href={projectionStageUrl(item.key)}
+            style={item.key === projectionStage ? styles.projectionNavButtonActive : styles.projectionNavButton}
+            onClick={(event) => {
+              event.preventDefault();
+              setProjectionStage(item.key);
+              if (typeof window !== "undefined") {
+                window.history.replaceState(null, "", projectionStageUrl(item.key));
+              }
+            }}
+          >
+            {item.label}
+          </a>
+        ))}
+      </nav>
+
+      {projectionLoading ? (
+        <div style={styles.projectionCard}>
+          <LoadingSpinner tone="dark" label={lang === "en" ? "Loading projection..." : "Chargement de la projection..."} />
+        </div>
+      ) : message ? (
+        <div style={styles.projectionCard}>
+          <p style={styles.bodyText}>{message}</p>
+        </div>
+      ) : null}
+
+      {projectionStage === "qr" && (
+        <section style={styles.projectionHeroGrid}>
+          <div style={styles.projectionCardLarge}>
+            <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Join the activity" : "Rejoindre l’activité"}</h2>
+            <p style={styles.projectionInstruction}>
+              {lang === "en"
+                ? "Scan the QR code, then enter your email address. The session code is already filled in."
+                : "Scannez le QR code, puis renseignez votre adresse mail. Le code session sera déjà rempli."}
+            </p>
+            <div style={styles.projectionBigCode}>{activeSessionCode}</div>
+            <p style={styles.projectionInstructionSmall}>
+              {lang === "en" ? "On a computer, use the LMS link and enter the code above." : "Sur ordinateur, utilisez le lien LMS et saisissez le code ci-dessus."}
+            </p>
+          </div>
+          <SessionQrAccess sessionCode={activeSessionCode} lang={lang} />
+        </section>
+      )}
+
+      {projectionStage === "bilans" && (
+        <section style={styles.projectionSection}>
+          <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Thematic carbon reports" : "Bilans carbone thématiques"}</h2>
+          {teacherSyntheseData.length === 0 ? (
+            <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No data available yet." : "Aucune donnée disponible pour le moment."}</p></div>
+          ) : (
+            <div style={styles.projectionDashboardWrap}>{renderSyntheseDashboard(teacherSyntheseData)}</div>
+          )}
+        </section>
+      )}
+
+      {projectionStage === "propositions" && (
+        <section style={styles.projectionSection}>
+          <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Proposals submitted to vote" : "Propositions soumises au vote"}</h2>
+          {!consolidatedProposals.length ? (
+            <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No proposal has been submitted yet." : "Aucune proposition n’a encore été soumise au vote."}</p></div>
+          ) : (
+            <div style={styles.projectionProposalGrid}>
+              {consolidatedProposals.map((proposal, index) => (
+                <div key={proposal.id || index} style={styles.projectionProposalCard}>
+                  <div style={styles.projectionProposalNumber}>{index + 1}</div>
+                  <div style={styles.projectionProposalText}>{proposal.text}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {projectionStage === "vote" && (
+        <section style={styles.projectionSection}>
+          <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Vote results" : "Résultats des votes"}</h2>
+          {teacherVoteResults.every((item) => item.totalVotes === 0) ? (
+            <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No vote has been recorded yet." : "Aucun vote enregistré pour le moment."}</p></div>
+          ) : (
+            <div style={styles.projectionVotePodium}>
+              {teacherVoteResults.slice(0, 3).map((row, index) => (
+                <div key={row.proposalId} style={styles.projectionVoteCard}>
+                  <div style={styles.projectionVoteRank}>{index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}</div>
+                  <div style={styles.projectionVoteText}>{row.text}</div>
+                  <div style={styles.projectionVoteScore}>{row.score} pts · {row.totalVotes} votes</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {projectionStage === "synthese" && (
+        <section style={styles.projectionSection}>
+          <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Final synthesis" : "Synthèse finale"}</h2>
+          {teacherSyntheseData.length === 0 ? (
+            <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No data available yet." : "Aucune donnée disponible pour la synthèse."}</p></div>
+          ) : (
+            <div style={styles.projectionDashboardWrap}>{renderSyntheseDashboard(teacherSyntheseData)}</div>
+          )}
+        </section>
+      )}
+    </div>
+  )}</Translated>);
+}
+
 if (screen === "home") {
   return (<Translated>{(
     <div style={styles.landingPage}>
@@ -9280,7 +9763,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
   if (screen === ("admin_dashboard" as Screen)) {
     return (<Translated>{(
-      <div style={styles.appShell} className="student-responsive-shell">
+      <div style={styles.appShell} className="admin-responsive-shell">
         <aside style={styles.sidebar}>
           <div style={styles.sidebarBrand}>
             <img src={kedgeLogo} alt="KEDGE Business School" style={styles.sidebarLogo} />
@@ -9576,7 +10059,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
   if (screen === "teacher_session_settings") {
     return (<Translated>{(
-      <div style={styles.appShell}>
+      <div style={styles.appShell} className="teacher-responsive-shell">
         <aside style={styles.sidebar}>
           <div style={styles.sidebarBrand}>
             <img src={kedgeLogo} alt="KEDGE Business School" style={styles.sidebarLogo} />
@@ -10384,7 +10867,7 @@ if (screen === "student_vote") {
 }
 
   return (<Translated>{(
-    <div style={styles.appShell}>
+    <div style={styles.appShell} className="teacher-responsive-shell">
       <aside style={styles.sidebar}>
         <div style={styles.sidebarBrand}>
           <img src={kedgeLogo} alt="KEDGE Business School" style={styles.sidebarLogo} />
@@ -10646,6 +11129,32 @@ if (screen === "student_vote") {
                     ? `Code session actif : ${formatSessionCode(selectedSessionCode)} — ID : ${selectedSessionId}`
                     : "Aucune session sélectionnée"}
                 </div>
+
+                {selectedSessionCode ? (
+                  <>
+                    <SessionQrAccess sessionCode={selectedSessionCode} lang={lang} compact />
+                    <div style={styles.projectionControlBox}>
+                      <h4 style={styles.projectionControlTitle}>{t(lang, "projectionScreen")}</h4>
+                      <div style={styles.projectionControlRow}>
+                        <button type="button" style={styles.primaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "qr"), "_blank", "noopener,noreferrer")}>
+                          {t(lang, "openProjection")}
+                        </button>
+                        <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "bilans"), "_blank", "noopener,noreferrer")}>
+                          {t(lang, "projectionBilans")}
+                        </button>
+                        <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "propositions"), "_blank", "noopener,noreferrer")}>
+                          {t(lang, "projectionProposals")}
+                        </button>
+                        <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "vote"), "_blank", "noopener,noreferrer")}>
+                          {t(lang, "projectionVote")}
+                        </button>
+                        <button type="button" style={styles.secondaryButton} onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "synthese"), "_blank", "noopener,noreferrer")}>
+                          {t(lang, "projectionSynthesis")}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : null}
               </div>
 
               {teacherSessionTab === "counts" && (
@@ -11353,6 +11862,312 @@ style={
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  qrAccessCard: {
+    width: "100%",
+    display: "grid",
+    gridTemplateColumns: "1.1fr auto",
+    gap: 20,
+    alignItems: "center",
+    padding: 24,
+    borderRadius: 28,
+    background: "#f8fafc",
+    border: "1px solid #d8e0ec",
+    boxShadow: "0 14px 30px rgba(15,23,42,0.12)",
+    boxSizing: "border-box",
+  },
+  qrAccessCardCompact: {
+    width: "100%",
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    gap: 16,
+    alignItems: "center",
+    marginTop: 18,
+    padding: 18,
+    borderRadius: 24,
+    background: "#f8fafc",
+    border: "1px solid #d8e0ec",
+    boxSizing: "border-box",
+  },
+  qrAccessTextBlock: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    minWidth: 0,
+  },
+  qrAccessTitle: {
+    margin: 0,
+    color: "#12355b",
+    fontSize: 28,
+    fontWeight: 900,
+    lineHeight: 1.1,
+  },
+  qrAccessTitleCompact: {
+    margin: 0,
+    color: "#12355b",
+    fontSize: 20,
+    fontWeight: 900,
+    lineHeight: 1.15,
+  },
+  qrAccessDescription: {
+    margin: 0,
+    color: "#53657f",
+    fontSize: 14,
+    lineHeight: 1.35,
+  },
+  qrAccessCode: {
+    display: "inline-flex",
+    alignSelf: "flex-start",
+    marginTop: 4,
+    padding: "10px 14px",
+    borderRadius: 999,
+    background: "#17243b",
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: 900,
+    letterSpacing: 0.5,
+  },
+  qrCanvasWrap: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+    borderRadius: 22,
+    background: "#ffffff",
+    boxShadow: "inset 0 0 0 1px #e2e8f0",
+  },
+  qrActionRow: {
+    gridColumn: "1 / -1",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "center",
+  },
+  qrStatus: {
+    gridColumn: "1 / -1",
+    textAlign: "center",
+    color: "#12355b",
+    fontSize: 13,
+    fontWeight: 800,
+  },
+  projectionControlBox: {
+    marginTop: 18,
+    padding: 18,
+    borderRadius: 22,
+    background: "#eef4fb",
+    border: "1px solid #d4e2f0",
+  },
+  projectionControlTitle: {
+    margin: "0 0 12px",
+    color: "#12355b",
+    fontSize: 18,
+    fontWeight: 900,
+  },
+  projectionControlRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "center",
+  },
+  projectionPage: {
+    minHeight: "100vh",
+    width: "100%",
+    boxSizing: "border-box",
+    padding: 28,
+    background: "linear-gradient(180deg, #eef3f8 0%, #d7dee8 100%)",
+    color: "#10213f",
+  },
+  projectionHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 20,
+    padding: "22px 28px",
+    borderRadius: 28,
+    background: "#17243b",
+    color: "#fff",
+    boxShadow: "0 14px 35px rgba(15,23,42,0.22)",
+  },
+  projectionKicker: {
+    fontSize: 16,
+    fontWeight: 800,
+    opacity: 0.76,
+    marginBottom: 6,
+  },
+  projectionTitle: {
+    margin: 0,
+    fontSize: "clamp(30px, 4.8vw, 68px)",
+    lineHeight: 0.98,
+    letterSpacing: 1,
+    fontWeight: 950,
+  },
+  projectionSessionCode: {
+    display: "inline-flex",
+    marginTop: 14,
+    padding: "12px 18px",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.12)",
+    fontSize: "clamp(18px, 2vw, 30px)",
+    fontWeight: 950,
+    letterSpacing: 0.8,
+  },
+  projectionNav: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "center",
+    margin: "22px 0",
+  },
+  projectionNavButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 140,
+    padding: "13px 18px",
+    borderRadius: 999,
+    background: "#ffffff",
+    color: "#12355b",
+    fontWeight: 900,
+    textDecoration: "none",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.10)",
+  },
+  projectionNavButtonActive: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 140,
+    padding: "13px 18px",
+    borderRadius: 999,
+    background: "#ed7d31",
+    color: "#12355b",
+    fontWeight: 950,
+    textDecoration: "none",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.16)",
+  },
+  projectionHeroGrid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1.05fr) minmax(320px, 0.75fr)",
+    gap: 24,
+    alignItems: "stretch",
+  },
+  projectionSection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 22,
+  },
+  projectionCard: {
+    padding: 28,
+    borderRadius: 30,
+    background: "#ffffff",
+    boxShadow: "0 16px 36px rgba(15,23,42,0.13)",
+  },
+  projectionCardLarge: {
+    padding: 38,
+    borderRadius: 34,
+    background: "#ffffff",
+    boxShadow: "0 16px 36px rgba(15,23,42,0.13)",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    textAlign: "center",
+  },
+  projectionSectionTitle: {
+    margin: 0,
+    color: "#7b3f86",
+    fontSize: "clamp(34px, 5vw, 72px)",
+    fontWeight: 950,
+    lineHeight: 1,
+    textAlign: "center",
+  },
+  projectionInstruction: {
+    maxWidth: 820,
+    color: "#17243b",
+    fontSize: "clamp(22px, 2.3vw, 34px)",
+    lineHeight: 1.25,
+    fontWeight: 700,
+  },
+  projectionInstructionSmall: {
+    color: "#53657f",
+    fontSize: "clamp(16px, 1.6vw, 22px)",
+    lineHeight: 1.3,
+    fontWeight: 700,
+  },
+  projectionBigCode: {
+    margin: "18px 0",
+    padding: "22px 34px",
+    borderRadius: 28,
+    background: "#ed7d31",
+    color: "#10213f",
+    fontSize: "clamp(34px, 5.5vw, 82px)",
+    fontWeight: 950,
+    letterSpacing: 1.2,
+  },
+  projectionDashboardWrap: {
+    width: "100%",
+  },
+  projectionProposalGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+    gap: 20,
+  },
+  projectionProposalCard: {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr",
+    gap: 16,
+    alignItems: "start",
+    padding: 24,
+    borderRadius: 28,
+    background: "#ffffff",
+    border: "1px solid #d8e0ec",
+    boxShadow: "0 12px 28px rgba(15,23,42,0.10)",
+  },
+  projectionProposalNumber: {
+    width: 46,
+    height: 46,
+    borderRadius: 999,
+    background: "#ed7d31",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#10213f",
+    fontSize: 24,
+    fontWeight: 950,
+  },
+  projectionProposalText: {
+    color: "#10213f",
+    fontSize: "clamp(20px, 2vw, 30px)",
+    lineHeight: 1.25,
+    fontWeight: 800,
+  },
+  projectionVotePodium: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+    gap: 22,
+  },
+  projectionVoteCard: {
+    padding: 28,
+    borderRadius: 30,
+    background: "#ffffff",
+    border: "1px solid #d8e0ec",
+    boxShadow: "0 18px 36px rgba(15,23,42,0.15)",
+    textAlign: "center",
+  },
+  projectionVoteRank: {
+    fontSize: 58,
+    marginBottom: 14,
+  },
+  projectionVoteText: {
+    color: "#10213f",
+    fontSize: "clamp(22px, 2.2vw, 34px)",
+    lineHeight: 1.25,
+    fontWeight: 900,
+  },
+  projectionVoteScore: {
+    marginTop: 18,
+    color: "#ed7d31",
+    fontSize: "clamp(18px, 1.8vw, 26px)",
+    fontWeight: 950,
+  },
   homePage: {
     minHeight: "100vh",
     background: "#e5e5e5",
