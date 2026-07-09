@@ -2688,7 +2688,7 @@ export default function App() {
         ? "student_login"
         : "home"
   );
-  const [projectionStage, setProjectionStage] = useState<ProjectionStage>(getInitialProjectionStage);
+  const [projectionStage] = useState<ProjectionStage>(getInitialProjectionStage);
   const [projectionSessionCode, setProjectionSessionCode] = useState(initialUrlSessionCode);
   const [projectionLoading, setProjectionLoading] = useState(false);
   const [lang, setLang] = useState<Lang>(getStoredLanguage);
