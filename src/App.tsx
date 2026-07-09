@@ -2330,7 +2330,7 @@ function StudentQuestionnaireTabs({
   };
 
   return (<Translated>{(
-    <div style={styles.row}>
+    <div style={styles.row} className="student-questionnaire-tabs">
       <button style={buttonStyle("transport")} type="button" onClick={() => onNavigate("transport")}>
         {label("Transport", completion.transport)}
       </button>
@@ -2363,17 +2363,35 @@ export default function App() {
 
   useEffect(() => {
     if (typeof document === "undefined") return;
+
+    let viewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+    if (!viewport) {
+      viewport = document.createElement("meta");
+      viewport.name = "viewport";
+      document.head.appendChild(viewport);
+    }
+    viewport.content = "width=device-width, initial-scale=1, viewport-fit=cover";
+
     if (document.getElementById("student-mobile-responsive-css")) return;
 
     const style = document.createElement("style");
     style.id = "student-mobile-responsive-css";
     style.textContent = `
-      @media (max-width: 768px) {
+      @media (max-width: 1024px) {
+        html,
+        body,
+        #root {
+          width: 100% !important;
+          max-width: 100% !important;
+          overflow-x: hidden !important;
+        }
+
         .student-responsive-auth {
           align-items: stretch !important;
           justify-content: flex-start !important;
           min-height: 100dvh !important;
           padding: 12px !important;
+          box-sizing: border-box !important;
         }
 
         .student-responsive-auth > div {
@@ -2386,8 +2404,8 @@ export default function App() {
         }
 
         .student-responsive-auth h1 {
-          font-size: 24px !important;
-          line-height: 1.15 !important;
+          font-size: clamp(23px, 7vw, 30px) !important;
+          line-height: 1.12 !important;
         }
 
         .student-responsive-auth input,
@@ -2396,6 +2414,7 @@ export default function App() {
           min-height: 48px !important;
           font-size: 16px !important;
           padding: 13px 14px !important;
+          box-sizing: border-box !important;
         }
 
         .student-responsive-auth button {
@@ -2412,34 +2431,46 @@ export default function App() {
           flex-direction: column !important;
           grid-template-columns: none !important;
           min-height: 100dvh !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          overflow-x: hidden !important;
+          background: #e5e5e5 !important;
         }
 
         .student-responsive-shell aside {
           position: sticky !important;
           top: 0 !important;
-          z-index: 30 !important;
+          z-index: 50 !important;
           display: grid !important;
-          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          gap: 8px !important;
-          padding: 10px !important;
-          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18) !important;
+          grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          gap: 7px !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          padding: calc(8px + env(safe-area-inset-top, 0px)) 10px 8px !important;
+          box-sizing: border-box !important;
+          border-radius: 0 !important;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22) !important;
         }
 
         .student-responsive-shell aside > div:first-child {
-          grid-column: 1 / -1 !important;
-          margin-bottom: 0 !important;
-        }
-
-        .student-responsive-shell aside img {
-          max-width: 82px !important;
-          margin: 0 auto !important;
+          display: none !important;
         }
 
         .student-responsive-shell aside button {
-          font-size: 12px !important;
-          min-height: 40px !important;
-          padding: 9px 8px !important;
-          line-height: 1.12 !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          min-height: 34px !important;
+          padding: 7px 5px !important;
+          font-size: 11px !important;
+          line-height: 1.08 !important;
+          border-radius: 999px !important;
+          white-space: normal !important;
+          overflow-wrap: anywhere !important;
+        }
+
+        .student-responsive-shell aside > button:nth-of-type(4),
+        .student-responsive-shell aside > button:nth-of-type(5) {
+          grid-column: span 1 !important;
         }
 
         .student-responsive-shell aside > div:last-child {
@@ -2449,21 +2480,39 @@ export default function App() {
           align-items: center !important;
           justify-content: center !important;
           flex-wrap: wrap !important;
-          gap: 8px !important;
-          margin-top: 2px !important;
+          gap: 6px !important;
+          margin-top: 0 !important;
+        }
+
+        .student-responsive-shell aside > div:last-child > div:not(:first-child) {
+          display: none !important;
+        }
+
+        .student-responsive-shell aside > div:last-child button {
+          width: auto !important;
+          min-width: 84px !important;
+          min-height: 30px !important;
+          padding: 6px 10px !important;
+          font-size: 11px !important;
         }
 
         .student-responsive-shell main {
-          padding: 10px !important;
-          gap: 10px !important;
+          padding: 8px !important;
+          gap: 8px !important;
           width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
           box-sizing: border-box !important;
         }
 
         .student-responsive-shell header {
           min-height: auto !important;
-          padding: 10px !important;
+          padding: 9px 8px 7px !important;
           border-radius: 0 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+          box-shadow: 0 5px 12px rgba(0,0,0,0.12) !important;
         }
 
         .student-responsive-shell header > div {
@@ -2474,14 +2523,18 @@ export default function App() {
         }
 
         .student-responsive-shell header div:first-child {
-          font-size: 19px !important;
-          line-height: 1.12 !important;
-          letter-spacing: 0.3px !important;
+          font-size: clamp(16px, 5.2vw, 23px) !important;
+          line-height: 1.02 !important;
+          letter-spacing: 0.2px !important;
+          word-break: normal !important;
+          overflow-wrap: normal !important;
+          hyphens: none !important;
         }
 
         .student-responsive-shell header div:nth-child(2) {
-          font-size: 9px !important;
-          line-height: 1.2 !important;
+          font-size: 8.5px !important;
+          line-height: 1.15 !important;
+          margin-top: 4px !important;
         }
 
         .student-responsive-shell section {
@@ -2490,12 +2543,15 @@ export default function App() {
           min-height: auto !important;
           gap: 12px !important;
           width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
           box-sizing: border-box !important;
         }
 
         .student-responsive-shell h2 {
-          font-size: 24px !important;
-          line-height: 1.15 !important;
+          font-size: clamp(25px, 8vw, 36px) !important;
+          line-height: 1.08 !important;
+          margin-bottom: 4px !important;
         }
 
         .student-responsive-shell h3 {
@@ -2507,12 +2563,14 @@ export default function App() {
         .student-responsive-shell label,
         .student-responsive-shell span,
         .student-responsive-shell div {
-          max-width: 100%;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
         }
 
         .student-responsive-shell input,
         .student-responsive-shell select,
         .student-responsive-shell textarea {
+          width: 100% !important;
           min-height: 48px !important;
           font-size: 16px !important;
           padding: 13px 14px !important;
@@ -2520,10 +2578,30 @@ export default function App() {
         }
 
         .student-responsive-shell main button {
-          width: 100% !important;
-          min-height: 46px !important;
+          max-width: 100% !important;
+          min-height: 44px !important;
           font-size: 15px !important;
           justify-content: center !important;
+          box-sizing: border-box !important;
+        }
+
+        .student-questionnaire-tabs {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr !important;
+          gap: 10px !important;
+          width: 100% !important;
+          padding: 0 !important;
+        }
+
+        .student-questionnaire-tabs button {
+          width: 100% !important;
+          min-width: 0 !important;
+          min-height: 62px !important;
+          padding: 10px 8px !important;
+          font-size: 14px !important;
+          line-height: 1.15 !important;
+          white-space: normal !important;
+          overflow-wrap: anywhere !important;
         }
 
         .student-responsive-shell [style*="grid-template-columns"] {
