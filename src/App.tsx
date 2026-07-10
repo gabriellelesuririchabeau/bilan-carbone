@@ -116,6 +116,7 @@ function buildProjectionUrl(sessionCode: string, stage: ProjectionStage = "qr") 
 }
 
 const LANGUAGE_STORAGE_KEY = "bilan-carbone:language";
+const PROJECTION_CONTROL_STORAGE_KEY = "bilan-carbone:projection-control";
 
 const I18N = {
   fr: {
@@ -2688,7 +2689,7 @@ export default function App() {
         ? "student_login"
         : "home"
   );
-  const [projectionStage] = useState<ProjectionStage>(getInitialProjectionStage);
+  const [projectionStage, setProjectionStage] = useState<ProjectionStage>(getInitialProjectionStage);
   const [projectionSessionCode, setProjectionSessionCode] = useState(initialUrlSessionCode);
   const [projectionLoading, setProjectionLoading] = useState(false);
   const [lang, setLang] = useState<Lang>(getStoredLanguage);
@@ -5998,6 +5999,34 @@ async function saveSalleReportRow(params: {
   }, [screen, projectionSessionCode, lang]);
 
   useEffect(() => {
+    if ((screen as string) !== "projection") return;
+
+    function applyProjectionControl() {
+      try {
+        const raw = localStorage.getItem(PROJECTION_CONTROL_STORAGE_KEY);
+        if (!raw) return;
+        const payload = JSON.parse(raw) as { sessionCode?: string; stage?: string };
+        const nextStage = String(payload.stage ?? "");
+        const nextSessionCode = formatSessionCode(payload.sessionCode ?? "");
+
+        if (["qr", "bilans", "propositions", "vote", "synthese"].includes(nextStage)) {
+          setProjectionStage(nextStage as ProjectionStage);
+        }
+
+        if (nextSessionCode) {
+          setProjectionSessionCode(nextSessionCode);
+        }
+      } catch {
+        // Ignore malformed projection control messages.
+      }
+    }
+
+    applyProjectionControl();
+    window.addEventListener("storage", applyProjectionControl);
+    return () => window.removeEventListener("storage", applyProjectionControl);
+  }, [screen]);
+
+  useEffect(() => {
     if (!studentSelectedSessionId) return;
     void loadTransportReportableRows(studentSelectedSessionId, setStudentTransportReportableRows);
     void loadTransportReportRows(studentSelectedSessionId, setStudentTransportReportRowsDb);
@@ -8780,6 +8809,98 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     )}</Translated>);
   }
 
+
+  const projectionThemeDetails = useMemo(() => {
+    const preferredOrder = ["transport", "dejeuner", "equipement", "autres_consommations", "salle"];
+    const themeMap = new Map<string, {
+      theme: string;
+      label: string;
+      total: number;
+      activeGroups: Set<number>;
+      rows: Map<string, { rowKey: string; label: string; total: number }>;
+    }>();
+
+    teacherSyntheseSourceRows.forEach((row) => {
+      const theme = normalizeGroupReportTheme(row.theme);
+      if (!theme) return;
+
+      if (!themeMap.has(theme)) {
+        themeMap.set(theme, {
+          theme,
+          label: getSyntheseThemeLabel(theme),
+          total: 0,
+          activeGroups: new Set<number>(),
+          rows: new Map<string, { rowKey: string; label: string; total: number }>(),
+        });
+      }
+
+      const currentTheme = themeMap.get(theme)!;
+      const quantity = Number(row.quantity ?? 0);
+      const factor = Number(row.factor ?? 0);
+      const total = quantity * factor;
+      const groupNumber = Number(row.group_number ?? 0);
+      const rowKey = String(row.row_key ?? row.label ?? "");
+      const label = String(row.label ?? rowKey);
+
+      if (total > 0 && Number.isFinite(groupNumber) && groupNumber > 0) {
+        currentTheme.activeGroups.add(groupNumber);
+      }
+
+      currentTheme.total += Number.isFinite(total) ? total : 0;
+
+      if (!currentTheme.rows.has(rowKey)) {
+        currentTheme.rows.set(rowKey, { rowKey, label, total: 0 });
+      }
+      currentTheme.rows.get(rowKey)!.total += Number.isFinite(total) ? total : 0;
+    });
+
+    return Array.from(themeMap.values())
+      .map((theme) => {
+        const divisor = Math.max(theme.activeGroups.size, 1);
+        const rows = Array.from(theme.rows.values())
+          .filter((row) => row.total > 0)
+          .map((row) => ({ ...row, average: row.total / divisor }))
+          .sort((a, b) => b.average - a.average);
+
+        return {
+          theme: theme.theme,
+          label: theme.label,
+          total: theme.total,
+          activeGroups: theme.activeGroups.size,
+          average: theme.total / divisor,
+          rows,
+        };
+      })
+      .filter((theme) => theme.average > 0 || theme.rows.length > 0)
+      .sort((a, b) => {
+        const ia = preferredOrder.indexOf(a.theme);
+        const ib = preferredOrder.indexOf(b.theme);
+        if (ia === -1 && ib === -1) return a.label.localeCompare(b.label);
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      });
+  }, [teacherSyntheseSourceRows]);
+
+  function openProjectionStage(stage: ProjectionStage) {
+    const cleanCode = formatSessionCode(selectedSessionCode || projectionSessionCode || initialUrlSessionCode);
+    if (!cleanCode) {
+      setMessage(lang === "en" ? "Open a session before using projection." : "Ouvrez une session avant d'utiliser la projection.");
+      return;
+    }
+
+    try {
+      localStorage.setItem(
+        PROJECTION_CONTROL_STORAGE_KEY,
+        JSON.stringify({ sessionCode: cleanCode, stage, updatedAt: Date.now() })
+      );
+    } catch {
+      // Projection still works by URL navigation if localStorage is unavailable.
+    }
+
+    window.open(buildProjectionUrl(cleanCode, stage), "bilan_carbone_projection");
+  }
+
 if ((screen as string) === "projection") {
   const activeSessionCode = formatSessionCode(selectedSessionCode || projectionSessionCode || initialUrlSessionCode);
   const studentJoinUrl = buildStudentJoinUrl(activeSessionCode);
@@ -8831,10 +8952,53 @@ if ((screen as string) === "projection") {
       {projectionStage === "bilans" && (
         <section style={styles.projectionSectionClean}>
           <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Thematic carbon reports" : "Bilans carbone thématiques"}</h2>
-          {teacherSyntheseData.length === 0 ? (
+          {projectionThemeDetails.length === 0 ? (
             <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No data available yet." : "Aucune donnée disponible pour le moment."}</p></div>
           ) : (
-            <div style={styles.projectionDashboardWrap}>{renderSyntheseDashboard(teacherSyntheseData)}</div>
+            <div style={styles.projectionThemeGrid}>
+              {projectionThemeDetails.map((theme, themeIndex) => {
+                const maxAverage = Math.max(...theme.rows.map((row) => row.average), 0);
+                return (
+                  <article key={theme.theme} style={styles.projectionThemeCard}>
+                    <div style={styles.projectionThemeHeader}>
+                      <div>
+                        <h3 style={styles.projectionThemeTitle}>{theme.label}</h3>
+                        <div style={styles.projectionThemeMeta}>
+                          {theme.activeGroups || 0} {lang === "en" ? "group(s)" : "groupe(s)"}
+                        </div>
+                      </div>
+                      <div style={styles.projectionThemeTotal}>
+                        {formatInteger(Math.round(theme.average))}
+                        <span style={styles.projectionThemeUnit}> gCO2</span>
+                      </div>
+                    </div>
+
+                    <div style={styles.projectionThemeRows}>
+                      {theme.rows.slice(0, 8).map((row, rowIndex) => {
+                        const width = maxAverage > 0 ? `${Math.max((row.average / maxAverage) * 100, 4)}%` : "0%";
+                        return (
+                          <div key={row.rowKey} style={styles.projectionThemeRow}>
+                            <div style={styles.projectionThemeRowTop}>
+                              <span>{row.label}</span>
+                              <strong>{formatInteger(Math.round(row.average))}</strong>
+                            </div>
+                            <div style={styles.projectionThemeBarTrack}>
+                              <div
+                                style={{
+                                  ...styles.projectionThemeBarFill,
+                                  width,
+                                  background: CHART_COLORS[(themeIndex + rowIndex) % CHART_COLORS.length],
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           )}
         </section>
       )}
@@ -10100,38 +10264,69 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   if (screen === "teacher_session_settings") {
     return (<Translated>{(
       <div style={styles.appShell} className="teacher-responsive-shell">
-        <aside style={styles.sidebar}>
+        <aside style={styles.sidebar} className="teacher-sidebar-organized">
           <div style={styles.sidebarBrand}>
             <img src={kedgeLogo} alt="KEDGE Business School" style={styles.sidebarLogo} />
           </div>
 
-          <button
-            style={styles.sidebarButtonActive}
-            onClick={() => {
-              setTeacherMenu("sessions");
-              setScreen("teacher_dashboard");
-            }}
-          >
-            {t(lang, "sessions")}
-          </button>
+          <div style={styles.teacherSidebarContext} className="teacher-session-context">
+            <div style={styles.teacherSidebarContextLabel}>{lang === "en" ? "Active session" : "Session active"}</div>
+            <div style={styles.teacherSidebarCode}>{formatSessionCode(selectedSessionCode || settingsTitle)}</div>
+          </div>
 
-          <button
-            style={{
-              ...(currentUserRole === "admin" ? styles.sidebarButton : styles.secondaryButton),
-              opacity: currentUserRole === "admin" ? 1 : 0.55,
-              cursor: currentUserRole === "admin" ? "pointer" : "not-allowed",
-            }}
-            disabled={currentUserRole !== "admin"}
-            onClick={() => {
-              if (currentUserRole !== "admin") return;
-              void handleGoToAdminFromTeacher();
-            }}
-          >
-            {t(lang, "administration")}
-          </button>
+          <details open style={styles.sidebarSection}>
+            <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Monitoring" : "Suivi"}</summary>
+            <button
+              style={styles.sidebarButton}
+              onClick={() => {
+                setScreen("teacher_dashboard");
+                setTeacherMenu("session_open");
+                setTeacherSessionTab("counts");
+              }}
+            >
+              {lang === "en" ? "Response counter" : "Compteur"}
+            </button>
+            <button
+              style={styles.sidebarButton}
+              onClick={() => {
+                setScreen("teacher_dashboard");
+                setTeacherMenu("session_open");
+                setTeacherSessionTab("users");
+              }}
+            >
+              {lang === "en" ? "Users" : "Utilisateurs"}
+            </button>
+          </details>
+
+          <details open style={styles.sidebarSection}>
+            <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Debrief" : "Débrief"}</summary>
+            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>{t(lang, "analyses")}</button>
+            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>{t(lang, "vote")}</button>
+            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>{t(lang, "synthese")}</button>
+          </details>
+
+          <details style={styles.sidebarSection}>
+            <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Projection" : "Projection"}</summary>
+            <button style={styles.sidebarButton} onClick={() => openProjectionStage("qr")}>{t(lang, "projectionQr")}</button>
+            <button style={styles.sidebarButton} onClick={() => openProjectionStage("bilans")}>{t(lang, "projectionBilans")}</button>
+            <button style={styles.sidebarButton} onClick={() => openProjectionStage("propositions")}>{t(lang, "projectionProposals")}</button>
+            <button style={styles.sidebarButton} onClick={() => openProjectionStage("vote")}>{t(lang, "projectionVote")}</button>
+            <button style={styles.sidebarButton} onClick={() => openProjectionStage("synthese")}>{t(lang, "projectionSynthesis")}</button>
+          </details>
+
+          <details open style={styles.sidebarSection}>
+            <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Session" : "Session"}</summary>
+            <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>{lang === "en" ? "Other sessions" : "Autres sessions"}</button>
+            <button style={styles.sidebarButtonActive}>{lang === "en" ? "Session settings" : "Gestion de la session"}</button>
+          </details>
 
           <div style={styles.sidebarFooter}>
             <LanguageToggle lang={lang} setLang={setLang} compact />
+            {currentUserRole === "admin" && (
+              <button style={styles.sidebarSmallButton} onClick={() => void handleGoToAdminFromTeacher()}>
+                {t(lang, "administration")}
+              </button>
+            )}
             <button style={styles.sidebarSmallButton} onClick={handleTeacherLogout}>
               {t(lang, "logout")}
             </button>
@@ -10985,41 +11180,41 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details open style={styles.sidebarSection}>
+            <details style={styles.sidebarSection}>
               <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Projection" : "Projection"}</summary>
               <button
                 style={styles.sidebarButton}
-                onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "qr"), "bilan_carbone_projection", "noopener,noreferrer")}
+                onClick={() => openProjectionStage("qr")}
               >
                 {t(lang, "projectionQr")}
               </button>
               <button
                 style={styles.sidebarButton}
-                onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "bilans"), "bilan_carbone_projection", "noopener,noreferrer")}
+                onClick={() => openProjectionStage("bilans")}
               >
                 {t(lang, "projectionBilans")}
               </button>
               <button
                 style={styles.sidebarButton}
-                onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "propositions"), "bilan_carbone_projection", "noopener,noreferrer")}
+                onClick={() => openProjectionStage("propositions")}
               >
                 {t(lang, "projectionProposals")}
               </button>
               <button
                 style={styles.sidebarButton}
-                onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "vote"), "bilan_carbone_projection", "noopener,noreferrer")}
+                onClick={() => openProjectionStage("vote")}
               >
                 {t(lang, "projectionVote")}
               </button>
               <button
                 style={styles.sidebarButton}
-                onClick={() => window.open(buildProjectionUrl(selectedSessionCode, "synthese"), "bilan_carbone_projection", "noopener,noreferrer")}
+                onClick={() => openProjectionStage("synthese")}
               >
                 {t(lang, "projectionSynthesis")}
               </button>
             </details>
 
-            <details open style={styles.sidebarSection}>
+            <details style={styles.sidebarSection}>
               <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Session" : "Session"}</summary>
               <button
                 style={styles.sidebarButton}
@@ -11052,7 +11247,7 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details open style={styles.sidebarSection}>
+            <details style={styles.sidebarSection}>
               <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Student access" : "Accès étudiants"}</summary>
               <button
                 type="button"
@@ -12065,13 +12260,18 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
   },
   projectionPage: {
-    minHeight: "100vh",
+    height: "100vh",
     width: "100%",
+    maxWidth: 1280,
+    margin: "0 auto",
     boxSizing: "border-box" as const,
-    padding: 32,
+    padding: 18,
     background: "linear-gradient(180deg, #eef3f8 0%, #d7dee8 100%)",
     color: "#10213f",
-    overflowX: "hidden" as const,
+    overflow: "hidden" as const,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 16,
   },
   projectionHeader: {
     display: "flex",
@@ -12086,36 +12286,37 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   projectionHeaderClean: {
+    flex: "0 0 auto",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 28,
-    padding: "26px 34px",
-    borderRadius: 28,
+    gap: 24,
+    padding: "20px 28px",
+    borderRadius: 26,
     background: "#17243b",
     color: "#fff",
     boxShadow: "0 14px 35px rgba(15,23,42,0.22)",
-    marginBottom: 28,
+    marginBottom: 0,
   },
 
   projectionTitleClean: {
     margin: 0,
-    fontSize: "clamp(38px, 5vw, 76px)",
-    lineHeight: 0.96,
-    letterSpacing: 1.2,
+    fontSize: "clamp(30px, 4vw, 56px)",
+    lineHeight: 0.98,
+    letterSpacing: 1.1,
     fontWeight: 950,
     color: "#ffffff",
     textShadow: "0 2px 8px rgba(0,0,0,0.22)",
-    maxWidth: 1200,
+    maxWidth: 800,
   },
 
   projectionSessionCodeClean: {
     flex: "0 0 auto",
-    padding: "16px 24px",
+    padding: "12px 22px",
     borderRadius: 999,
     background: "#ed7d31",
     color: "#10213f",
-    fontSize: "clamp(26px, 2.8vw, 44px)",
+    fontSize: "clamp(24px, 2.6vw, 38px)",
     fontWeight: 950,
     letterSpacing: 1,
     boxShadow: "0 10px 24px rgba(0,0,0,0.22)",
@@ -12187,16 +12388,18 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   projectionQrStage: {
+    flex: "1 1 auto",
+    minHeight: 0,
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1.1fr) minmax(420px, 0.8fr)",
-    gap: 28,
+    gridTemplateColumns: "minmax(0, 1.15fr) minmax(300px, 0.85fr)",
+    gap: 18,
     alignItems: "stretch",
   },
 
   projectionQrMainCard: {
-    minHeight: "calc(100vh - 210px)",
-    padding: "44px 46px",
-    borderRadius: 36,
+    minHeight: 0,
+    padding: "28px 34px",
+    borderRadius: 32,
     background: "#ffffff",
     boxShadow: "0 16px 36px rgba(15,23,42,0.13)",
     display: "flex",
@@ -12204,12 +12407,13 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     alignItems: "center",
     textAlign: "center" as const,
+    overflow: "hidden" as const,
   },
 
   projectionQrCanvasCard: {
-    minHeight: "calc(100vh - 210px)",
-    padding: "44px 34px",
-    borderRadius: 36,
+    minHeight: 0,
+    padding: "26px 28px",
+    borderRadius: 32,
     background: "#ffffff",
     boxShadow: "0 16px 36px rgba(15,23,42,0.13)",
     display: "flex",
@@ -12217,34 +12421,35 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     alignItems: "center",
     textAlign: "center" as const,
+    overflow: "hidden" as const,
   },
 
   projectionQrTitle: {
     margin: 0,
     color: "#7b3f86",
-    fontSize: "clamp(54px, 7vw, 104px)",
+    fontSize: "clamp(42px, 5.2vw, 72px)",
     fontWeight: 950,
-    lineHeight: 0.92,
+    lineHeight: 0.94,
   },
 
   projectionQrInstruction: {
-    maxWidth: 920,
+    maxWidth: 760,
     color: "#17243b",
-    fontSize: "clamp(30px, 3vw, 48px)",
-    lineHeight: 1.16,
+    fontSize: "clamp(24px, 2.3vw, 34px)",
+    lineHeight: 1.14,
     fontWeight: 900,
-    margin: "28px 0 0",
+    margin: "18px 0 0",
   },
 
   projectionQrCode: {
-    margin: "34px 0 22px",
-    padding: "28px 42px",
-    borderRadius: 30,
+    margin: "24px 0 16px",
+    padding: "20px 32px",
+    borderRadius: 26,
     background: "#ed7d31",
     color: "#10213f",
-    fontSize: "clamp(50px, 6vw, 92px)",
+    fontSize: "clamp(40px, 5vw, 70px)",
     fontWeight: 950,
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
     maxWidth: "100%",
     boxSizing: "border-box" as const,
     overflowWrap: "anywhere" as const,
@@ -12260,9 +12465,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   projectionQrSideTitle: {
-    margin: "0 0 24px",
+    margin: "0 0 18px",
     color: "#12355b",
-    fontSize: "clamp(30px, 3vw, 48px)",
+    fontSize: "clamp(26px, 2.6vw, 38px)",
     lineHeight: 1.05,
     fontWeight: 950,
   },
@@ -12291,10 +12496,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   projectionSectionClean: {
+    flex: "1 1 auto",
+    minHeight: 0,
     display: "flex",
     flexDirection: "column" as const,
-    gap: 24,
-    minHeight: "calc(100vh - 220px)",
+    gap: 16,
+    overflow: "hidden" as const,
   },
   projectionCard: {
     padding: 28,
@@ -12316,7 +12523,7 @@ const styles: Record<string, React.CSSProperties> = {
   projectionSectionTitle: {
     margin: 0,
     color: "#7b3f86",
-    fontSize: "clamp(34px, 5vw, 72px)",
+    fontSize: "clamp(32px, 4.2vw, 60px)",
     fontWeight: 950,
     lineHeight: 1,
     textAlign: "center",
@@ -12350,6 +12557,89 @@ const styles: Record<string, React.CSSProperties> = {
   },
   projectionDashboardWrap: {
     width: "100%",
+  },
+  projectionThemeGrid: {
+    flex: "1 1 auto",
+    minHeight: 0,
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
+    gap: 18,
+    overflowY: "auto" as const,
+    paddingRight: 4,
+  },
+  projectionThemeCard: {
+    minHeight: 0,
+    padding: 22,
+    borderRadius: 28,
+    background: "#ffffff",
+    boxShadow: "0 12px 28px rgba(15,23,42,0.10)",
+    border: "1px solid #d8e0ec",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 14,
+  },
+  projectionThemeHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 18,
+  },
+  projectionThemeTitle: {
+    margin: 0,
+    color: "#12355b",
+    fontSize: 30,
+    lineHeight: 1.05,
+    fontWeight: 950,
+  },
+  projectionThemeMeta: {
+    marginTop: 4,
+    color: "#64748b",
+    fontSize: 15,
+    fontWeight: 800,
+  },
+  projectionThemeTotal: {
+    flex: "0 0 auto",
+    color: "#10213f",
+    fontSize: 34,
+    fontWeight: 950,
+    lineHeight: 1,
+    textAlign: "right" as const,
+  },
+  projectionThemeUnit: {
+    fontSize: 15,
+    fontWeight: 800,
+    color: "#475569",
+  },
+  projectionThemeRows: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 10,
+    minHeight: 0,
+  },
+  projectionThemeRow: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 6,
+  },
+  projectionThemeRowTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 14,
+    color: "#17243b",
+    fontSize: 17,
+    fontWeight: 800,
+  },
+  projectionThemeBarTrack: {
+    height: 16,
+    width: "100%",
+    borderRadius: 999,
+    background: "#edf2f7",
+    overflow: "hidden" as const,
+  },
+  projectionThemeBarFill: {
+    height: "100%",
+    borderRadius: 999,
   },
   projectionProposalGrid: {
     display: "grid",
@@ -12454,17 +12744,17 @@ const styles: Record<string, React.CSSProperties> = {
   appShell: {
     minHeight: "100vh",
     display: "grid",
-    gridTemplateColumns: "230px 1fr",
+    gridTemplateColumns: "270px 1fr",
     background: "#e5e5e5",
     fontFamily: "Arial, sans-serif",
   },
   sidebar: {
     background: "linear-gradient(180deg, #12203a 0%, #243754 100%)",
     color: "#fff",
-    padding: 18,
+    padding: 20,
     display: "flex",
     flexDirection: "column",
-    gap: 10,
+    gap: 12,
     overflowY: "auto" as const,
     maxHeight: "100vh",
     boxSizing: "border-box" as const,
@@ -12493,7 +12783,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#123b64",
     border: "none",
     borderRadius: 999,
-    padding: "11px 10px",
+    padding: "12px 14px",
     fontSize: 14,
     fontWeight: 800,
     cursor: "pointer",
@@ -12508,7 +12798,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#123b64",
     border: "none",
     borderRadius: 999,
-    padding: "11px 10px",
+    padding: "12px 14px",
     fontSize: 14,
     fontWeight: 800,
     cursor: "pointer",
