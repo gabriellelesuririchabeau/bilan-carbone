@@ -10274,7 +10274,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             <div style={styles.teacherSidebarCode}>{formatSessionCode(selectedSessionCode || settingsTitle)}</div>
           </div>
 
-          <details open style={styles.sidebarSection}>
+          <details style={styles.sidebarSection}>
             <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Monitoring" : "Suivi"}</summary>
             <button
               style={styles.sidebarButton}
@@ -10298,7 +10298,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             </button>
           </details>
 
-          <details open style={styles.sidebarSection}>
+          <details style={styles.sidebarSection}>
             <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Debrief" : "Débrief"}</summary>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>{t(lang, "analyses")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>{t(lang, "vote")}</button>
@@ -11124,7 +11124,7 @@ if (screen === "student_vote") {
               <div style={styles.teacherSidebarCode}>{formatSessionCode(selectedSessionCode)}</div>
             </div>
 
-            <details open style={styles.sidebarSection}>
+            <details open={teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")} style={styles.sidebarSection}>
               <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Monitoring" : "Suivi"}</summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
@@ -11147,7 +11147,7 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details open style={styles.sidebarSection}>
+            <details open={teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")} style={styles.sidebarSection}>
               <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Debrief" : "Débrief"}</summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
@@ -12744,17 +12744,17 @@ const styles: Record<string, React.CSSProperties> = {
   appShell: {
     minHeight: "100vh",
     display: "grid",
-    gridTemplateColumns: "270px 1fr",
+    gridTemplateColumns: "310px 1fr",
     background: "#e5e5e5",
     fontFamily: "Arial, sans-serif",
   },
   sidebar: {
     background: "linear-gradient(180deg, #12203a 0%, #243754 100%)",
     color: "#fff",
-    padding: 20,
+    padding: "18px 18px 14px",
     display: "flex",
     flexDirection: "column",
-    gap: 12,
+    gap: 10,
     overflowY: "auto" as const,
     maxHeight: "100vh",
     boxSizing: "border-box" as const,
@@ -12788,9 +12788,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     cursor: "pointer",
     textAlign: "center",
-    lineHeight: 1.1,
+    lineHeight: 1.12,
     whiteSpace: "normal",
     overflowWrap: "break-word",
+    margin: "4px 0",
+    boxShadow: "0 1px 0 rgba(255,255,255,0.2)",
   },
   sidebarButtonActive: {
     width: "100%",
@@ -12803,12 +12805,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     cursor: "pointer",
     textAlign: "center",
-    lineHeight: 1.1,
+    lineHeight: 1.12,
     whiteSpace: "normal",
     overflowWrap: "break-word",
+    margin: "4px 0",
+    boxShadow: "0 8px 18px rgba(239,125,50,0.16)",
   },
   sidebarFooter: {
-    marginTop: "auto",
+    marginTop: 8,
+    paddingTop: 8,
+    borderTop: "1px solid rgba(255,255,255,0.12)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -13784,17 +13790,16 @@ panelTitle: {
   sidebarSection: {
     width: "100%",
     boxSizing: "border-box" as const,
-    padding: "8px 8px 10px",
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.10)",
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 8,
+    padding: "9px 10px 10px",
+    borderRadius: 18,
+    background: "rgba(255,255,255,0.055)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    display: "block",
+    marginBottom: 8,
   },
 
   sidebarSectionTitle: {
-    color: "rgba(255,255,255,0.82)",
+    color: "rgba(255,255,255,0.88)",
     fontSize: 12,
     fontWeight: 950,
     textTransform: "uppercase" as const,
@@ -13802,6 +13807,8 @@ panelTitle: {
     cursor: "pointer",
     marginBottom: 8,
     userSelect: "none" as const,
+    listStyle: "none",
+    padding: "2px 2px 6px",
   },
 
   teacherProjectionButton: {
@@ -13848,6 +13855,7 @@ panelTitle: {
     fontWeight: 900,
     cursor: "pointer",
     textAlign: "center" as const,
+    margin: "4px 0",
   },
 
   teacherAccessToggleOff: {
@@ -13861,6 +13869,7 @@ panelTitle: {
     fontWeight: 900,
     cursor: "pointer",
     textAlign: "center" as const,
+    margin: "4px 0",
   },
 
   teacherLaunchGrid: {
