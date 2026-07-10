@@ -5992,13 +5992,8 @@ async function saveSalleReportRow(params: {
 
     void loadProjectionSession();
 
-    const intervalId = window.setInterval(() => {
-      void loadProjectionSession();
-    }, 10000);
-
     return () => {
       active = false;
-      window.clearInterval(intervalId);
     };
   }, [screen, projectionSessionCode, lang]);
 
@@ -6032,15 +6027,10 @@ async function saveSalleReportRow(params: {
 
     void refreshSessionMonitoring(selectedSessionId, { showLoading: teacherSessionTab === "counts" });
 
-    if (teacherSessionTab !== "counts") return;
-
-    const intervalId = window.setInterval(() => {
-      void refreshSessionMonitoring(selectedSessionId, { showLoading: true });
-    }, 3000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
+    // Pas d'actualisation automatique agressive ici : le bouton "Actualiser"
+    // permet de recharger les compteurs et le tableau de suivi à la demande.
+    // Cela limite fortement la consommation Disk IO Supabase pendant les séances.
+    return;
   }, [teacherMenu, teacherSessionTab, selectedSessionId]);
 
   useEffect(() => {
