@@ -8883,6 +8883,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   }, [teacherSyntheseSourceRows]);
 
   function openProjectionStage(stage: ProjectionStage) {
+    setProjectionStage(stage);
     const cleanCode = formatSessionCode(selectedSessionCode || projectionSessionCode || initialUrlSessionCode);
     if (!cleanCode) {
       setMessage(lang === "en" ? "Open a session before using projection." : "Ouvrez une session avant d'utiliser la projection.");
@@ -8909,7 +8910,6 @@ if ((screen as string) === "projection") {
     <div style={styles.projectionPage}>
       <header style={styles.projectionHeaderClean}>
         <h1 style={styles.projectionTitleClean}>{t(lang, "appTitleUpper")}</h1>
-        <div style={styles.projectionSessionCodeClean}>{activeSessionCode || "—"}</div>
       </header>
 
       {projectionLoading ? (
@@ -10275,7 +10275,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </div>
 
           <details style={styles.sidebarSection}>
-            <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Monitoring" : "Suivi"}</summary>
+            <summary style={styles.sidebarSectionTitle}>📊 {lang === "en" ? "Monitoring" : "Suivi"}</summary>
             <button
               style={styles.sidebarButton}
               onClick={() => {
@@ -10284,7 +10284,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 setTeacherSessionTab("counts");
               }}
             >
-              {lang === "en" ? "Response counter" : "Compteur"}
+              📈 {lang === "en" ? "Response counter" : "Compteur"}
             </button>
             <button
               style={styles.sidebarButton}
@@ -10294,30 +10294,37 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 setTeacherSessionTab("users");
               }}
             >
-              {lang === "en" ? "Users" : "Utilisateurs"}
+              👥 {lang === "en" ? "Users" : "Utilisateurs"}
             </button>
           </details>
 
-          <details style={styles.sidebarSection}>
-            <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Debrief" : "Débrief"}</summary>
-            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>{t(lang, "analyses")}</button>
-            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>{t(lang, "vote")}</button>
-            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>{t(lang, "synthese")}</button>
+          <details open style={styles.sidebarSection}>
+            <summary style={styles.sidebarSectionTitle}>🔓 {lang === "en" ? "Student access" : "Accès étudiants"}</summary>
+            <button type="button" style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentAnalysisAccess}>{studentAnalysisUnlocked ? "🔓" : "🔒"} {t(lang, "analyses")}</button>
+            <button type="button" style={studentVoteUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentVoteAccess}>{studentVoteUnlocked ? "🔓" : "🔒"} {t(lang, "vote")}</button>
+            <button type="button" style={studentSyntheseUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentSyntheseAccess}>{studentSyntheseUnlocked ? "🔓" : "🔒"} {t(lang, "synthese")}</button>
           </details>
 
           <details style={styles.sidebarSection}>
-            <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Projection" : "Projection"}</summary>
-            <button style={styles.sidebarButton} onClick={() => openProjectionStage("qr")}>{t(lang, "projectionQr")}</button>
-            <button style={styles.sidebarButton} onClick={() => openProjectionStage("bilans")}>{t(lang, "projectionBilans")}</button>
-            <button style={styles.sidebarButton} onClick={() => openProjectionStage("propositions")}>{t(lang, "projectionProposals")}</button>
-            <button style={styles.sidebarButton} onClick={() => openProjectionStage("vote")}>{t(lang, "projectionVote")}</button>
-            <button style={styles.sidebarButton} onClick={() => openProjectionStage("synthese")}>{t(lang, "projectionSynthesis")}</button>
+            <summary style={styles.sidebarSectionTitle}>🧭 {lang === "en" ? "Debrief" : "Débrief"}</summary>
+            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>📑 {t(lang, "analyses")}</button>
+            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>🗳️ {t(lang, "vote")}</button>
+            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>🧩 {t(lang, "synthese")}</button>
+          </details>
+
+          <details style={styles.sidebarSection}>
+            <summary style={styles.sidebarSectionTitle}>🖥️ {lang === "en" ? "Projection" : "Projection"}</summary>
+            <button style={projectionStage === "qr" ? styles.sidebarButtonActive : styles.sidebarButton} onClick={() => openProjectionStage("qr")}>📱 {t(lang, "projectionQr")}</button>
+            <button style={projectionStage === "bilans" ? styles.sidebarButtonActive : styles.sidebarButton} onClick={() => openProjectionStage("bilans")}>📊 {t(lang, "projectionBilans")}</button>
+            <button style={projectionStage === "propositions" ? styles.sidebarButtonActive : styles.sidebarButton} onClick={() => openProjectionStage("propositions")}>💡 {t(lang, "projectionProposals")}</button>
+            <button style={projectionStage === "vote" ? styles.sidebarButtonActive : styles.sidebarButton} onClick={() => openProjectionStage("vote")}>🗳️ {t(lang, "projectionVote")}</button>
+            <button style={projectionStage === "synthese" ? styles.sidebarButtonActive : styles.sidebarButton} onClick={() => openProjectionStage("synthese")}>🧩 {t(lang, "projectionSynthesis")}</button>
           </details>
 
           <details open style={styles.sidebarSection}>
-            <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Session" : "Session"}</summary>
-            <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>{lang === "en" ? "Other sessions" : "Autres sessions"}</button>
-            <button style={styles.sidebarButtonActive}>{lang === "en" ? "Session settings" : "Gestion de la session"}</button>
+            <summary style={styles.sidebarSectionTitle}>⚙️ {lang === "en" ? "Session" : "Session"}</summary>
+            <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
+            <button style={styles.sidebarButtonActive}>🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}</button>
           </details>
 
           <div style={styles.sidebarFooter}>
@@ -11125,7 +11132,7 @@ if (screen === "student_vote") {
             </div>
 
             <details open={teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")} style={styles.sidebarSection}>
-              <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Monitoring" : "Suivi"}</summary>
+              <summary style={styles.sidebarSectionTitle}>📊 {lang === "en" ? "Monitoring" : "Suivi"}</summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11133,7 +11140,7 @@ if (screen === "student_vote") {
                   setTeacherSessionTab("counts");
                 }}
               >
-                {lang === "en" ? "Response counter" : "Compteur de réponses"}
+                📈 {lang === "en" ? "Response counter" : "Compteur de réponses"}
               </button>
 
               <button
@@ -11143,112 +11150,12 @@ if (screen === "student_vote") {
                   setTeacherSessionTab("users");
                 }}
               >
-                {lang === "en" ? "Users" : "Utilisateurs"}
+                👥 {lang === "en" ? "Users" : "Utilisateurs"}
               </button>
             </details>
 
-            <details open={teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")} style={styles.sidebarSection}>
-              <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Debrief" : "Débrief"}</summary>
-              <button
-                style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
-                onClick={() => {
-                  setTeacherMenu("session_open");
-                  setTeacherSessionTab("analyses");
-                }}
-              >
-                {t(lang, "analyses")}
-              </button>
-
-              <button
-                style={teacherMenu === "session_open" && teacherSessionTab === "vote" ? styles.sidebarButtonActive : styles.sidebarButton}
-                onClick={() => {
-                  setTeacherMenu("session_open");
-                  setTeacherSessionTab("vote");
-                }}
-              >
-                {t(lang, "vote")}
-              </button>
-
-              <button
-                style={teacherMenu === "session_open" && teacherSessionTab === "synthese" ? styles.sidebarButtonActive : styles.sidebarButton}
-                onClick={() => {
-                  setTeacherMenu("session_open");
-                  setTeacherSessionTab("synthese");
-                }}
-              >
-                {t(lang, "synthese")}
-              </button>
-            </details>
-
-            <details style={styles.sidebarSection}>
-              <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Projection" : "Projection"}</summary>
-              <button
-                style={styles.sidebarButton}
-                onClick={() => openProjectionStage("qr")}
-              >
-                {t(lang, "projectionQr")}
-              </button>
-              <button
-                style={styles.sidebarButton}
-                onClick={() => openProjectionStage("bilans")}
-              >
-                {t(lang, "projectionBilans")}
-              </button>
-              <button
-                style={styles.sidebarButton}
-                onClick={() => openProjectionStage("propositions")}
-              >
-                {t(lang, "projectionProposals")}
-              </button>
-              <button
-                style={styles.sidebarButton}
-                onClick={() => openProjectionStage("vote")}
-              >
-                {t(lang, "projectionVote")}
-              </button>
-              <button
-                style={styles.sidebarButton}
-                onClick={() => openProjectionStage("synthese")}
-              >
-                {t(lang, "projectionSynthesis")}
-              </button>
-            </details>
-
-            <details style={styles.sidebarSection}>
-              <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Session" : "Session"}</summary>
-              <button
-                style={styles.sidebarButton}
-                onClick={() => {
-                  setTeacherMenu("sessions");
-                  setIsInitialSessionSetup(false);
-                }}
-              >
-                {lang === "en" ? "Other sessions" : "Autres sessions"}
-              </button>
-
-              <button
-                style={styles.sidebarButton}
-                onClick={() => {
-                  setTeacherMenu("sessions");
-                  setIsInitialSessionSetup(false);
-                }}
-              >
-                {lang === "en" ? "New session" : "Nouvelle session"}
-              </button>
-
-              <button
-                style={styles.sidebarButton}
-                onClick={() => {
-                  setIsInitialSessionSetup(false);
-                  setScreen("teacher_session_settings");
-                }}
-              >
-                {lang === "en" ? "Session settings" : "Gestion de la session"}
-              </button>
-            </details>
-
-            <details style={styles.sidebarSection}>
-              <summary style={styles.sidebarSectionTitle}>{lang === "en" ? "Student access" : "Accès étudiants"}</summary>
+            <details open style={styles.sidebarSection}>
+              <summary style={styles.sidebarSectionTitle}>🔓 {lang === "en" ? "Student access" : "Accès étudiants"}</summary>
               <button
                 type="button"
                 style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff}
@@ -11269,6 +11176,106 @@ if (screen === "student_vote") {
                 onClick={toggleStudentSyntheseAccess}
               >
                 {studentSyntheseUnlocked ? "🔓" : "🔒"} {t(lang, "synthese")}
+              </button>
+            </details>
+
+            <details open={teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")} style={styles.sidebarSection}>
+              <summary style={styles.sidebarSectionTitle}>🧭 {lang === "en" ? "Debrief" : "Débrief"}</summary>
+              <button
+                style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("session_open");
+                  setTeacherSessionTab("analyses");
+                }}
+              >
+                📑 {t(lang, "analyses")}
+              </button>
+
+              <button
+                style={teacherMenu === "session_open" && teacherSessionTab === "vote" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("session_open");
+                  setTeacherSessionTab("vote");
+                }}
+              >
+                🗳️ {t(lang, "vote")}
+              </button>
+
+              <button
+                style={teacherMenu === "session_open" && teacherSessionTab === "synthese" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("session_open");
+                  setTeacherSessionTab("synthese");
+                }}
+              >
+                🧩 {t(lang, "synthese")}
+              </button>
+            </details>
+
+            <details style={styles.sidebarSection}>
+              <summary style={styles.sidebarSectionTitle}>🖥️ {lang === "en" ? "Projection" : "Projection"}</summary>
+              <button
+                style={projectionStage === "qr" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => openProjectionStage("qr")}
+              >
+                📱 {t(lang, "projectionQr")}
+              </button>
+              <button
+                style={projectionStage === "bilans" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => openProjectionStage("bilans")}
+              >
+                📊 {t(lang, "projectionBilans")}
+              </button>
+              <button
+                style={projectionStage === "propositions" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => openProjectionStage("propositions")}
+              >
+                💡 {t(lang, "projectionProposals")}
+              </button>
+              <button
+                style={projectionStage === "vote" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => openProjectionStage("vote")}
+              >
+                🗳️ {t(lang, "projectionVote")}
+              </button>
+              <button
+                style={projectionStage === "synthese" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => openProjectionStage("synthese")}
+              >
+                🧩 {t(lang, "projectionSynthesis")}
+              </button>
+            </details>
+
+            <details style={styles.sidebarSection}>
+              <summary style={styles.sidebarSectionTitle}>⚙️ {lang === "en" ? "Session" : "Session"}</summary>
+              <button
+                style={teacherMenu === "sessions" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("sessions");
+                  setIsInitialSessionSetup(false);
+                }}
+              >
+                📂 {lang === "en" ? "Other sessions" : "Autres sessions"}
+              </button>
+
+              <button
+                style={teacherMenu === "sessions" && isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("sessions");
+                  setIsInitialSessionSetup(true);
+                }}
+              >
+                ➕ {lang === "en" ? "New session" : "Nouvelle session"}
+              </button>
+
+              <button
+                style={(screen as string) === "teacher_session_settings" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setIsInitialSessionSetup(false);
+                  setScreen("teacher_session_settings");
+                }}
+              >
+                🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}
               </button>
             </details>
           </>
@@ -12288,7 +12295,7 @@ const styles: Record<string, React.CSSProperties> = {
   projectionHeaderClean: {
     flex: "0 0 auto",
     display: "flex",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
     gap: 24,
     padding: "20px 28px",
@@ -12301,6 +12308,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   projectionTitleClean: {
     margin: 0,
+    textAlign: "center" as const,
     fontSize: "clamp(30px, 4vw, 56px)",
     lineHeight: 0.98,
     letterSpacing: 1.1,
@@ -12812,7 +12820,7 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 8px 18px rgba(239,125,50,0.16)",
   },
   sidebarFooter: {
-    marginTop: 8,
+    marginTop: "auto",
     paddingTop: 8,
     borderTop: "1px solid rgba(255,255,255,0.12)",
     display: "flex",
