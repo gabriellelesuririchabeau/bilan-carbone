@@ -11297,7 +11297,6 @@ if (screen === "student_vote") {
               <button
                 style={(screen as string) === "teacher_session_settings" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
-                  setTeacherMenu("session_settings");
                   setIsInitialSessionSetup(false);
                   setScreen("teacher_session_settings");
                 }}
