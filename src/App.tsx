@@ -93,16 +93,24 @@ function shouldOpenStudentLoginFromUrl() {
   return params.get("student") === "1" || params.get("role") === "student";
 }
 
+function getInitialStudentTargetFromUrl(): "home" | "vote" {
+  const value = String(getUrlParams().get("target") ?? getUrlParams().get("go") ?? "home").trim().toLowerCase();
+  return value === "vote" ? "vote" : "home";
+}
+
 function getAppBaseUrl() {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}${window.location.pathname}`;
 }
 
-function buildStudentJoinUrl(sessionCode: string) {
+function buildStudentJoinUrl(sessionCode: string, target: "home" | "vote" = "home") {
   const cleanCode = formatSessionCode(sessionCode);
   const params = new URLSearchParams();
   params.set("student", "1");
   params.set("session", cleanCode);
+  if (target === "vote") {
+    params.set("target", "vote");
+  }
   return `${getAppBaseUrl()}?${params.toString()}`;
 }
 
@@ -2682,6 +2690,7 @@ export default function App() {
   const initialProjectionMode = shouldOpenProjectionFromUrl();
   const initialStudentDeepLink = shouldOpenStudentLoginFromUrl();
   const initialUrlSessionCode = getInitialSessionCodeFromUrl();
+  const initialStudentTarget = getInitialStudentTargetFromUrl();
   const [screen, setScreen] = useState<Screen>(
     initialProjectionMode
       ? ("projection" as Screen)
@@ -3553,17 +3562,21 @@ const teacherVoteScoreTotal = useMemo(() => {
   return teacherVoteResults.reduce((sum, item) => sum + Number(item.score ?? 0), 0);
 }, [teacherVoteResults]);
 
+const studentVotedEmails = useMemo(() => {
+  return new Set(
+    teacherVoteRows
+      .map((row) => normalizeEmail(row.student_email ?? ""))
+      .filter(Boolean)
+  );
+}, [teacherVoteRows]);
+
+function hasStudentVoted(email: string | null | undefined) {
+  return studentVotedEmails.has(normalizeEmail(email ?? ""));
+}
+
 function getVoteScorePercent(score: number) {
   if (!teacherVoteScoreTotal) return 0;
   return Math.round((Number(score ?? 0) / teacherVoteScoreTotal) * 100);
-}
-
-function formatVoteCountLabel(count: number) {
-  const numericCount = Number(count ?? 0);
-  if (lang === "en") {
-    return `${numericCount} vote${numericCount === 1 ? "" : "s"}`;
-  }
-  return `${numericCount} vote${numericCount > 1 ? "s" : ""}`;
 }
 
   const teacherTransportRows = useMemo(
@@ -5067,6 +5080,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
     await Promise.all([
       loadSessionCounts(sessionId, options),
       loadStudentProgress(sessionId, options),
+      loadTeacherVoteRows(sessionId),
     ]);
   }
 
@@ -7048,8 +7062,16 @@ async function handleStudentEnter() {
   await loadSalleReportRows(nextSessionId, setStudentSalleReportRowsDb);
   await loadSessionAnalysisAccess(nextSessionId);
   await loadSessionSyntheseAccess(nextSessionId);
-  await loadSessionVoteAccess(nextSessionId);
+  const voteUnlockedForStudent = await loadSessionVoteAccess(nextSessionId);
   await loadTeacherGroupProposals(nextSessionId);
+
+  if (initialStudentTarget === "vote") {
+    setScreen(voteUnlockedForStudent ? "student_vote" : "student_mise_en_oeuvre");
+    if (!voteUnlockedForStudent) {
+      setMessage(lang === "en" ? "Vote is not open yet." : "Le vote n'est pas encore ouvert.");
+    }
+    return;
+  }
 
   setScreen("student_mise_en_oeuvre");
 }
@@ -9068,7 +9090,21 @@ if ((screen as string) === "projection") {
 
       {projectionStage === "vote" && (
         <section style={styles.projectionSectionClean}>
-          <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Vote results" : "Résultats des votes"}</h2>
+          <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Vote" : "Vote"}</h2>
+          <div style={styles.projectionVoteQrCard}>
+            <div>
+              <h3 style={styles.projectionVoteQrTitle}>{lang === "en" ? "Scan to vote" : "Scannez pour voter"}</h3>
+              <p style={styles.projectionVoteQrText}>
+                {lang === "en"
+                  ? "Students scan this QR code and enter only their email address."
+                  : "Les étudiants scannent ce QR code et renseignent uniquement leur adresse e-mail."}
+              </p>
+            </div>
+            <div style={styles.projectionVoteQrBox}>
+              <QRCodeCanvas value={buildStudentJoinUrl(activeSessionCode, "vote")} size={150} includeMargin />
+            </div>
+          </div>
+          <h2 style={{ ...styles.projectionSectionTitle, marginTop: 20 }}>{lang === "en" ? "Vote results" : "Résultats des votes"}</h2>
           {teacherVoteResults.every((item) => item.totalVotes === 0) ? (
             <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No vote has been recorded yet." : "Aucun vote enregistré pour le moment."}</p></div>
           ) : (
@@ -10320,7 +10356,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </div>
 
           <details style={styles.sidebarSection}>
-            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Live collection" : "Collecte en direct"}</span></summary>
+            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Participation" : "Participation"}</span></summary>
             <button
               style={styles.sidebarButton}
               onClick={() => {
@@ -10344,21 +10380,21 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </details>
 
           <details open style={styles.sidebarSection}>
-            <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "Student access" : "Accès étudiants"}</span></summary>
+            <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "Student access" : "Accès étudiants"}</span></summary>
             <button type="button" style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentAnalysisAccess}>{studentAnalysisUnlocked ? "🔓" : "🔒"} {t(lang, "analyses")}</button>
             <button type="button" style={studentVoteUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentVoteAccess}>{studentVoteUnlocked ? "🔓" : "🔒"} {t(lang, "vote")}</button>
             <button type="button" style={studentSyntheseUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentSyntheseAccess}>{studentSyntheseUnlocked ? "🔓" : "🔒"} {t(lang, "synthese")}</button>
           </details>
 
           <details style={styles.sidebarSection}>
-            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "Class facilitation" : "Animation de la séance"}</span></summary>
+            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "Activity follow-up" : "Suivi de l’activité"}</span></summary>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>📑 {t(lang, "analyses")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>🗳️ {t(lang, "vote")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>🧩 {t(lang, "synthese")}</button>
           </details>
 
           <details style={styles.sidebarSection}>
-            <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "Projection" : "Projection"}</span></summary>
+            <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "Projection" : "Projection"}</span></summary>
             <button style={getProjectionMenuButtonStyle("qr")} onClick={() => openProjectionStage("qr")}>📱 {t(lang, "projectionQr")}</button>
             <button style={getProjectionMenuButtonStyle("bilans")} onClick={() => openProjectionStage("bilans")}>📊 {t(lang, "projectionBilans")}</button>
             <button style={getProjectionMenuButtonStyle("propositions")} onClick={() => openProjectionStage("propositions")}>💡 {t(lang, "projectionProposals")}</button>
@@ -10367,7 +10403,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </details>
 
           <details open style={styles.sidebarSection}>
-            <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "Session" : "Session"}</span></summary>
+            <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "Session" : "Session"}</span></summary>
             <button style={styles.sidebarButtonActive}>🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}</button>
             <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setIsInitialSessionSetup(true); setScreen("teacher_session_settings"); }}>➕ {lang === "en" ? "New session" : "Nouvelle session"}</button>
             <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
@@ -11178,7 +11214,7 @@ if (screen === "student_vote") {
             </div>
 
             <details open={teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")} style={styles.sidebarSection}>
-              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Live collection" : "Collecte en direct"}</span></summary>
+              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Participation" : "Participation"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11201,7 +11237,7 @@ if (screen === "student_vote") {
             </details>
 
             <details open style={styles.sidebarSection}>
-              <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "Student access" : "Accès étudiants"}</span></summary>
+              <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "Student access" : "Accès étudiants"}</span></summary>
               <button
                 type="button"
                 style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff}
@@ -11226,7 +11262,7 @@ if (screen === "student_vote") {
             </details>
 
             <details open={teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")} style={styles.sidebarSection}>
-              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "Class facilitation" : "Animation de la séance"}</span></summary>
+              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "Activity follow-up" : "Suivi de l’activité"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11259,7 +11295,7 @@ if (screen === "student_vote") {
             </details>
 
             <details style={styles.sidebarSection}>
-              <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "Projection" : "Projection"}</span></summary>
+              <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "Projection" : "Projection"}</span></summary>
               <button
                 style={getProjectionMenuButtonStyle("qr")}
                 onClick={() => openProjectionStage("qr")}
@@ -11293,7 +11329,7 @@ if (screen === "student_vote") {
             </details>
 
             <details style={styles.sidebarSection}>
-              <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "Session" : "Session"}</span></summary>
+              <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "Session" : "Session"}</span></summary>
               <button
                 style={(screen as string) === "teacher_session_settings" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11561,7 +11597,7 @@ if (screen === "student_vote") {
 
                   <div style={{ ...styles.innerCardFull, marginTop: 18 }}>
                     <h3 style={styles.innerTitle}>
-                      {lang === "en" ? "Student questionnaire progress" : "Suivi des questionnaires par étudiant"}
+                      {lang === "en" ? "Student progress: questionnaires and vote" : "Suivi étudiant : questionnaires et vote"}
                     </h3>
 
                     {studentProgressRows.length === 0 ? (
@@ -11574,23 +11610,25 @@ if (screen === "student_vote") {
                       <div style={styles.progressTableWrap}>
                         <table style={{ ...styles.reportTable, ...styles.progressReportTable, marginTop: 0 }}>
                           <colgroup>
-                            <col style={{ width: "20%" }} />
-                            <col style={{ width: "18%" }} />
-                            <col style={{ width: "8%" }} />
-                            <col style={{ width: "13%" }} />
+                            <col style={{ width: "19%" }} />
+                            <col style={{ width: "16%" }} />
+                            <col style={{ width: "7%" }} />
+                            <col style={{ width: "10%" }} />
+                            <col style={{ width: "10%" }} />
+                            <col style={{ width: "12%" }} />
                             <col style={{ width: "12%" }} />
                             <col style={{ width: "14%" }} />
-                            <col style={{ width: "15%" }} />
                           </colgroup>
                           <thead>
                             <tr>
-                              <th style={styles.progressTh}>{lang === "en" ? "Last name" : "Nom"}</th>
-                              <th style={styles.progressTh}>{lang === "en" ? "First name" : "Prénom"}</th>
-                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Grp" : "Gpe"}</th>
-                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Transp." : "Transp."}</th>
+                              <th style={styles.progressTh}>{lang === "en" ? "Last" : "Nom"}</th>
+                              <th style={styles.progressTh}>{lang === "en" ? "First" : "Prénom"}</th>
+                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "G" : "Gpe"}</th>
+                              <th style={{ ...styles.progressTh, textAlign: "center" }}>Tr.</th>
                               <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Lunch" : "Déj."}</th>
                               <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Equip." : "Équip."}</th>
-                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Other" : "Autres"}</th>
+                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Other" : "Aut."}</th>
+                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Vote" : "Vote"}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -11611,6 +11649,7 @@ if (screen === "student_vote") {
                                   <td style={{ ...styles.progressTd, textAlign: "center" }}>{renderCheck(student.dejeuner_done)}</td>
                                   <td style={{ ...styles.progressTd, textAlign: "center" }}>{renderCheck(student.equipement_done)}</td>
                                   <td style={{ ...styles.progressTd, textAlign: "center" }}>{renderCheck(student.autres_done)}</td>
+                                  <td style={{ ...styles.progressTd, textAlign: "center" }}>{renderCheck(hasStudentVoted(student.student_email))}</td>
                                 </tr>
                               );
                             })}
@@ -12174,7 +12213,7 @@ style={
                 fontWeight: 900,
               }}
             >
-              {row.score} pts · {getVoteScorePercent(row.score)} % · {formatVoteCountLabel(row.totalVotes)}
+              {getVoteScorePercent(row.score)} %
             </div>
           </div>
         ))}
@@ -12751,6 +12790,42 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.25,
     fontWeight: 800,
   },
+  projectionVoteQrCard: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    alignItems: "center",
+    gap: 26,
+    padding: "22px 28px",
+    borderRadius: 28,
+    background: "#ffffff",
+    boxShadow: "0 18px 35px rgba(15, 23, 42, 0.10)",
+    marginBottom: 10,
+  },
+
+  projectionVoteQrTitle: {
+    margin: 0,
+    color: "#123b64",
+    fontSize: 34,
+    fontWeight: 950,
+    lineHeight: 1.05,
+  },
+
+  projectionVoteQrText: {
+    margin: "8px 0 0",
+    color: "#1f2937",
+    fontSize: 20,
+    fontWeight: 750,
+    lineHeight: 1.25,
+  },
+
+  projectionVoteQrBox: {
+    background: "#ffffff",
+    padding: 14,
+    borderRadius: 22,
+    border: "1px solid #d8e0ec",
+    boxShadow: "0 8px 18px rgba(15, 23, 42, 0.08)",
+  },
+
   projectionVotePodium: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
@@ -13893,6 +13968,14 @@ panelTitle: {
     padding: "2px 2px 6px",
   },
 
+  sidebarChevron: {
+    display: "inline-block",
+    marginRight: 5,
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 12,
+    fontWeight: 900,
+  },
+
   teacherProjectionButton: {
     border: "none",
     borderRadius: 999,
@@ -14180,7 +14263,7 @@ panelTitle: {
   progressReportTable: {
     width: "100%",
     tableLayout: "fixed" as const,
-    fontSize: 13,
+    fontSize: 12,
   },
 
   progressTableWrap: {
@@ -14197,26 +14280,27 @@ panelTitle: {
     background: "#edf3f8",
     color: "#123b64",
     fontWeight: 900,
-    fontSize: 13,
-    padding: "10px 8px",
+    fontSize: 11,
+    padding: "8px 4px",
     borderBottom: "1px solid #d7dee8",
     whiteSpace: "normal" as const,
-    lineHeight: 1.1,
+    lineHeight: 1.05,
+    overflowWrap: "anywhere" as const,
   },
 
   progressTd: {
-    padding: "9px 8px",
+    padding: "8px 4px",
     borderBottom: "1px solid #e2e8f0",
     color: "#123b64",
-    fontSize: 13,
+    fontSize: 12,
     overflow: "hidden" as const,
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
   },
 
   progressCheckDone: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     borderRadius: 7,
     display: "inline-flex",
     alignItems: "center",
@@ -14230,8 +14314,8 @@ panelTitle: {
   },
 
   progressCheckEmpty: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     borderRadius: 7,
     display: "inline-flex",
     alignItems: "center",
