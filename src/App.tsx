@@ -8726,6 +8726,79 @@ function renderSalleAnalysisTable(params: {
 }
 
 
+  const projectionThemeDetails = useMemo(() => {
+    const preferredOrder = ["transport", "dejeuner", "equipement", "autres_consommations", "salle"];
+    const themeMap = new Map<string, {
+      theme: string;
+      label: string;
+      total: number;
+      activeGroups: Set<number>;
+      rows: Map<string, { rowKey: string; label: string; total: number }>;
+    }>();
+
+    teacherSyntheseSourceRows.forEach((row) => {
+      const theme = normalizeGroupReportTheme(row.theme);
+      if (!theme) return;
+
+      if (!themeMap.has(theme)) {
+        themeMap.set(theme, {
+          theme,
+          label: getSyntheseThemeLabel(theme),
+          total: 0,
+          activeGroups: new Set<number>(),
+          rows: new Map<string, { rowKey: string; label: string; total: number }>(),
+        });
+      }
+
+      const currentTheme = themeMap.get(theme)!;
+      const quantity = Number(row.quantity ?? 0);
+      const factor = Number(row.factor ?? 0);
+      const total = quantity * factor;
+      const groupNumber = Number(row.group_number ?? 0);
+      const rowKey = String(row.row_key ?? row.label ?? "");
+      const label = String(row.label ?? rowKey);
+
+      if (total > 0 && Number.isFinite(groupNumber) && groupNumber > 0) {
+        currentTheme.activeGroups.add(groupNumber);
+      }
+
+      currentTheme.total += Number.isFinite(total) ? total : 0;
+
+      if (!currentTheme.rows.has(rowKey)) {
+        currentTheme.rows.set(rowKey, { rowKey, label, total: 0 });
+      }
+      currentTheme.rows.get(rowKey)!.total += Number.isFinite(total) ? total : 0;
+    });
+
+    return Array.from(themeMap.values())
+      .map((theme) => {
+        const divisor = Math.max(theme.activeGroups.size, 1);
+        const rows = Array.from(theme.rows.values())
+          .filter((row) => row.total > 0)
+          .map((row) => ({ ...row, average: row.total / divisor }))
+          .sort((a, b) => b.average - a.average);
+
+        return {
+          theme: theme.theme,
+          label: theme.label,
+          total: theme.total,
+          activeGroups: theme.activeGroups.size,
+          average: theme.total / divisor,
+          rows,
+        };
+      })
+      .filter((theme) => theme.average > 0 || theme.rows.length > 0)
+      .sort((a, b) => {
+        const ia = preferredOrder.indexOf(a.theme);
+        const ib = preferredOrder.indexOf(b.theme);
+        if (ia === -1 && ib === -1) return a.label.localeCompare(b.label);
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      });
+  }, [teacherSyntheseSourceRows]);
+
+
   if (screen === "student_mise_en_oeuvre") {
     return (<Translated>{(
       <div style={styles.appShell} className="student-responsive-shell">
@@ -8810,77 +8883,6 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   }
 
 
-  const projectionThemeDetails = useMemo(() => {
-    const preferredOrder = ["transport", "dejeuner", "equipement", "autres_consommations", "salle"];
-    const themeMap = new Map<string, {
-      theme: string;
-      label: string;
-      total: number;
-      activeGroups: Set<number>;
-      rows: Map<string, { rowKey: string; label: string; total: number }>;
-    }>();
-
-    teacherSyntheseSourceRows.forEach((row) => {
-      const theme = normalizeGroupReportTheme(row.theme);
-      if (!theme) return;
-
-      if (!themeMap.has(theme)) {
-        themeMap.set(theme, {
-          theme,
-          label: getSyntheseThemeLabel(theme),
-          total: 0,
-          activeGroups: new Set<number>(),
-          rows: new Map<string, { rowKey: string; label: string; total: number }>(),
-        });
-      }
-
-      const currentTheme = themeMap.get(theme)!;
-      const quantity = Number(row.quantity ?? 0);
-      const factor = Number(row.factor ?? 0);
-      const total = quantity * factor;
-      const groupNumber = Number(row.group_number ?? 0);
-      const rowKey = String(row.row_key ?? row.label ?? "");
-      const label = String(row.label ?? rowKey);
-
-      if (total > 0 && Number.isFinite(groupNumber) && groupNumber > 0) {
-        currentTheme.activeGroups.add(groupNumber);
-      }
-
-      currentTheme.total += Number.isFinite(total) ? total : 0;
-
-      if (!currentTheme.rows.has(rowKey)) {
-        currentTheme.rows.set(rowKey, { rowKey, label, total: 0 });
-      }
-      currentTheme.rows.get(rowKey)!.total += Number.isFinite(total) ? total : 0;
-    });
-
-    return Array.from(themeMap.values())
-      .map((theme) => {
-        const divisor = Math.max(theme.activeGroups.size, 1);
-        const rows = Array.from(theme.rows.values())
-          .filter((row) => row.total > 0)
-          .map((row) => ({ ...row, average: row.total / divisor }))
-          .sort((a, b) => b.average - a.average);
-
-        return {
-          theme: theme.theme,
-          label: theme.label,
-          total: theme.total,
-          activeGroups: theme.activeGroups.size,
-          average: theme.total / divisor,
-          rows,
-        };
-      })
-      .filter((theme) => theme.average > 0 || theme.rows.length > 0)
-      .sort((a, b) => {
-        const ia = preferredOrder.indexOf(a.theme);
-        const ib = preferredOrder.indexOf(b.theme);
-        if (ia === -1 && ib === -1) return a.label.localeCompare(b.label);
-        if (ia === -1) return 1;
-        if (ib === -1) return -1;
-        return ia - ib;
-      });
-  }, [teacherSyntheseSourceRows]);
 
   function openProjectionStage(stage: ProjectionStage) {
     setProjectionStage(stage);
@@ -10349,8 +10351,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
           <details open style={styles.sidebarSection}>
             <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "Session" : "Session"}</span></summary>
-            <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
             <button style={styles.sidebarButtonActive}>🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}</button>
+            <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
           </details>
 
           <div style={styles.sidebarFooter}>
@@ -11275,6 +11277,16 @@ if (screen === "student_vote") {
             <details style={styles.sidebarSection}>
               <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "Session" : "Session"}</span></summary>
               <button
+                style={(screen as string) === "teacher_session_settings" ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setIsInitialSessionSetup(false);
+                  setScreen("teacher_session_settings");
+                }}
+              >
+                🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}
+              </button>
+
+              <button
                 style={teacherMenu === "sessions" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
                   setTeacherMenu("sessions");
@@ -11292,16 +11304,6 @@ if (screen === "student_vote") {
                 }}
               >
                 ➕ {lang === "en" ? "New session" : "Nouvelle session"}
-              </button>
-
-              <button
-                style={(screen as string) === "teacher_session_settings" ? styles.sidebarButtonActive : styles.sidebarButton}
-                onClick={() => {
-                  setIsInitialSessionSetup(false);
-                  setScreen("teacher_session_settings");
-                }}
-              >
-                🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}
               </button>
             </details>
           </>
