@@ -9077,7 +9077,7 @@ if ((screen as string) === "projection") {
                 <div key={row.proposalId} style={styles.projectionVoteCard}>
                   <div style={styles.projectionVoteRank}>{index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}</div>
                   <div style={styles.projectionVoteText}>{row.text}</div>
-                  <div style={styles.projectionVoteScore}>{row.score} pts · {getVoteScorePercent(row.score)} % · {formatVoteCountLabel(row.totalVotes)}</div>
+                  <div style={styles.projectionVoteScore}>{getVoteScorePercent(row.score)} %</div>
                 </div>
               ))}
             </div>
@@ -10320,7 +10320,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </div>
 
           <details style={styles.sidebarSection}>
-            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>📊</span><span>{lang === "en" ? "Participation" : "Participation"}</span></summary>
+            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Live collection" : "Collecte en direct"}</span></summary>
             <button
               style={styles.sidebarButton}
               onClick={() => {
@@ -10329,7 +10329,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 setTeacherSessionTab("counts");
               }}
             >
-              📈 {lang === "en" ? "Response counter" : "Compteur"}
+              📊 {lang === "en" ? "Responses" : "Réponses"}
             </button>
             <button
               style={styles.sidebarButton}
@@ -10339,7 +10339,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 setTeacherSessionTab("users");
               }}
             >
-              👥 {lang === "en" ? "Users" : "Utilisateurs"}
+              👥 {lang === "en" ? "Students" : "Étudiants"}
             </button>
           </details>
 
@@ -10351,7 +10351,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </details>
 
           <details style={styles.sidebarSection}>
-            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🧭</span><span>{lang === "en" ? "Class debrief" : "Débrief en classe"}</span></summary>
+            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "Class facilitation" : "Animation de la séance"}</span></summary>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>📑 {t(lang, "analyses")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>🗳️ {t(lang, "vote")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>🧩 {t(lang, "synthese")}</button>
@@ -11178,7 +11178,7 @@ if (screen === "student_vote") {
             </div>
 
             <details open={teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")} style={styles.sidebarSection}>
-              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>📊</span><span>{lang === "en" ? "Participation" : "Participation"}</span></summary>
+              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Live collection" : "Collecte en direct"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11196,7 +11196,7 @@ if (screen === "student_vote") {
                   setTeacherSessionTab("users");
                 }}
               >
-                👥 {lang === "en" ? "Users" : "Utilisateurs"}
+                👥 {lang === "en" ? "Students" : "Étudiants"}
               </button>
             </details>
 
@@ -11226,7 +11226,7 @@ if (screen === "student_vote") {
             </details>
 
             <details open={teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")} style={styles.sidebarSection}>
-              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🧭</span><span>{lang === "en" ? "Class debrief" : "Débrief en classe"}</span></summary>
+              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "Class facilitation" : "Animation de la séance"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11574,23 +11574,23 @@ if (screen === "student_vote") {
                       <div style={styles.progressTableWrap}>
                         <table style={{ ...styles.reportTable, ...styles.progressReportTable, marginTop: 0 }}>
                           <colgroup>
+                            <col style={{ width: "20%" }} />
                             <col style={{ width: "18%" }} />
-                            <col style={{ width: "18%" }} />
-                            <col style={{ width: "10%" }} />
+                            <col style={{ width: "8%" }} />
                             <col style={{ width: "13%" }} />
-                            <col style={{ width: "13%" }} />
+                            <col style={{ width: "12%" }} />
+                            <col style={{ width: "14%" }} />
                             <col style={{ width: "15%" }} />
-                            <col style={{ width: "13%" }} />
                           </colgroup>
                           <thead>
                             <tr>
-                              <th style={styles.reportTh}>{lang === "en" ? "Last name" : "Nom"}</th>
-                              <th style={styles.reportTh}>{lang === "en" ? "First name" : "Prénom"}</th>
-                              <th style={{ ...styles.reportTh, textAlign: "center" }}>{lang === "en" ? "Group" : "Groupe"}</th>
-                              <th style={{ ...styles.reportTh, textAlign: "center" }}>Transport</th>
-                              <th style={{ ...styles.reportTh, textAlign: "center" }}>{lang === "en" ? "Lunch" : "Déjeuner"}</th>
-                              <th style={{ ...styles.reportTh, textAlign: "center" }}>{lang === "en" ? "Equipment" : "Équipement"}</th>
-                              <th style={{ ...styles.reportTh, textAlign: "center" }}>{lang === "en" ? "Other" : "Autres"}</th>
+                              <th style={styles.progressTh}>{lang === "en" ? "Last name" : "Nom"}</th>
+                              <th style={styles.progressTh}>{lang === "en" ? "First name" : "Prénom"}</th>
+                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Grp" : "Gpe"}</th>
+                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Transp." : "Transp."}</th>
+                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Lunch" : "Déj."}</th>
+                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Equip." : "Équip."}</th>
+                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Other" : "Autres"}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -11604,13 +11604,13 @@ if (screen === "student_vote") {
 
                               return (
                                 <tr key={key}>
-                                  <td style={styles.reportTd}>{student.last_name || "—"}</td>
-                                  <td style={styles.reportTd}>{student.first_name || "—"}</td>
-                                  <td style={{ ...styles.reportTd, textAlign: "center", fontWeight: 800 }}>{student.group_number || "—"}</td>
-                                  <td style={{ ...styles.reportTd, textAlign: "center" }}>{renderCheck(student.transport_done)}</td>
-                                  <td style={{ ...styles.reportTd, textAlign: "center" }}>{renderCheck(student.dejeuner_done)}</td>
-                                  <td style={{ ...styles.reportTd, textAlign: "center" }}>{renderCheck(student.equipement_done)}</td>
-                                  <td style={{ ...styles.reportTd, textAlign: "center" }}>{renderCheck(student.autres_done)}</td>
+                                  <td style={styles.progressTd}>{student.last_name || "—"}</td>
+                                  <td style={styles.progressTd}>{student.first_name || "—"}</td>
+                                  <td style={{ ...styles.progressTd, textAlign: "center", fontWeight: 800 }}>{student.group_number || "—"}</td>
+                                  <td style={{ ...styles.progressTd, textAlign: "center" }}>{renderCheck(student.transport_done)}</td>
+                                  <td style={{ ...styles.progressTd, textAlign: "center" }}>{renderCheck(student.dejeuner_done)}</td>
+                                  <td style={{ ...styles.progressTd, textAlign: "center" }}>{renderCheck(student.equipement_done)}</td>
+                                  <td style={{ ...styles.progressTd, textAlign: "center" }}>{renderCheck(student.autres_done)}</td>
                                 </tr>
                               );
                             })}
@@ -12821,8 +12821,9 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: "100vh",
     display: "grid",
     gridTemplateColumns: "310px 1fr",
-    background: "#e5e5e5",
+    background: "linear-gradient(90deg, #12203a 0 310px, #e5e5e5 310px 100%)",
     fontFamily: "Arial, sans-serif",
+    alignItems: "stretch",
   },
   sidebar: {
     background: "linear-gradient(180deg, #12203a 0%, #243754 100%)",
@@ -14179,22 +14180,44 @@ panelTitle: {
   progressReportTable: {
     width: "100%",
     tableLayout: "fixed" as const,
+    fontSize: 13,
   },
 
   progressTableWrap: {
     maxHeight: 420,
     overflowY: "auto" as const,
-    overflowX: "hidden" as const,
+    overflowX: "auto" as const,
     marginTop: 14,
     border: "1px solid #d8e0ec",
     borderRadius: 16,
     background: "#ffffff",
   },
 
+  progressTh: {
+    background: "#edf3f8",
+    color: "#123b64",
+    fontWeight: 900,
+    fontSize: 13,
+    padding: "10px 8px",
+    borderBottom: "1px solid #d7dee8",
+    whiteSpace: "normal" as const,
+    lineHeight: 1.1,
+  },
+
+  progressTd: {
+    padding: "9px 8px",
+    borderBottom: "1px solid #e2e8f0",
+    color: "#123b64",
+    fontSize: 13,
+    overflow: "hidden" as const,
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+  },
+
   progressCheckDone: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 7,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -14202,14 +14225,14 @@ panelTitle: {
     border: "2px solid #22c55e",
     color: "#166534",
     fontWeight: 900,
-    fontSize: 18,
+    fontSize: 15,
     lineHeight: 1,
   },
 
   progressCheckEmpty: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 7,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -14217,7 +14240,7 @@ panelTitle: {
     border: "2px solid #cbd5e1",
     color: "#ffffff",
     fontWeight: 900,
-    fontSize: 18,
+    fontSize: 15,
     lineHeight: 1,
   },
 
