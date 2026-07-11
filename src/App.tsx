@@ -3549,6 +3549,23 @@ const teacherVoteResults = useMemo<TeacherVoteResult[]>(() => {
   });
 }, [consolidatedProposals, teacherVoteRows]);
 
+const teacherVoteScoreTotal = useMemo(() => {
+  return teacherVoteResults.reduce((sum, item) => sum + Number(item.score ?? 0), 0);
+}, [teacherVoteResults]);
+
+function getVoteScorePercent(score: number) {
+  if (!teacherVoteScoreTotal) return 0;
+  return Math.round((Number(score ?? 0) / teacherVoteScoreTotal) * 100);
+}
+
+function formatVoteCountLabel(count: number) {
+  const numericCount = Number(count ?? 0);
+  if (lang === "en") {
+    return `${numericCount} vote${numericCount === 1 ? "" : "s"}`;
+  }
+  return `${numericCount} vote${numericCount > 1 ? "s" : ""}`;
+}
+
   const teacherTransportRows = useMemo(
     () => buildTransportRowsForGroup(teacherTransportReportRowsDb, teacherGroupNumber),
     [teacherTransportReportRowsDb, teacherGroupNumber]
@@ -9060,7 +9077,7 @@ if ((screen as string) === "projection") {
                 <div key={row.proposalId} style={styles.projectionVoteCard}>
                   <div style={styles.projectionVoteRank}>{index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}</div>
                   <div style={styles.projectionVoteText}>{row.text}</div>
-                  <div style={styles.projectionVoteScore}>{row.score} pts · {row.totalVotes} votes</div>
+                  <div style={styles.projectionVoteScore}>{row.score} pts · {getVoteScorePercent(row.score)} % · {formatVoteCountLabel(row.totalVotes)}</div>
                 </div>
               ))}
             </div>
@@ -10303,7 +10320,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </div>
 
           <details style={styles.sidebarSection}>
-            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>📊</span><span>{lang === "en" ? "Monitoring" : "Suivi"}</span></summary>
+            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>📊</span><span>{lang === "en" ? "Participation" : "Participation"}</span></summary>
             <button
               style={styles.sidebarButton}
               onClick={() => {
@@ -10334,7 +10351,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </details>
 
           <details style={styles.sidebarSection}>
-            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🧭</span><span>{lang === "en" ? "Debrief" : "Débrief"}</span></summary>
+            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🧭</span><span>{lang === "en" ? "Class debrief" : "Débrief en classe"}</span></summary>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>📑 {t(lang, "analyses")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>🗳️ {t(lang, "vote")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>🧩 {t(lang, "synthese")}</button>
@@ -10352,6 +10369,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <details open style={styles.sidebarSection}>
             <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "Session" : "Session"}</span></summary>
             <button style={styles.sidebarButtonActive}>🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}</button>
+            <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setIsInitialSessionSetup(true); setScreen("teacher_session_settings"); }}>➕ {lang === "en" ? "New session" : "Nouvelle session"}</button>
             <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
           </details>
 
@@ -11160,7 +11178,7 @@ if (screen === "student_vote") {
             </div>
 
             <details open={teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")} style={styles.sidebarSection}>
-              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>📊</span><span>{lang === "en" ? "Monitoring" : "Suivi"}</span></summary>
+              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>📊</span><span>{lang === "en" ? "Participation" : "Participation"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11208,7 +11226,7 @@ if (screen === "student_vote") {
             </details>
 
             <details open={teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")} style={styles.sidebarSection}>
-              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🧭</span><span>{lang === "en" ? "Debrief" : "Débrief"}</span></summary>
+              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>🧭</span><span>{lang === "en" ? "Class debrief" : "Débrief en classe"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11277,8 +11295,9 @@ if (screen === "student_vote") {
             <details style={styles.sidebarSection}>
               <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "Session" : "Session"}</span></summary>
               <button
-                style={(screen as string) === "teacher_session_settings" ? styles.sidebarButtonActive : styles.sidebarButton}
+                style={(screen as string) === "teacher_session_settings" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
+                  setTeacherMenu("session_settings");
                   setIsInitialSessionSetup(false);
                   setScreen("teacher_session_settings");
                 }}
@@ -11287,23 +11306,25 @@ if (screen === "student_vote") {
               </button>
 
               <button
+                style={isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
+                onClick={() => {
+                  setTeacherMenu("sessions");
+                  setIsInitialSessionSetup(true);
+                  setScreen("teacher_session_settings");
+                }}
+              >
+                ➕ {lang === "en" ? "New session" : "Nouvelle session"}
+              </button>
+
+              <button
                 style={teacherMenu === "sessions" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
                   setTeacherMenu("sessions");
                   setIsInitialSessionSetup(false);
+                  setScreen("teacher_dashboard");
                 }}
               >
                 📂 {lang === "en" ? "Other sessions" : "Autres sessions"}
-              </button>
-
-              <button
-                style={teacherMenu === "sessions" && isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
-                onClick={() => {
-                  setTeacherMenu("sessions");
-                  setIsInitialSessionSetup(true);
-                }}
-              >
-                ➕ {lang === "en" ? "New session" : "Nouvelle session"}
               </button>
             </details>
           </>
@@ -11552,7 +11573,16 @@ if (screen === "student_vote") {
                       </div>
                     ) : (
                       <div style={styles.progressTableWrap}>
-                        <table style={{ ...styles.reportTable, marginTop: 0 }}>
+                        <table style={{ ...styles.reportTable, ...styles.progressReportTable, marginTop: 0 }}>
+                          <colgroup>
+                            <col style={{ width: "18%" }} />
+                            <col style={{ width: "18%" }} />
+                            <col style={{ width: "10%" }} />
+                            <col style={{ width: "13%" }} />
+                            <col style={{ width: "13%" }} />
+                            <col style={{ width: "15%" }} />
+                            <col style={{ width: "13%" }} />
+                          </colgroup>
                           <thead>
                             <tr>
                               <th style={styles.reportTh}>{lang === "en" ? "Last name" : "Nom"}</th>
@@ -12135,6 +12165,17 @@ style={
               }}
             >
               {row.text}
+            </div>
+
+            <div
+              style={{
+                marginTop: 14,
+                color: "#ef7d32",
+                fontSize: 20,
+                fontWeight: 900,
+              }}
+            >
+              {row.score} pts · {getVoteScorePercent(row.score)} % · {formatVoteCountLabel(row.totalVotes)}
             </div>
           </div>
         ))}
@@ -12792,7 +12833,12 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 10,
     overflowY: "auto" as const,
+    position: "sticky" as const,
+    top: 0,
+    height: "100vh",
+    minHeight: "100vh",
     maxHeight: "100vh",
+    alignSelf: "start",
     boxSizing: "border-box" as const,
   },
   sidebarBrand: {
@@ -14131,10 +14177,15 @@ panelTitle: {
     fontWeight: 800,
   },
 
+  progressReportTable: {
+    width: "100%",
+    tableLayout: "fixed" as const,
+  },
+
   progressTableWrap: {
     maxHeight: 420,
     overflowY: "auto" as const,
-    overflowX: "auto" as const,
+    overflowX: "hidden" as const,
     marginTop: 14,
     border: "1px solid #d8e0ec",
     borderRadius: 16,
