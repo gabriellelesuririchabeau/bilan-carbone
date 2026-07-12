@@ -125,9 +125,23 @@ function buildProjectionUrl(sessionCode: string, stage: ProjectionStage = "qr") 
 
 const LANGUAGE_STORAGE_KEY = "bilan-carbone:language";
 const TEACHER_SIDEBAR_CSS = `
-.teacher-sidebar-organized details.teacher-sidebar-section > summary::-webkit-details-marker { display: none; }
-.teacher-sidebar-organized details.teacher-sidebar-section > summary::marker { content: ""; font-size: 0; }
-.teacher-sidebar-organized details.teacher-sidebar-section > summary { list-style: none; }
+.teacher-sidebar-organized details.teacher-sidebar-section > summary::-webkit-details-marker { display: none !important; }
+.teacher-sidebar-organized details.teacher-sidebar-section > summary::marker { content: "" !important; font-size: 0 !important; }
+.teacher-sidebar-organized details.teacher-sidebar-section > summary {
+  list-style: none !important;
+  background: transparent !important;
+  min-height: 58px !important;
+  height: 58px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.45px !important;
+  text-transform: uppercase !important;
+}
 `;
 
 const PROJECTION_CONTROL_STORAGE_KEY = "bilan-carbone:projection-control";
@@ -10357,7 +10371,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </div>
 
           <details className="teacher-sidebar-section" style={styles.sidebarSection}>
-            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "LIVE COLLECTION" : "COLLECTE EN DIRECT"}</span></summary>
+            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "LIVE COLLECTION" : "COLLECTE EN DIRECT"}</span></summary>
             <button
               style={styles.sidebarButton}
               onClick={() => {
@@ -10381,21 +10395,21 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </details>
 
           <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
-            <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
+            <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
             <button type="button" style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentAnalysisAccess}>{studentAnalysisUnlocked ? "🔓" : "🔒"} {t(lang, "analyses")}</button>
             <button type="button" style={studentVoteUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentVoteAccess}>{studentVoteUnlocked ? "🔓" : "🔒"} {t(lang, "vote")}</button>
             <button type="button" style={studentSyntheseUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentSyntheseAccess}>{studentSyntheseUnlocked ? "🔓" : "🔒"} {t(lang, "synthese")}</button>
           </details>
 
           <details className="teacher-sidebar-section" style={styles.sidebarSection}>
-            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
+            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>📑 {t(lang, "analyses")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>🗳️ {t(lang, "vote")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>🧩 {t(lang, "synthese")}</button>
           </details>
 
           <details className="teacher-sidebar-section" style={styles.sidebarSection}>
-            <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
+            <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
             <button style={getProjectionMenuButtonStyle("qr")} onClick={() => openProjectionStage("qr")}>📱 {t(lang, "projectionQr")}</button>
             <button style={getProjectionMenuButtonStyle("bilans")} onClick={() => openProjectionStage("bilans")}>📊 {t(lang, "projectionBilans")}</button>
             <button style={getProjectionMenuButtonStyle("propositions")} onClick={() => openProjectionStage("propositions")}>💡 {t(lang, "projectionProposals")}</button>
@@ -10404,7 +10418,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </details>
 
           <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
-            <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
+            <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
             <button style={styles.sidebarButtonActive}>🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}</button>
             <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setIsInitialSessionSetup(true); setScreen("teacher_session_settings"); }}>➕ {lang === "en" ? "New session" : "Nouvelle session"}</button>
             <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
@@ -11216,7 +11230,7 @@ if (screen === "student_vote") {
             </div>
 
             <details className="teacher-sidebar-section" open={teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")} style={styles.sidebarSection}>
-              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "LIVE COLLECTION" : "COLLECTE EN DIRECT"}</span></summary>
+              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "LIVE COLLECTION" : "COLLECTE EN DIRECT"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11239,7 +11253,7 @@ if (screen === "student_vote") {
             </details>
 
             <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
-              <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
+              <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
               <button
                 type="button"
                 style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff}
@@ -11264,7 +11278,7 @@ if (screen === "student_vote") {
             </details>
 
             <details className="teacher-sidebar-section" open={teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")} style={styles.sidebarSection}>
-              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
+              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11297,7 +11311,7 @@ if (screen === "student_vote") {
             </details>
 
             <details className="teacher-sidebar-section" style={styles.sidebarSection}>
-              <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
+              <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
               <button
                 style={getProjectionMenuButtonStyle("qr")}
                 onClick={() => openProjectionStage("qr")}
@@ -11331,7 +11345,7 @@ if (screen === "student_vote") {
             </details>
 
             <details className="teacher-sidebar-section" style={styles.sidebarSection}>
-              <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
+              <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
               <button
                 style={(screen as string) === "teacher_session_settings" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -13952,16 +13966,17 @@ panelTitle: {
     padding: "10px",
     borderRadius: 18,
     background: "rgba(255,255,255,0.055)",
-    border: "1px solid rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.14)",
     display: "block",
     marginBottom: 12,
   },
 
   sidebarSectionTitle: {
     width: "100%",
-    minHeight: 46,
+    height: 58,
+    minHeight: 58,
     boxSizing: "border-box" as const,
-    color: "rgba(255,255,255,0.92)",
+    color: "rgba(255,255,255,0.94)",
     fontSize: 12,
     fontWeight: 950,
     fontFamily: "Arial, sans-serif",
@@ -13972,19 +13987,21 @@ panelTitle: {
     userSelect: "none" as const,
     listStyle: "none",
     listStyleType: "none" as const,
-    padding: "0 8px",
+    padding: "0 10px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 10,
     borderRadius: 14,
+    background: "transparent",
   },
 
   sidebarSectionTitleActive: {
     width: "100%",
-    minHeight: 46,
+    height: 58,
+    minHeight: 58,
     boxSizing: "border-box" as const,
-    color: "rgba(255,255,255,0.92)",
+    color: "rgba(255,255,255,0.94)",
     fontSize: 12,
     fontWeight: 950,
     fontFamily: "Arial, sans-serif",
@@ -13995,11 +14012,11 @@ panelTitle: {
     userSelect: "none" as const,
     listStyle: "none",
     listStyleType: "none" as const,
-    padding: "0 8px",
+    padding: "0 10px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 10,
     borderRadius: 14,
     background: "transparent",
   },
@@ -14008,23 +14025,22 @@ panelTitle: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 28,
-    flex: "0 0 28px",
+    width: 34,
+    flex: "0 0 34px",
     color: "rgba(255,255,255,0.98)",
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 950,
     lineHeight: 1,
-    transform: "scale(1.12)",
   },
 
   sidebarSectionIcon: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 18,
-    flex: "0 0 18px",
+    width: 22,
+    flex: "0 0 22px",
     marginRight: 0,
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 1,
   },
 
