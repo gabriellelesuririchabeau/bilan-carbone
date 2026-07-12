@@ -124,6 +124,12 @@ function buildProjectionUrl(sessionCode: string, stage: ProjectionStage = "qr") 
 }
 
 const LANGUAGE_STORAGE_KEY = "bilan-carbone:language";
+const TEACHER_SIDEBAR_CSS = `
+.teacher-sidebar-organized details.teacher-sidebar-section > summary::-webkit-details-marker { display: none; }
+.teacher-sidebar-organized details.teacher-sidebar-section > summary::marker { content: ""; font-size: 0; }
+.teacher-sidebar-organized details.teacher-sidebar-section > summary { list-style: none; }
+`;
+
 const PROJECTION_CONTROL_STORAGE_KEY = "bilan-carbone:projection-control";
 
 const I18N = {
@@ -10346,6 +10352,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     return (<Translated>{(
       <div style={styles.appShell} className="teacher-responsive-shell">
         <aside style={styles.sidebar} className="teacher-sidebar-organized">
+          <style>{TEACHER_SIDEBAR_CSS}</style>
           <div style={styles.sidebarBrand}>
             <img src={kedgeLogo} alt="KEDGE Business School" style={styles.sidebarLogo} />
           </div>
@@ -10355,8 +10362,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             <div style={styles.teacherSidebarCode}>{formatSessionCode(selectedSessionCode || settingsTitle)}</div>
           </div>
 
-          <details style={styles.sidebarSection}>
-            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Live collection" : "Collecte en direct"}</span></summary>
+          <details className="teacher-sidebar-section" style={styles.sidebarSection}>
+            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "LIVE COLLECTION" : "COLLECTE EN DIRECT"}</span></summary>
             <button
               style={styles.sidebarButton}
               onClick={() => {
@@ -10379,22 +10386,22 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             </button>
           </details>
 
-          <details open style={styles.sidebarSection}>
-            <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "Student access" : "Accès étudiants"}</span></summary>
+          <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
+            <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
             <button type="button" style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentAnalysisAccess}>{studentAnalysisUnlocked ? "🔓" : "🔒"} {t(lang, "analyses")}</button>
             <button type="button" style={studentVoteUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentVoteAccess}>{studentVoteUnlocked ? "🔓" : "🔒"} {t(lang, "vote")}</button>
             <button type="button" style={studentSyntheseUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentSyntheseAccess}>{studentSyntheseUnlocked ? "🔓" : "🔒"} {t(lang, "synthese")}</button>
           </details>
 
-          <details style={styles.sidebarSection}>
-            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "Activity follow-up" : "Suivi de l’activité"}</span></summary>
+          <details className="teacher-sidebar-section" style={styles.sidebarSection}>
+            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>📑 {t(lang, "analyses")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>🗳️ {t(lang, "vote")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>🧩 {t(lang, "synthese")}</button>
           </details>
 
-          <details style={styles.sidebarSection}>
-            <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "Projection" : "Projection"}</span></summary>
+          <details className="teacher-sidebar-section" style={styles.sidebarSection}>
+            <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
             <button style={getProjectionMenuButtonStyle("qr")} onClick={() => openProjectionStage("qr")}>📱 {t(lang, "projectionQr")}</button>
             <button style={getProjectionMenuButtonStyle("bilans")} onClick={() => openProjectionStage("bilans")}>📊 {t(lang, "projectionBilans")}</button>
             <button style={getProjectionMenuButtonStyle("propositions")} onClick={() => openProjectionStage("propositions")}>💡 {t(lang, "projectionProposals")}</button>
@@ -10402,8 +10409,8 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             <button style={getProjectionMenuButtonStyle("synthese")} onClick={() => openProjectionStage("synthese")}>🧩 {t(lang, "projectionSynthesis")}</button>
           </details>
 
-          <details open style={styles.sidebarSection}>
-            <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "Session" : "Session"}</span></summary>
+          <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
+            <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
             <button style={styles.sidebarButtonActive}>🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}</button>
             <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setIsInitialSessionSetup(true); setScreen("teacher_session_settings"); }}>➕ {lang === "en" ? "New session" : "Nouvelle session"}</button>
             <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
@@ -11200,6 +11207,7 @@ if (screen === "student_vote") {
   return (<Translated>{(
     <div style={styles.appShell} className="teacher-responsive-shell">
       <aside style={styles.sidebar} className="teacher-sidebar-organized">
+          <style>{TEACHER_SIDEBAR_CSS}</style>
         <div style={styles.sidebarBrand}>
           <img src={kedgeLogo} alt="KEDGE Business School" style={styles.sidebarLogo} />
         </div>
@@ -11213,8 +11221,8 @@ if (screen === "student_vote") {
               <div style={styles.teacherSidebarCode}>{formatSessionCode(selectedSessionCode)}</div>
             </div>
 
-            <details open={teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")} style={styles.sidebarSection}>
-              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Live collection" : "Collecte en direct"}</span></summary>
+            <details className="teacher-sidebar-section" open={teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")} style={styles.sidebarSection}>
+              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "LIVE COLLECTION" : "COLLECTE EN DIRECT"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11236,8 +11244,8 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details open style={styles.sidebarSection}>
-              <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "Student access" : "Accès étudiants"}</span></summary>
+            <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
+              <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
               <button
                 type="button"
                 style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff}
@@ -11261,8 +11269,8 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details open={teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")} style={styles.sidebarSection}>
-              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "Activity follow-up" : "Suivi de l’activité"}</span></summary>
+            <details className="teacher-sidebar-section" open={teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")} style={styles.sidebarSection}>
+              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11294,8 +11302,8 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details style={styles.sidebarSection}>
-              <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "Projection" : "Projection"}</span></summary>
+            <details className="teacher-sidebar-section" style={styles.sidebarSection}>
+              <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
               <button
                 style={getProjectionMenuButtonStyle("qr")}
                 onClick={() => openProjectionStage("qr")}
@@ -11328,8 +11336,8 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details style={styles.sidebarSection}>
-              <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "Session" : "Session"}</span></summary>
+            <details className="teacher-sidebar-section" style={styles.sidebarSection}>
+              <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
               <button
                 style={(screen as string) === "teacher_session_settings" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -13962,12 +13970,14 @@ panelTitle: {
     color: "rgba(255,255,255,0.92)",
     fontSize: 12,
     fontWeight: 950,
+    fontFamily: "Arial, sans-serif",
     textTransform: "uppercase" as const,
     letterSpacing: 0.45,
     cursor: "pointer",
     marginBottom: 9,
     userSelect: "none" as const,
     listStyle: "none",
+    listStyleType: "none" as const,
     padding: "0 8px",
     display: "flex",
     alignItems: "center",
@@ -13983,12 +13993,14 @@ panelTitle: {
     color: "#12355b",
     fontSize: 12,
     fontWeight: 950,
+    fontFamily: "Arial, sans-serif",
     textTransform: "uppercase" as const,
     letterSpacing: 0.45,
     cursor: "pointer",
     marginBottom: 9,
     userSelect: "none" as const,
     listStyle: "none",
+    listStyleType: "none" as const,
     padding: "0 8px",
     display: "flex",
     alignItems: "center",
@@ -14003,11 +14015,12 @@ panelTitle: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 14,
-    flex: "0 0 14px",
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 12,
-    fontWeight: 900,
+    width: 22,
+    flex: "0 0 22px",
+    color: "rgba(255,255,255,0.96)",
+    fontSize: 20,
+    fontWeight: 950,
+    lineHeight: 1,
   },
 
   sidebarSectionIcon: {
@@ -14017,6 +14030,8 @@ panelTitle: {
     width: 18,
     flex: "0 0 18px",
     marginRight: 0,
+    fontSize: 14,
+    lineHeight: 1,
   },
 
   teacherProjectionButton: {
