@@ -214,6 +214,12 @@ const I18N = {
     projectionProposals: "Propositions",
     projectionVote: "Résultat des votes",
     projectionSynthesis: "Synthèse",
+    votePreferenceInstruction: "Classez jusqu’à 3 propositions selon votre préférence. Le choix 1 correspond à votre proposition préférée.",
+    voteSameOrderNotice: "Les propositions sont affichées dans le même ordre que sur l’écran projeté.",
+    voteChoice1Weighted: "Choix 1 — proposition préférée (3 points)",
+    voteChoice2Weighted: "Choix 2 — deuxième préférence (2 points)",
+    voteChoice3Weighted: "Choix 3 — troisième préférence (1 point)",
+    weightedScore: "Score pondéré",
     privacyTitle: "Protection des données personnelles",
     privacyButton: "Données personnelles / RGPD",
     close: "Fermer",
@@ -273,6 +279,12 @@ const I18N = {
     projectionProposals: "Proposals",
     projectionVote: "Vote results",
     projectionSynthesis: "Summary",
+    votePreferenceInstruction: "Rank up to 3 proposals according to your preference. Choice 1 must be your preferred proposal.",
+    voteSameOrderNotice: "The proposals are displayed in the same order as on the projection screen.",
+    voteChoice1Weighted: "Choice 1 — preferred proposal (3 points)",
+    voteChoice2Weighted: "Choice 2 — second preference (2 points)",
+    voteChoice3Weighted: "Choice 3 — third preference (1 point)",
+    weightedScore: "Weighted score",
     privacyTitle: "Personal data protection",
     privacyButton: "Personal data / GDPR",
     close: "Close",
@@ -3590,10 +3602,6 @@ const teacherVoteResults = useMemo<TeacherVoteResult[]>(() => {
   });
 }, [consolidatedProposals, teacherVoteRows]);
 
-const teacherVoteScoreTotal = useMemo(() => {
-  return teacherVoteResults.reduce((sum, item) => sum + Number(item.score ?? 0), 0);
-}, [teacherVoteResults]);
-
 const studentVotedEmails = useMemo(() => {
   return new Set(
     teacherVoteRows
@@ -3602,13 +3610,18 @@ const studentVotedEmails = useMemo(() => {
   );
 }, [teacherVoteRows]);
 
+const teacherVoteMaximumScore = useMemo(
+  () => studentVotedEmails.size * 3,
+  [studentVotedEmails]
+);
+
 function hasStudentVoted(email: string | null | undefined) {
   return studentVotedEmails.has(normalizeEmail(email ?? ""));
 }
 
 function getVoteScorePercent(score: number) {
-  if (!teacherVoteScoreTotal) return 0;
-  return Math.round((Number(score ?? 0) / teacherVoteScoreTotal) * 100);
+  if (!teacherVoteMaximumScore) return 0;
+  return Math.round((Number(score ?? 0) / teacherVoteMaximumScore) * 100);
 }
 
   const teacherTransportRows = useMemo(
@@ -4198,7 +4211,8 @@ async function loadConsolidatedProposals(sessionId: string) {
     .select("id, text, theme, source_group_numbers, created_at")
     .eq("session_id", sessionId)
     .eq("theme", "vote")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
 
   if (error) {
     setMessage(`Erreur chargement consolidation : ${error.message}`);
@@ -11114,20 +11128,23 @@ if (screen === "student_vote") {
           ) : (
             <>
               <div style={styles.innerCardFull}>
-                <h3 style={styles.innerTitle}>Mes choix</h3>
-                <p style={styles.bodyText}>Sélectionnez jusqu’à 3 propositions par ordre de priorité.</p>
+                <h3 style={styles.innerTitle}>{lang === "en" ? "My choices" : "Mes choix"}</h3>
+                <p style={styles.bodyText}>{t(lang, "votePreferenceInstruction")}</p>
+                <p style={{ ...styles.bodyText, marginTop: 6, color: "#64748b", fontWeight: 700 }}>
+                  {t(lang, "voteSameOrderNotice")}
+                </p>
 
 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
   <div style={styles.bodyText}>
-    <strong>Choix 1 :</strong> {getProposalTextById(studentVotes.rank1)}
+    <strong>{t(lang, "voteChoice1Weighted")} :</strong> {getProposalTextById(studentVotes.rank1)}
   </div>
 
   <div style={styles.bodyText}>
-    <strong>Choix 2 :</strong> {getProposalTextById(studentVotes.rank2)}
+    <strong>{t(lang, "voteChoice2Weighted")} :</strong> {getProposalTextById(studentVotes.rank2)}
   </div>
 
   <div style={styles.bodyText}>
-    <strong>Choix 3 :</strong> {getProposalTextById(studentVotes.rank3)}
+    <strong>{t(lang, "voteChoice3Weighted")} :</strong> {getProposalTextById(studentVotes.rank3)}
   </div>
 
   <div
@@ -11202,9 +11219,9 @@ if (screen === "student_vote") {
                       }}
                     >
                       <option value="">—</option>
-                      <option value="1">Choix 1</option>
-                      <option value="2">Choix 2</option>
-                      <option value="3">Choix 3</option>
+                      <option value="1">{t(lang, "voteChoice1Weighted")}</option>
+                      <option value="2">{t(lang, "voteChoice2Weighted")}</option>
+                      <option value="3">{t(lang, "voteChoice3Weighted")}</option>
                     </select>
                   </div>
                 ))}
@@ -12197,7 +12214,7 @@ style={
                 fontWeight: 900,
               }}
             >
-              {getVoteScorePercent(row.score)} %
+              {t(lang, "weightedScore")} : {getVoteScorePercent(row.score)} %
             </div>
           </div>
         ))}
