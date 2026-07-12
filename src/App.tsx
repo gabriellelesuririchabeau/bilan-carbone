@@ -10275,7 +10275,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             </button>
           </details>
 
-          <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
+          <details className="teacher-sidebar-section" style={styles.sidebarSection}>
             <summary style={styles.sidebarSectionTitle}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
             <button type="button" style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentAnalysisAccess}>{studentAnalysisUnlocked ? "🔓" : "🔒"} {t(lang, "analyses")}</button>
             <button type="button" style={studentVoteUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentVoteAccess}>{studentVoteUnlocked ? "🔓" : "🔒"} {t(lang, "vote")}</button>
@@ -10300,18 +10300,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
             <summary style={getSessionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
             <button style={styles.sidebarButtonActive}>🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}</button>
-            <button
-              style={styles.sidebarButton}
-              onClick={() => {
-                setMessage("");
-                setTeacherMenu("sessions");
-                setIsInitialSessionSetup(true);
-                setScreen("teacher_dashboard");
-              }}
-            >
-              ➕ {lang === "en" ? "New session" : "Nouvelle session"}
-            </button>
-            <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setIsInitialSessionSetup(false); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
+            <button style={styles.sidebarButton} onClick={() => { setMessage(""); setTeacherMenu("sessions"); setIsInitialSessionSetup(false); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
           </details>
 
           <div style={styles.sidebarFooter}>
@@ -11096,7 +11085,7 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
+            <details className="teacher-sidebar-section" style={styles.sidebarSection}>
               <summary style={styles.sidebarSectionTitle}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
               <button
                 type="button"
@@ -11181,7 +11170,7 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details className="teacher-sidebar-section" open={teacherMenu === "sessions" || screen === "teacher_session_settings"} style={styles.sidebarSection}>
+            <details key={`teacher-session-menu-${teacherMenu}-${screen}-${isInitialSessionSetup ? "create" : "list"}`} className="teacher-sidebar-section" open={teacherMenu === "sessions" || (screen as string) === "teacher_session_settings"} style={styles.sidebarSection}>
               <summary style={getSessionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
               <button
                 style={(screen as string) === "teacher_session_settings" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
@@ -11194,20 +11183,9 @@ if (screen === "student_vote") {
               </button>
 
               <button
-                style={teacherMenu === "sessions" && isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
-                onClick={() => {
-                  setMessage("");
-                  setTeacherMenu("sessions");
-                  setIsInitialSessionSetup(true);
-                  setScreen("teacher_dashboard");
-                }}
-              >
-                ➕ {lang === "en" ? "New session" : "Nouvelle session"}
-              </button>
-
-              <button
                 style={teacherMenu === "sessions" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
+                  setMessage("");
                   setTeacherMenu("sessions");
                   setIsInitialSessionSetup(false);
                   setScreen("teacher_dashboard");
