@@ -134,8 +134,11 @@ const TEACHER_SIDEBAR_CSS = `
   height: 44px !important;
   display: flex !important;
   align-items: center !important;
-  justify-content: center !important;
-  gap: 8px !important;
+  justify-content: flex-start !important;
+  gap: 7px !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  text-align: left !important;
   font-family: Arial, sans-serif !important;
   font-size: 12px !important;
   font-weight: 950 !important;
@@ -145,7 +148,7 @@ const TEACHER_SIDEBAR_CSS = `
 .teacher-sidebar-organized .teacher-sidebar-chevron {
   transform: rotate(0deg);
   transition: transform 0.16s ease;
-  font-size: 28px !important;
+  font-size: 20px !important;
 }
 .teacher-sidebar-organized details.teacher-sidebar-section[open] > summary .teacher-sidebar-chevron {
   transform: rotate(90deg);
@@ -9094,19 +9097,38 @@ if ((screen as string) === "projection") {
 
       {projectionStage === "propositions" && (
         <section style={styles.projectionSectionClean}>
-          <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Proposals submitted to vote" : "Propositions soumises au vote"}</h2>
-          {!consolidatedProposals.length ? (
-            <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No proposal has been submitted yet." : "Aucune proposition n’a encore été soumise au vote."}</p></div>
-          ) : (
-            <div style={styles.projectionProposalGrid}>
-              {consolidatedProposals.map((proposal, index) => (
-                <div key={proposal.id || index} style={styles.projectionProposalCard}>
-                  <div style={styles.projectionProposalNumber}>{index + 1}</div>
-                  <div style={styles.projectionProposalText}>{proposal.text}</div>
+          <div style={styles.projectionProposalStageWrap}>
+            <div style={styles.projectionProposalHeaderRow}>
+              <h2 style={{ ...styles.projectionSectionTitle, textAlign: "left" }}>{lang === "en" ? "Proposals submitted to vote" : "Propositions soumises au vote"}</h2>
+              <div style={styles.projectionProposalVoteQrCard}>
+                <div style={styles.projectionProposalVoteQrTextWrap}>
+                  <h3 style={styles.projectionProposalVoteQrTitle}>{lang === "en" ? "Vote QR code" : "QR code de vote"}</h3>
+                  <p style={styles.projectionProposalVoteQrText}>
+                    {lang === "en"
+                      ? "Scan to access the vote directly after entering the student email address."
+                      : "Scannez pour accéder directement au vote après saisie de l’adresse e-mail étudiante."}
+                  </p>
+                  <div style={styles.projectionProposalVoteQrCode}>{activeSessionCode}</div>
                 </div>
-              ))}
+                <div style={styles.projectionProposalVoteQrBox}>
+                  <QRCodeCanvas value={buildStudentJoinUrl(activeSessionCode, "vote")} size={118} includeMargin level="M" />
+                </div>
+              </div>
             </div>
-          )}
+
+            {!consolidatedProposals.length ? (
+              <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No proposal has been submitted yet." : "Aucune proposition n’a encore été soumise au vote."}</p></div>
+            ) : (
+              <div style={styles.projectionProposalGrid}>
+                {consolidatedProposals.map((proposal, index) => (
+                  <div key={proposal.id || index} style={styles.projectionProposalCard}>
+                    <div style={styles.projectionProposalNumber}>{index + 1}</div>
+                    <div style={styles.projectionProposalText}>{proposal.text}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
       )}
 
@@ -12639,7 +12661,7 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: 0,
     display: "flex",
     flexDirection: "column" as const,
-    gap: 16,
+    gap: 12,
     overflow: "hidden" as const,
   },
   projectionCard: {
@@ -12662,7 +12684,7 @@ const styles: Record<string, React.CSSProperties> = {
   projectionSectionTitle: {
     margin: 0,
     color: "#7b3f86",
-    fontSize: "clamp(32px, 4.2vw, 60px)",
+    fontSize: "clamp(28px, 3.4vw, 50px)",
     fontWeight: 950,
     lineHeight: 1,
     textAlign: "center",
@@ -12780,39 +12802,114 @@ const styles: Record<string, React.CSSProperties> = {
     height: "100%",
     borderRadius: 999,
   },
-  projectionProposalGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-    gap: 20,
+  projectionProposalStageWrap: {
+    flex: "1 1 auto",
+    minHeight: 0,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 12,
+    overflow: "hidden" as const,
   },
-  projectionProposalCard: {
+  projectionProposalHeaderRow: {
     display: "grid",
-    gridTemplateColumns: "auto 1fr",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    alignItems: "center",
     gap: 16,
-    alignItems: "start",
-    padding: 24,
-    borderRadius: 28,
+  },
+  projectionProposalVoteQrCard: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    padding: "12px 16px",
+    borderRadius: 24,
     background: "#ffffff",
     border: "1px solid #d8e0ec",
-    boxShadow: "0 12px 28px rgba(15,23,42,0.10)",
+    boxShadow: "0 12px 24px rgba(15,23,42,0.08)",
+    maxWidth: 430,
+  },
+  projectionProposalVoteQrTextWrap: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 4,
+    minWidth: 0,
+  },
+  projectionProposalVoteQrTitle: {
+    margin: 0,
+    color: "#12355b",
+    fontSize: 22,
+    lineHeight: 1.05,
+    fontWeight: 950,
+  },
+  projectionProposalVoteQrText: {
+    margin: 0,
+    color: "#334155",
+    fontSize: 14,
+    lineHeight: 1.22,
+    fontWeight: 700,
+  },
+  projectionProposalVoteQrCode: {
+    display: "inline-flex",
+    alignSelf: "flex-start",
+    marginTop: 4,
+    padding: "4px 10px",
+    borderRadius: 999,
+    background: "#17243b",
+    color: "#ffffff",
+    fontSize: 13,
+    lineHeight: 1,
+    fontWeight: 900,
+    letterSpacing: 0.5,
+  },
+  projectionProposalVoteQrBox: {
+    flex: "0 0 auto",
+    background: "#ffffff",
+    padding: 8,
+    borderRadius: 18,
+    border: "1px solid #d8e0ec",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.08)",
+  },
+  projectionProposalGrid: {
+    flex: "1 1 auto",
+    minHeight: 0,
+    display: "grid",
+    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+    gridAutoRows: "minmax(0, 1fr)",
+    gap: 14,
+    alignContent: "stretch",
+  },
+  projectionProposalCard: {
+    minHeight: 0,
+    height: "100%",
+    display: "grid",
+    gridTemplateColumns: "40px minmax(0, 1fr)",
+    gap: 12,
+    alignItems: "start",
+    padding: "14px 16px",
+    borderRadius: 24,
+    background: "#ffffff",
+    border: "1px solid #d8e0ec",
+    boxShadow: "0 10px 22px rgba(15,23,42,0.08)",
+    overflow: "hidden" as const,
   },
   projectionProposalNumber: {
-    width: 46,
-    height: 46,
+    width: 40,
+    height: 40,
     borderRadius: 999,
     background: "#ed7d31",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     color: "#10213f",
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 950,
   },
   projectionProposalText: {
     color: "#10213f",
-    fontSize: "clamp(20px, 2vw, 30px)",
-    lineHeight: 1.25,
+    fontSize: "clamp(15px, 1.4vw, 22px)",
+    lineHeight: 1.15,
     fontWeight: 800,
+    wordBreak: "break-word" as const,
+    overflowWrap: "anywhere" as const,
   },
   projectionVoteQrCard: {
     display: "grid",
@@ -13995,11 +14092,12 @@ panelTitle: {
     userSelect: "none" as const,
     listStyle: "none",
     listStyleType: "none" as const,
-    padding: "0 8px",
+    padding: "0 10px",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    justifyContent: "flex-start",
+    textAlign: "left" as const,
+    gap: 7,
     borderRadius: 14,
     background: "transparent",
   },
@@ -14020,11 +14118,12 @@ panelTitle: {
     userSelect: "none" as const,
     listStyle: "none",
     listStyleType: "none" as const,
-    padding: "0 8px",
+    padding: "0 10px",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    justifyContent: "flex-start",
+    textAlign: "left" as const,
+    gap: 7,
     borderRadius: 14,
     background: "transparent",
   },
@@ -14033,10 +14132,10 @@ panelTitle: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 30,
-    flex: "0 0 30px",
+    width: 22,
+    flex: "0 0 22px",
     color: "rgba(255,255,255,0.98)",
-    fontSize: 28,
+    fontSize: 19,
     fontWeight: 950,
     lineHeight: 1,
   },
