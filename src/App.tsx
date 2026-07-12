@@ -130,17 +130,25 @@ const TEACHER_SIDEBAR_CSS = `
 .teacher-sidebar-organized details.teacher-sidebar-section > summary {
   list-style: none !important;
   background: transparent !important;
-  min-height: 58px !important;
-  height: 58px !important;
+  min-height: 44px !important;
+  height: 44px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 10px !important;
+  gap: 8px !important;
   font-family: Arial, sans-serif !important;
   font-size: 12px !important;
   font-weight: 950 !important;
   letter-spacing: 0.45px !important;
   text-transform: uppercase !important;
+}
+.teacher-sidebar-organized .teacher-sidebar-chevron {
+  transform: rotate(0deg);
+  transition: transform 0.16s ease;
+  font-size: 28px !important;
+}
+.teacher-sidebar-organized details.teacher-sidebar-section[open] > summary .teacher-sidebar-chevron {
+  transform: rotate(90deg);
 }
 `;
 
@@ -10371,7 +10379,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </div>
 
           <details className="teacher-sidebar-section" style={styles.sidebarSection}>
-            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "LIVE COLLECTION" : "COLLECTE EN DIRECT"}</span></summary>
+            <summary style={getMonitoringSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>▶</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "LIVE COLLECTION" : "COLLECTE EN DIRECT"}</span></summary>
             <button
               style={styles.sidebarButton}
               onClick={() => {
@@ -10395,21 +10403,21 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </details>
 
           <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
-            <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
+            <summary style={styles.sidebarSectionTitle}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>▶</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
             <button type="button" style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentAnalysisAccess}>{studentAnalysisUnlocked ? "🔓" : "🔒"} {t(lang, "analyses")}</button>
             <button type="button" style={studentVoteUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentVoteAccess}>{studentVoteUnlocked ? "🔓" : "🔒"} {t(lang, "vote")}</button>
             <button type="button" style={studentSyntheseUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentSyntheseAccess}>{studentSyntheseUnlocked ? "🔓" : "🔒"} {t(lang, "synthese")}</button>
           </details>
 
           <details className="teacher-sidebar-section" style={styles.sidebarSection}>
-            <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
+            <summary style={getDebriefSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>▶</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>📑 {t(lang, "analyses")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>🗳️ {t(lang, "vote")}</button>
             <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>🧩 {t(lang, "synthese")}</button>
           </details>
 
           <details className="teacher-sidebar-section" style={styles.sidebarSection}>
-            <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
+            <summary style={getProjectionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>▶</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
             <button style={getProjectionMenuButtonStyle("qr")} onClick={() => openProjectionStage("qr")}>📱 {t(lang, "projectionQr")}</button>
             <button style={getProjectionMenuButtonStyle("bilans")} onClick={() => openProjectionStage("bilans")}>📊 {t(lang, "projectionBilans")}</button>
             <button style={getProjectionMenuButtonStyle("propositions")} onClick={() => openProjectionStage("propositions")}>💡 {t(lang, "projectionProposals")}</button>
@@ -10418,7 +10426,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </details>
 
           <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
-            <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
+            <summary style={getSessionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>▶</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
             <button style={styles.sidebarButtonActive}>🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}</button>
             <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setIsInitialSessionSetup(true); setScreen("teacher_session_settings"); }}>➕ {lang === "en" ? "New session" : "Nouvelle session"}</button>
             <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
@@ -11230,7 +11238,7 @@ if (screen === "student_vote") {
             </div>
 
             <details className="teacher-sidebar-section" open={teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")} style={styles.sidebarSection}>
-              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "LIVE COLLECTION" : "COLLECTE EN DIRECT"}</span></summary>
+              <summary style={getMonitoringSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>▶</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "LIVE COLLECTION" : "COLLECTE EN DIRECT"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11253,7 +11261,7 @@ if (screen === "student_vote") {
             </details>
 
             <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
-              <summary style={styles.sidebarSectionTitle}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
+              <summary style={styles.sidebarSectionTitle}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>▶</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
               <button
                 type="button"
                 style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff}
@@ -11278,7 +11286,7 @@ if (screen === "student_vote") {
             </details>
 
             <details className="teacher-sidebar-section" open={teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")} style={styles.sidebarSection}>
-              <summary style={getDebriefSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
+              <summary style={getDebriefSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>▶</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11311,7 +11319,7 @@ if (screen === "student_vote") {
             </details>
 
             <details className="teacher-sidebar-section" style={styles.sidebarSection}>
-              <summary style={getProjectionSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
+              <summary style={getProjectionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>▶</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
               <button
                 style={getProjectionMenuButtonStyle("qr")}
                 onClick={() => openProjectionStage("qr")}
@@ -11345,7 +11353,7 @@ if (screen === "student_vote") {
             </details>
 
             <details className="teacher-sidebar-section" style={styles.sidebarSection}>
-              <summary style={getSessionSectionTitleStyle()}><span style={styles.sidebarChevron}>▼</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
+              <summary style={getSessionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>▶</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
               <button
                 style={(screen as string) === "teacher_session_settings" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11626,25 +11634,25 @@ if (screen === "student_vote") {
                       <div style={styles.progressTableWrap}>
                         <table style={{ ...styles.reportTable, ...styles.progressReportTable, marginTop: 0 }}>
                           <colgroup>
-                            <col style={{ width: "23%" }} />
-                            <col style={{ width: "20%" }} />
-                            <col style={{ width: "8%" }} />
-                            <col style={{ width: "8%" }} />
-                            <col style={{ width: "8%" }} />
-                            <col style={{ width: "9%" }} />
-                            <col style={{ width: "8%" }} />
-                            <col style={{ width: "8%" }} />
+                            <col style={{ width: "14%" }} />
+                            <col style={{ width: "14%" }} />
+                            <col style={{ width: "7%" }} />
+                            <col style={{ width: "13%" }} />
+                            <col style={{ width: "11%" }} />
+                            <col style={{ width: "13%" }} />
+                            <col style={{ width: "15%" }} />
+                            <col style={{ width: "13%" }} />
                           </colgroup>
                           <thead>
                             <tr>
                               <th style={styles.progressTh}>{lang === "en" ? "Last" : "Nom"}</th>
                               <th style={styles.progressTh}>{lang === "en" ? "First" : "Prénom"}</th>
-                              <th title={lang === "en" ? "Group" : "Groupe"} style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "G" : "G"}</th>
-                              <th title="Transport" style={{ ...styles.progressTh, textAlign: "center" }}>T</th>
-                              <th title={lang === "en" ? "Lunch" : "Déjeuner"} style={{ ...styles.progressTh, textAlign: "center" }}>D</th>
-                              <th title={lang === "en" ? "Equipment" : "Équipement"} style={{ ...styles.progressTh, textAlign: "center" }}>É</th>
-                              <th title={lang === "en" ? "Other consumption" : "Autres consommations"} style={{ ...styles.progressTh, textAlign: "center" }}>A</th>
-                              <th title="Vote" style={{ ...styles.progressTh, textAlign: "center" }}>V</th>
+                              <th title={lang === "en" ? "Group" : "Groupe"} style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Grp." : "Gr."}</th>
+                              <th title="Transport" style={{ ...styles.progressTh, textAlign: "center" }}>Transport</th>
+                              <th title={lang === "en" ? "Lunch" : "Déjeuner"} style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Lunch" : "Déj."}</th>
+                              <th title={lang === "en" ? "Equipment" : "Équipement"} style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Equip." : "Équip."}</th>
+                              <th title={lang === "en" ? "Other consumption" : "Autres consommations"} style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Other" : "Autres"}</th>
+                              <th title="Vote" style={{ ...styles.progressTh, textAlign: "center" }}>Vote</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -13963,18 +13971,18 @@ panelTitle: {
   sidebarSection: {
     width: "100%",
     boxSizing: "border-box" as const,
-    padding: "10px",
-    borderRadius: 18,
+    padding: "7px",
+    borderRadius: 16,
     background: "rgba(255,255,255,0.055)",
     border: "1px solid rgba(255,255,255,0.14)",
     display: "block",
-    marginBottom: 12,
+    marginBottom: 10,
   },
 
   sidebarSectionTitle: {
     width: "100%",
-    height: 58,
-    minHeight: 58,
+    height: 44,
+    minHeight: 44,
     boxSizing: "border-box" as const,
     color: "rgba(255,255,255,0.94)",
     fontSize: 12,
@@ -13983,23 +13991,23 @@ panelTitle: {
     textTransform: "uppercase" as const,
     letterSpacing: 0.45,
     cursor: "pointer",
-    marginBottom: 9,
+    marginBottom: 7,
     userSelect: "none" as const,
     listStyle: "none",
     listStyleType: "none" as const,
-    padding: "0 10px",
+    padding: "0 8px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
     borderRadius: 14,
     background: "transparent",
   },
 
   sidebarSectionTitleActive: {
     width: "100%",
-    height: 58,
-    minHeight: 58,
+    height: 44,
+    minHeight: 44,
     boxSizing: "border-box" as const,
     color: "rgba(255,255,255,0.94)",
     fontSize: 12,
@@ -14008,15 +14016,15 @@ panelTitle: {
     textTransform: "uppercase" as const,
     letterSpacing: 0.45,
     cursor: "pointer",
-    marginBottom: 9,
+    marginBottom: 7,
     userSelect: "none" as const,
     listStyle: "none",
     listStyleType: "none" as const,
-    padding: "0 10px",
+    padding: "0 8px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
     borderRadius: 14,
     background: "transparent",
   },
@@ -14025,10 +14033,10 @@ panelTitle: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 34,
-    flex: "0 0 34px",
+    width: 30,
+    flex: "0 0 30px",
     color: "rgba(255,255,255,0.98)",
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: 950,
     lineHeight: 1,
   },
@@ -14348,13 +14356,13 @@ panelTitle: {
     background: "#edf3f8",
     color: "#123b64",
     fontWeight: 900,
-    fontSize: 10,
+    fontSize: 10.5,
     padding: "7px 2px",
     borderBottom: "1px solid #d7dee8",
-    whiteSpace: "nowrap" as const,
-    lineHeight: 1,
-    overflow: "hidden" as const,
-    textOverflow: "ellipsis",
+    whiteSpace: "normal" as const,
+    lineHeight: 1.1,
+    overflow: "visible" as const,
+    textOverflow: "clip",
   },
 
   progressTd: {
