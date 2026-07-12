@@ -3569,9 +3569,9 @@ const studentVotedEmails = useMemo(() => {
   );
 }, [teacherVoteRows]);
 
-const teacherVoteMaximumScore = useMemo(
-  () => studentVotedEmails.size * 3,
-  [studentVotedEmails]
+const teacherVoteTotalExpressedScore = useMemo(
+  () => teacherVoteResults.reduce((sum, row) => sum + Number(row.score ?? 0), 0),
+  [teacherVoteResults]
 );
 
 function hasStudentVoted(email: string | null | undefined) {
@@ -3579,8 +3579,8 @@ function hasStudentVoted(email: string | null | undefined) {
 }
 
 function getVoteScorePercent(score: number) {
-  if (!teacherVoteMaximumScore) return 0;
-  return Math.round((Number(score ?? 0) / teacherVoteMaximumScore) * 100);
+  if (!teacherVoteTotalExpressedScore) return 0;
+  return Math.round((Number(score ?? 0) / teacherVoteTotalExpressedScore) * 100);
 }
 
   const teacherTransportRows = useMemo(
@@ -5646,7 +5646,6 @@ updatedBy: string | null;
       payload,
       { onConflict: "session_id,group_number,theme,row_key" }
     );
-console.log("SAVE REPORT ERROR", error);
     if (error) {
       setMessage(`Erreur sauvegarde report déjeuner : ${error.message}`);
       return;
@@ -6855,9 +6854,10 @@ if (deleteAssignmentsError) {
   setSettingsAllowedEmailsText(assignmentsToSave.map((student) => student.email).join("\n"));
 
     await loadTeacherSessions(teacherUserId);
-   setMessage(`Paramètres enregistrés pour ${formatSessionCode(selectedSessionCode)}`);
-    setScreen("teacher_dashboard");
-    setTeacherMenu("sessions");
+    setMessage(`Paramètres enregistrés pour ${formatSessionCode(selectedSessionCode)}`);
+    setScreen("teacher_session_settings");
+    setTeacherMenu("session_open");
+    setIsInitialSessionSetup(false);
   }
 
 async function handleStudentEnter() {
@@ -7205,13 +7205,6 @@ async function refreshStudentAnalysisData() {
       ai_prep_minutes: Number(equipement.ai_prep_minutes || 0),
       ai_during_class_minutes: Number(equipement.ai_during_class_minutes || 0),
     };
-
-    console.log("DEBUG EQUIPEMENT", {
-  normalizedStudentEmail,
-  normalizedSessionCode,
-  studentSelectedSessionId,
-  equipement,
-});
 
     setStudentSavingQuestionnaire("equipement");
     setEquipementMessage("Enregistrement en cours...");
@@ -10318,7 +10311,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             >
               ➕ {lang === "en" ? "New session" : "Nouvelle session"}
             </button>
-            <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
+            <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setIsInitialSessionSetup(false); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
           </details>
 
           <div style={styles.sidebarFooter}>
@@ -11188,7 +11181,7 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details className="teacher-sidebar-section" style={styles.sidebarSection}>
+            <details className="teacher-sidebar-section" open={teacherMenu === "sessions" || screen === "teacher_session_settings"} style={styles.sidebarSection}>
               <summary style={getSessionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
               <button
                 style={(screen as string) === "teacher_session_settings" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
@@ -11228,7 +11221,7 @@ if (screen === "student_vote") {
           <>
             <button
               style={teacherMenu === "sessions" ? styles.sidebarButtonActive : styles.sidebarButton}
-              onClick={() => setTeacherMenu("sessions")}
+              onClick={() => { setTeacherMenu("sessions"); setIsInitialSessionSetup(true); }}
             >
               {lang === "en" ? "Create / open session" : "Créer / ouvrir une session"}
             </button>
@@ -11259,10 +11252,24 @@ if (screen === "student_vote") {
         <section style={styles.bigPanel}>
           {teacherMenu === "sessions" && (
             <>
-              <h2 style={styles.panelTitle}>Gestion des sessions</h2>
+              <h2 style={styles.panelTitle}>
+                {isInitialSessionSetup
+                  ? (lang === "en" ? "Create a new session" : "Créer une nouvelle session")
+                  : (lang === "en" ? "My sessions" : "Mes sessions")}
+              </h2>
 
               <div style={styles.twoCols}>
-                <div style={styles.innerCard}>
+                <div
+                  style={
+                    isInitialSessionSetup
+                      ? {
+                          ...styles.innerCard,
+                          border: "3px solid #ed7d31",
+                          boxShadow: "0 16px 34px rgba(237,125,49,0.20)",
+                        }
+                      : styles.innerCard
+                  }
+                >
 <h3 style={styles.innerTitle}>Créer une session</h3>
 
 <label style={styles.label}>Campus</label>
@@ -11357,7 +11364,17 @@ if (screen === "student_vote") {
 </button>
                 </div>
 
-                <div style={styles.innerCard}>
+                <div
+                  style={
+                    !isInitialSessionSetup
+                      ? {
+                          ...styles.innerCard,
+                          border: "3px solid #ed7d31",
+                          boxShadow: "0 16px 34px rgba(237,125,49,0.20)",
+                        }
+                      : styles.innerCard
+                  }
+                >
                   <h3 style={styles.innerTitle}>Mes sessions</h3>
 
                   {!teacherSessions.length ? (
@@ -11471,13 +11488,13 @@ if (screen === "student_vote") {
                       <div style={styles.progressTableWrap}>
                         <table style={{ ...styles.reportTable, ...styles.progressReportTable, marginTop: 0 }}>
                           <colgroup>
+                            <col style={{ width: "12%" }} />
+                            <col style={{ width: "12%" }} />
+                            <col style={{ width: "6%" }} />
                             <col style={{ width: "14%" }} />
-                            <col style={{ width: "14%" }} />
-                            <col style={{ width: "7%" }} />
-                            <col style={{ width: "13%" }} />
                             <col style={{ width: "11%" }} />
-                            <col style={{ width: "13%" }} />
-                            <col style={{ width: "15%" }} />
+                            <col style={{ width: "14%" }} />
+                            <col style={{ width: "18%" }} />
                             <col style={{ width: "13%" }} />
                           </colgroup>
                           <thead>
@@ -14195,8 +14212,8 @@ panelTitle: {
     background: "#edf3f8",
     color: "#123b64",
     fontWeight: 900,
-    fontSize: 10.5,
-    padding: "7px 2px",
+    fontSize: 10,
+    padding: "7px 1px",
     borderBottom: "1px solid #d7dee8",
     whiteSpace: "normal" as const,
     lineHeight: 1.1,
@@ -14205,10 +14222,10 @@ panelTitle: {
   },
 
   progressTd: {
-    padding: "7px 3px",
+    padding: "7px 2px",
     borderBottom: "1px solid #e2e8f0",
     color: "#123b64",
-    fontSize: 11,
+    fontSize: 10.5,
     overflow: "hidden" as const,
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
