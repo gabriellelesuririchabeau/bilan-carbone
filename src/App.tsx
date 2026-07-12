@@ -10356,7 +10356,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           </div>
 
           <details style={styles.sidebarSection}>
-            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Participation" : "Participation"}</span></summary>
+            <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Live collection" : "Collecte en direct"}</span></summary>
             <button
               style={styles.sidebarButton}
               onClick={() => {
@@ -11214,7 +11214,7 @@ if (screen === "student_vote") {
             </div>
 
             <details open={teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")} style={styles.sidebarSection}>
-              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Participation" : "Participation"}</span></summary>
+              <summary style={getMonitoringSectionTitleStyle()}><span style={styles.sidebarChevron}>▾</span><span style={styles.sidebarSectionIcon}>🟢</span><span>{lang === "en" ? "Live collection" : "Collecte en direct"}</span></summary>
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
@@ -11610,25 +11610,25 @@ if (screen === "student_vote") {
                       <div style={styles.progressTableWrap}>
                         <table style={{ ...styles.reportTable, ...styles.progressReportTable, marginTop: 0 }}>
                           <colgroup>
-                            <col style={{ width: "19%" }} />
-                            <col style={{ width: "16%" }} />
-                            <col style={{ width: "7%" }} />
-                            <col style={{ width: "10%" }} />
-                            <col style={{ width: "10%" }} />
-                            <col style={{ width: "12%" }} />
-                            <col style={{ width: "12%" }} />
-                            <col style={{ width: "14%" }} />
+                            <col style={{ width: "23%" }} />
+                            <col style={{ width: "20%" }} />
+                            <col style={{ width: "8%" }} />
+                            <col style={{ width: "8%" }} />
+                            <col style={{ width: "8%" }} />
+                            <col style={{ width: "9%" }} />
+                            <col style={{ width: "8%" }} />
+                            <col style={{ width: "8%" }} />
                           </colgroup>
                           <thead>
                             <tr>
                               <th style={styles.progressTh}>{lang === "en" ? "Last" : "Nom"}</th>
                               <th style={styles.progressTh}>{lang === "en" ? "First" : "Prénom"}</th>
-                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "G" : "Gpe"}</th>
-                              <th style={{ ...styles.progressTh, textAlign: "center" }}>Tr.</th>
-                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Lunch" : "Déj."}</th>
-                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Equip." : "Équip."}</th>
-                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Other" : "Aut."}</th>
-                              <th style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "Vote" : "Vote"}</th>
+                              <th title={lang === "en" ? "Group" : "Groupe"} style={{ ...styles.progressTh, textAlign: "center" }}>{lang === "en" ? "G" : "G"}</th>
+                              <th title="Transport" style={{ ...styles.progressTh, textAlign: "center" }}>T</th>
+                              <th title={lang === "en" ? "Lunch" : "Déjeuner"} style={{ ...styles.progressTh, textAlign: "center" }}>D</th>
+                              <th title={lang === "en" ? "Equipment" : "Équipement"} style={{ ...styles.progressTh, textAlign: "center" }}>É</th>
+                              <th title={lang === "en" ? "Other consumption" : "Autres consommations"} style={{ ...styles.progressTh, textAlign: "center" }}>A</th>
+                              <th title="Vote" style={{ ...styles.progressTh, textAlign: "center" }}>V</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -13947,33 +13947,76 @@ panelTitle: {
   sidebarSection: {
     width: "100%",
     boxSizing: "border-box" as const,
-    padding: "9px 10px 10px",
+    padding: "10px",
     borderRadius: 18,
     background: "rgba(255,255,255,0.055)",
     border: "1px solid rgba(255,255,255,0.12)",
     display: "block",
-    marginBottom: 8,
+    marginBottom: 12,
   },
 
   sidebarSectionTitle: {
-    color: "rgba(255,255,255,0.88)",
+    width: "100%",
+    minHeight: 46,
+    boxSizing: "border-box" as const,
+    color: "rgba(255,255,255,0.92)",
     fontSize: 12,
     fontWeight: 950,
     textTransform: "uppercase" as const,
-    letterSpacing: 0.5,
+    letterSpacing: 0.45,
     cursor: "pointer",
-    marginBottom: 8,
+    marginBottom: 9,
     userSelect: "none" as const,
     listStyle: "none",
-    padding: "2px 2px 6px",
+    padding: "0 8px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 14,
+  },
+
+  sidebarSectionTitleActive: {
+    width: "100%",
+    minHeight: 46,
+    boxSizing: "border-box" as const,
+    color: "#12355b",
+    fontSize: 12,
+    fontWeight: 950,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.45,
+    cursor: "pointer",
+    marginBottom: 9,
+    userSelect: "none" as const,
+    listStyle: "none",
+    padding: "0 8px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 14,
+    background: "#ed7d31",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.18)",
   },
 
   sidebarChevron: {
-    display: "inline-block",
-    marginRight: 5,
-    color: "rgba(255,255,255,0.9)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 14,
+    flex: "0 0 14px",
+    color: "rgba(255,255,255,0.92)",
     fontSize: 12,
     fontWeight: 900,
+  },
+
+  sidebarSectionIcon: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 18,
+    flex: "0 0 18px",
+    marginRight: 0,
   },
 
   teacherProjectionButton: {
@@ -14263,7 +14306,7 @@ panelTitle: {
   progressReportTable: {
     width: "100%",
     tableLayout: "fixed" as const,
-    fontSize: 12,
+    fontSize: 11,
   },
 
   progressTableWrap: {
@@ -14280,28 +14323,29 @@ panelTitle: {
     background: "#edf3f8",
     color: "#123b64",
     fontWeight: 900,
-    fontSize: 11,
-    padding: "8px 4px",
+    fontSize: 10,
+    padding: "7px 2px",
     borderBottom: "1px solid #d7dee8",
-    whiteSpace: "normal" as const,
-    lineHeight: 1.05,
-    overflowWrap: "anywhere" as const,
+    whiteSpace: "nowrap" as const,
+    lineHeight: 1,
+    overflow: "hidden" as const,
+    textOverflow: "ellipsis",
   },
 
   progressTd: {
-    padding: "8px 4px",
+    padding: "7px 3px",
     borderBottom: "1px solid #e2e8f0",
     color: "#123b64",
-    fontSize: 12,
+    fontSize: 11,
     overflow: "hidden" as const,
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
   },
 
   progressCheckDone: {
-    width: 20,
-    height: 20,
-    borderRadius: 7,
+    width: 18,
+    height: 18,
+    borderRadius: 6,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -14314,9 +14358,9 @@ panelTitle: {
   },
 
   progressCheckEmpty: {
-    width: 20,
-    height: 20,
-    borderRadius: 7,
+    width: 18,
+    height: 18,
+    borderRadius: 6,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
