@@ -528,8 +528,6 @@ const DISPLAY_TRANSLATIONS_EN: Record<string, string> = {
   "Proposition introuvable": "Proposal not found",
   "Propositions à soumettre au vote": "Proposals to submit to the vote",
   "Propositions actuellement soumises au vote": "Proposals currently submitted to the vote",
-  "Aperçu avant soumission": "Preview before submission",
-  "Prévisualiser les propositions collées": "Preview pasted proposals",
   "Soumettre ces propositions au vote": "Submit these proposals to the vote",
   "Soumission en cours...": "Submitting...",
   "Résultats des votes": "Vote results",
@@ -557,7 +555,7 @@ const DISPLAY_TRANSLATIONS_EN: Record<string, string> = {
   "Sélectionnez jusqu’à 3 propositions par ordre de priorité.": "Select up to 3 proposals in order of priority.",
   "Télécharger le fichier .txt à soumettre à l’IA": "Download the .txt file to submit to the AI",
   "Soumission en cours.": "Submitting.",
-  "1. Téléchargez le fichier .txt à soumettre à l’IA. 2. Faites générer par l’IA une liste numérotée, avec une seule proposition par ligne. 3. Copiez-collez la réponse de l’IA dans la zone ci-dessous. 4. Prévisualisez les propositions puis soumettez-les au vote.": "1. Download the .txt file to submit to the AI. 2. Ask the AI to generate a numbered list, with one proposal per line. 3. Copy and paste the AI response into the area below. 4. Preview the proposals, then submit them to the vote.",
+  "1. Téléchargez le fichier .txt à soumettre à l’IA. 2. Faites générer par l’IA une liste numérotée, avec une seule proposition par ligne. 3. Copiez-collez la réponse de l’IA dans la zone ci-dessous. 4. Soumettez directement les propositions au vote.": "1. Download the .txt file to submit to the AI. 2. Ask the AI to generate a numbered list, with one proposal per line. 3. Copy and paste the AI response into the area below. 4. Submit the proposals directly to the vote.",
   "Collez ici la réponse de l’IA, par exemple : 1. Réduire l’usage de la voiture individuelle 2. Installer plus d’options végétariennes 3. Encourager le covoiturage entre étudiants": "Paste the AI response here, for example: 1. Reduce the use of private cars 2. Install more vegetarian options 3. Encourage carpooling between students",
   "Compteur de réponses": "Response counter",
   "Utilisateurs": "Users",
@@ -3532,7 +3530,6 @@ const [studentSalleReportRowsDb, setStudentSalleReportRowsDb] =
   const [studentVoteUnlocked, setStudentVoteUnlocked] = useState(false);
 const [consolidatedProposals, setConsolidatedProposals] = useState<ConsolidatedProposalOption[]>([]);
 const [importedProposalRawText, setImportedProposalRawText] = useState("");
-const [importedProposalDrafts, setImportedProposalDrafts] = useState<string[]>([]);
 const [isSubmittingImportedProposals, setIsSubmittingImportedProposals] = useState(false);
 
 const [studentVotes, setStudentVotes] = useState<{
@@ -4514,28 +4511,17 @@ function cleanProposals(proposals: string[]): string[] {
   return Array.from(unique).slice(0, 10); // max 10
 }
 
-function previewImportedProposalsFromText() {
-  const parsed = parseConsolidatedTxt(importedProposalRawText);
-  const cleaned = cleanProposals(parsed);
-
-  if (cleaned.length === 0) {
-    window.alert("Aucune proposition valide détectée dans le texte collé.");
-    return;
-  }
-
-  setImportedProposalDrafts(cleaned);
-  setMessage(
-    `${cleaned.length} proposition(s) détectée(s). Vérifiez-les puis cliquez sur "Soumettre ces propositions au vote".`
-  );
-}
 async function submitImportedProposalsToVote() {
   if (!selectedSessionId) {
     window.alert("Aucune session sélectionnée.");
     return;
   }
 
-  if (importedProposalDrafts.length === 0) {
-    window.alert("Aucune proposition importée à soumettre.");
+  const parsed = parseConsolidatedTxt(importedProposalRawText);
+  const cleanedProposals = cleanProposals(parsed);
+
+  if (cleanedProposals.length === 0) {
+    window.alert("Aucune proposition valide détectée dans le texte collé.");
     return;
   }
 
@@ -4554,7 +4540,7 @@ async function submitImportedProposalsToVote() {
 
   setIsSubmittingImportedProposals(true);
 
-  const payload = importedProposalDrafts.map((text) => ({
+  const payload = cleanedProposals.map((text) => ({
     text,
     sourceGroupNumbers: [],
   }));
@@ -4575,7 +4561,6 @@ async function submitImportedProposalsToVote() {
   await loadConsolidatedProposals(selectedSessionId);
   await loadTeacherVoteRows(selectedSessionId);
 
-setImportedProposalDrafts([]);
 setImportedProposalRawText("");
 setTeacherVoteView("proposals");
 setMessage("Propositions soumises au vote avec succès.");
@@ -12028,7 +12013,7 @@ style={
         1. Téléchargez le fichier .txt à soumettre à l’IA. 2. Faites générer
         par l’IA une liste numérotée, avec une seule proposition par ligne.
         3. Copiez-collez la réponse de l’IA dans la zone ci-dessous.
-        4. Prévisualisez les propositions puis soumettez-les au vote.
+        4. Soumettez directement les propositions au vote.
       </p>
     </div>
 
@@ -12067,17 +12052,9 @@ style={
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <button
-          style={styles.secondaryButton}
-          onClick={previewImportedProposalsFromText}
-          type="button"
-        >
-          Prévisualiser les propositions collées
-        </button>
-
-        <button
           style={styles.primaryButton}
           onClick={submitImportedProposalsToVote}
-          disabled={importedProposalDrafts.length === 0 || isSubmittingImportedProposals}
+          disabled={!importedProposalRawText.trim() || isSubmittingImportedProposals}
           type="button"
         >
           {isSubmittingImportedProposals
@@ -12086,35 +12063,6 @@ style={
         </button>
       </div>
     </div>
-
-    {importedProposalDrafts.length > 0 && (
-      <div style={{ marginBottom: 28 }}>
-        <h4 style={{ ...styles.innerTitle, fontSize: 20, marginBottom: 18 }}>
-          Aperçu avant soumission
-        </h4>
-
-        <div style={styles.proposalCard}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {importedProposalDrafts.map((proposal, index) => (
-              <div
-                key={`draft-${index}`}
-                style={{
-                  fontSize: 15,
-                  lineHeight: 1.35,
-                  color: "#0f172a",
-                  textAlign: "left",
-                }}
-              >
-                <span style={{ fontWeight: 700, marginRight: 6 }}>
-                  {index + 1}.
-                </span>
-                {proposal}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )}
 
     <h4 style={{ ...styles.innerTitle, fontSize: 20, marginBottom: 18 }}>
       Propositions actuellement soumises au vote
