@@ -212,7 +212,7 @@ const I18N = {
     projectionQr: "QR code",
     projectionBilans: "Bilans",
     projectionProposals: "Propositions",
-    projectionVote: "Vote",
+    projectionVote: "Résultat des votes",
     projectionSynthesis: "Synthèse",
     privacyTitle: "Protection des données personnelles",
     privacyButton: "Données personnelles / RGPD",
@@ -271,7 +271,7 @@ const I18N = {
     projectionQr: "QR code",
     projectionBilans: "Reports",
     projectionProposals: "Proposals",
-    projectionVote: "Vote",
+    projectionVote: "Vote results",
     projectionSynthesis: "Summary",
     privacyTitle: "Personal data protection",
     privacyButton: "Personal data / GDPR",
@@ -9138,21 +9138,7 @@ if ((screen as string) === "projection") {
 
       {projectionStage === "vote" && (
         <section style={styles.projectionSectionClean}>
-          <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Vote" : "Vote"}</h2>
-          <div style={styles.projectionVoteQrCard}>
-            <div>
-              <h3 style={styles.projectionVoteQrTitle}>{lang === "en" ? "Scan to vote" : "Scannez pour voter"}</h3>
-              <p style={styles.projectionVoteQrText}>
-                {lang === "en"
-                  ? "Students scan this QR code and enter only their email address."
-                  : "Les étudiants scannent ce QR code et renseignent uniquement leur adresse e-mail."}
-              </p>
-            </div>
-            <div style={styles.projectionVoteQrBox}>
-              <QRCodeCanvas value={buildStudentJoinUrl(activeSessionCode, "vote")} size={150} includeMargin />
-            </div>
-          </div>
-          <h2 style={{ ...styles.projectionSectionTitle, marginTop: 20 }}>{lang === "en" ? "Vote results" : "Résultats des votes"}</h2>
+          <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Vote results" : "Résultats des votes"}</h2>
           {teacherVoteResults.every((item) => item.totalVotes === 0) ? (
             <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No vote has been recorded yet." : "Aucun vote enregistré pour le moment."}</p></div>
           ) : (
@@ -12923,42 +12909,6 @@ const styles: Record<string, React.CSSProperties> = {
     hyphens: "none" as const,
     textAlign: "center" as const,
   },
-  projectionVoteQrCard: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    alignItems: "center",
-    gap: 26,
-    padding: "22px 28px",
-    borderRadius: 28,
-    background: "#ffffff",
-    boxShadow: "0 18px 35px rgba(15, 23, 42, 0.10)",
-    marginBottom: 10,
-  },
-
-  projectionVoteQrTitle: {
-    margin: 0,
-    color: "#123b64",
-    fontSize: 34,
-    fontWeight: 950,
-    lineHeight: 1.05,
-  },
-
-  projectionVoteQrText: {
-    margin: "8px 0 0",
-    color: "#1f2937",
-    fontSize: 20,
-    fontWeight: 750,
-    lineHeight: 1.25,
-  },
-
-  projectionVoteQrBox: {
-    background: "#ffffff",
-    padding: 14,
-    borderRadius: 22,
-    border: "1px solid #d8e0ec",
-    boxShadow: "0 8px 18px rgba(15, 23, 42, 0.08)",
-  },
-
   projectionVotePodium: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
