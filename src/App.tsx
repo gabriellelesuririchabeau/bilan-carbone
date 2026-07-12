@@ -8954,25 +8954,19 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   }
 
   function getProjectionSectionTitleStyle() {
-    return projectionStage ? styles.sidebarSectionTitleActive : styles.sidebarSectionTitle;
+    return styles.sidebarSectionTitle;
   }
 
   function getSessionSectionTitleStyle() {
-    return teacherMenu === "sessions" || (screen as string) === "teacher_session_settings"
-      ? styles.sidebarSectionTitleActive
-      : styles.sidebarSectionTitle;
+    return styles.sidebarSectionTitle;
   }
 
   function getMonitoringSectionTitleStyle() {
-    return teacherMenu === "session_open" && (teacherSessionTab === "counts" || teacherSessionTab === "users")
-      ? styles.sidebarSectionTitleActive
-      : styles.sidebarSectionTitle;
+    return styles.sidebarSectionTitle;
   }
 
   function getDebriefSectionTitleStyle() {
-    return teacherMenu === "session_open" && (teacherSessionTab === "analyses" || teacherSessionTab === "vote" || teacherSessionTab === "synthese")
-      ? styles.sidebarSectionTitleActive
-      : styles.sidebarSectionTitle;
+    return styles.sidebarSectionTitle;
   }
 
 if ((screen as string) === "projection") {
@@ -13990,7 +13984,7 @@ panelTitle: {
     width: "100%",
     minHeight: 46,
     boxSizing: "border-box" as const,
-    color: "#12355b",
+    color: "rgba(255,255,255,0.92)",
     fontSize: 12,
     fontWeight: 950,
     fontFamily: "Arial, sans-serif",
@@ -14007,20 +14001,20 @@ panelTitle: {
     justifyContent: "center",
     gap: 6,
     borderRadius: 14,
-    background: "#ed7d31",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.18)",
+    background: "transparent",
   },
 
   sidebarChevron: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 22,
-    flex: "0 0 22px",
-    color: "rgba(255,255,255,0.96)",
-    fontSize: 20,
+    width: 28,
+    flex: "0 0 28px",
+    color: "rgba(255,255,255,0.98)",
+    fontSize: 28,
     fontWeight: 950,
     lineHeight: 1,
+    transform: "scale(1.12)",
   },
 
   sidebarSectionIcon: {
