@@ -3226,23 +3226,24 @@ export default function App() {
           max-width: 100% !important;
           min-height: 100dvh !important;
           overflow-x: hidden !important;
+          background: #e5e7eb !important;
         }
 
         .teacher-responsive-shell aside,
         .admin-responsive-shell aside {
           position: sticky !important;
           top: 0 !important;
-          z-index: 80 !important;
-          display: flex !important;
-          flex-direction: row !important;
-          align-items: center !important;
-          gap: 8px !important;
+          z-index: 120 !important;
           width: 100% !important;
           max-width: 100% !important;
-          overflow-x: auto !important;
-          padding: calc(8px + env(safe-area-inset-top, 0px)) 10px 8px !important;
+          min-height: auto !important;
+          max-height: 46dvh !important;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+          padding: calc(8px + env(safe-area-inset-top, 0px)) 10px 10px !important;
+          border-radius: 0 0 22px 22px !important;
           box-sizing: border-box !important;
-          border-radius: 0 !important;
+          box-shadow: 0 10px 24px rgba(15,23,42,0.22) !important;
           -webkit-overflow-scrolling: touch !important;
         }
 
@@ -3251,26 +3252,106 @@ export default function App() {
           display: none !important;
         }
 
-        .teacher-responsive-shell aside button,
-        .admin-responsive-shell aside button {
-          flex: 0 0 auto !important;
-          width: auto !important;
-          min-width: 112px !important;
+        .teacher-responsive-shell .teacher-session-context {
+          width: 100% !important;
+          min-width: 0 !important;
+          margin: 0 0 8px !important;
+          padding: 9px 10px !important;
+          display: grid !important;
+          grid-template-columns: auto minmax(0, 1fr) !important;
+          align-items: center !important;
+          gap: 10px !important;
+          text-align: left !important;
+        }
+
+        .teacher-responsive-shell .teacher-session-context div:first-child {
+          font-size: 10px !important;
+          white-space: nowrap !important;
+        }
+
+        .teacher-responsive-shell .teacher-session-context div:last-child {
+          font-size: 13px !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+
+        .teacher-responsive-shell details.teacher-sidebar-section {
+          width: 100% !important;
+          margin: 7px 0 !important;
+          padding: 6px !important;
+          border-radius: 16px !important;
+          box-sizing: border-box !important;
+        }
+
+        .teacher-responsive-shell details.teacher-sidebar-section > summary {
           min-height: 38px !important;
-          padding: 8px 12px !important;
+          height: 38px !important;
+          padding: 0 10px !important;
+          font-size: 11px !important;
+          letter-spacing: 0.35px !important;
+        }
+
+        .teacher-responsive-shell .teacher-sidebar-chevron {
+          font-size: 22px !important;
+          min-width: 20px !important;
+        }
+
+        .teacher-responsive-shell details.teacher-sidebar-section button,
+        .teacher-responsive-shell aside > button,
+        .admin-responsive-shell aside button {
+          width: 100% !important;
+          min-width: 0 !important;
+          min-height: 36px !important;
+          padding: 8px 10px !important;
           font-size: 12px !important;
           border-radius: 999px !important;
-          white-space: nowrap !important;
+          white-space: normal !important;
+          box-sizing: border-box !important;
+        }
+
+        .teacher-responsive-shell details.teacher-sidebar-section[open] {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr !important;
+          column-gap: 8px !important;
+          row-gap: 7px !important;
+        }
+
+        .teacher-responsive-shell details.teacher-sidebar-section[open] > summary {
+          grid-column: 1 / -1 !important;
+        }
+
+        .teacher-responsive-shell .teacher-access-panel,
+        .teacher-responsive-shell details.teacher-sidebar-section[open] .teacher-access-panel {
+          width: 100% !important;
+          min-width: 0 !important;
         }
 
         .teacher-responsive-shell aside > div:last-child,
         .admin-responsive-shell aside > div:last-child {
-          flex: 0 0 auto !important;
-          display: flex !important;
-          flex-direction: row !important;
+          position: static !important;
+          width: 100% !important;
+          margin-top: 10px !important;
+          padding-top: 10px !important;
+          border-top: 1px solid rgba(255,255,255,0.14) !important;
+          display: grid !important;
+          grid-template-columns: auto 1fr 1fr !important;
           align-items: center !important;
           gap: 8px !important;
-          margin-top: 0 !important;
+        }
+
+        .teacher-responsive-shell aside > div:last-child > div,
+        .admin-responsive-shell aside > div:last-child > div {
+          justify-self: start !important;
+        }
+
+        .teacher-responsive-shell aside > div:last-child button,
+        .admin-responsive-shell aside > div:last-child button {
+          width: 100% !important;
+          min-width: 0 !important;
+          min-height: 34px !important;
+          padding: 7px 10px !important;
+          font-size: 12px !important;
         }
 
         .teacher-responsive-shell main,
@@ -3278,7 +3359,7 @@ export default function App() {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
-          padding: 10px !important;
+          padding: 8px !important;
           box-sizing: border-box !important;
         }
 
@@ -3286,12 +3367,23 @@ export default function App() {
         .admin-responsive-shell header {
           min-height: auto !important;
           padding: 12px 10px !important;
+          border-radius: 14px !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
         }
 
         .teacher-responsive-shell header div:first-child,
         .admin-responsive-shell header div:first-child {
-          font-size: clamp(18px, 5vw, 28px) !important;
+          font-size: clamp(18px, 5vw, 30px) !important;
           line-height: 1.05 !important;
+          letter-spacing: 0.6px !important;
+        }
+
+        .teacher-responsive-shell header div:nth-child(2),
+        .admin-responsive-shell header div:nth-child(2) {
+          font-size: 10px !important;
+          line-height: 1.25 !important;
+          overflow-wrap: anywhere !important;
         }
 
         .teacher-responsive-shell section,
@@ -3299,70 +3391,107 @@ export default function App() {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
-          padding: 14px !important;
-          border-radius: 20px !important;
+          padding: 12px !important;
+          border-radius: 18px !important;
           box-sizing: border-box !important;
         }
 
-        .teacher-responsive-shell table,
-        .admin-responsive-shell table {
-          min-width: 720px !important;
+        .teacher-responsive-shell section > div,
+        .admin-responsive-shell section > div {
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+
+        .teacher-responsive-shell [style*="grid-template-columns"],
+        .admin-responsive-shell [style*="grid-template-columns"] {
+          grid-template-columns: 1fr !important;
+        }
+
+        .teacher-responsive-shell [style*="display: grid"],
+        .admin-responsive-shell [style*="display: grid"] {
+          max-width: 100% !important;
         }
 
         .teacher-responsive-shell .qr-access-card,
         .admin-responsive-shell .qr-access-card {
           grid-template-columns: 1fr !important;
-          .teacher-responsive-shell .teacher-session-context {
-          min-width: 170px !important;
-          width: auto !important;
-          margin-bottom: 0 !important;
+          padding: 14px !important;
+          text-align: center !important;
         }
 
-        .teacher-responsive-shell .teacher-access-panel {
-          flex: 0 0 auto !important;
-          width: auto !important;
-          min-width: 360px !important;
-          display: flex !important;
-          flex-direction: row !important;
-          align-items: center !important;
-          gap: 8px !important;
-          margin-top: 0 !important;
+        .teacher-responsive-shell table,
+        .admin-responsive-shell table {
+          min-width: 640px !important;
         }
 
-        .teacher-responsive-shell .teacher-access-panel div {
-          display: none !important;
+        .teacher-responsive-shell th,
+        .teacher-responsive-shell td,
+        .admin-responsive-shell th,
+        .admin-responsive-shell td {
+          font-size: 12px !important;
+          padding: 8px 8px !important;
         }
 
-        .teacher-responsive-shell .teacher-access-panel button {
-          min-width: 105px !important;
-        }
-      }
-        .teacher-responsive-shell .teacher-session-context {
-          min-width: 170px !important;
-          width: auto !important;
-          margin-bottom: 0 !important;
-        }
-
-        .teacher-responsive-shell .teacher-access-panel {
-          flex: 0 0 auto !important;
-          width: auto !important;
-          min-width: 360px !important;
-          display: flex !important;
-          flex-direction: row !important;
-          align-items: center !important;
-          gap: 8px !important;
-          margin-top: 0 !important;
+        .teacher-responsive-shell input,
+        .teacher-responsive-shell select,
+        .teacher-responsive-shell textarea,
+        .admin-responsive-shell input,
+        .admin-responsive-shell select,
+        .admin-responsive-shell textarea {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-height: 42px !important;
+          font-size: 16px !important;
+          box-sizing: border-box !important;
         }
 
-        .teacher-responsive-shell .teacher-access-panel div {
-          display: none !important;
-        }
-
-        .teacher-responsive-shell .teacher-access-panel button {
-          min-width: 105px !important;
+        .teacher-responsive-shell main button,
+        .admin-responsive-shell main button {
+          min-height: 40px !important;
+          font-size: 14px !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
         }
       }
 
+      @media (max-width: 640px) {
+        .teacher-responsive-shell aside,
+        .admin-responsive-shell aside {
+          max-height: 52dvh !important;
+          padding-left: 8px !important;
+          padding-right: 8px !important;
+        }
+
+        .teacher-responsive-shell details.teacher-sidebar-section[open] {
+          grid-template-columns: 1fr !important;
+        }
+
+        .teacher-responsive-shell aside > div:last-child,
+        .admin-responsive-shell aside > div:last-child {
+          grid-template-columns: auto 1fr !important;
+        }
+
+        .teacher-responsive-shell aside > div:last-child button,
+        .admin-responsive-shell aside > div:last-child button {
+          grid-column: auto !important;
+        }
+
+        .teacher-responsive-shell section,
+        .admin-responsive-shell section {
+          padding: 10px !important;
+        }
+
+        .teacher-responsive-shell h2,
+        .admin-responsive-shell h2 {
+          font-size: clamp(22px, 7vw, 30px) !important;
+          line-height: 1.05 !important;
+        }
+
+        .teacher-responsive-shell table,
+        .admin-responsive-shell table {
+          min-width: 560px !important;
+        }
+      }
 
       @media (max-width: 820px) {
         .qr-access-card {
