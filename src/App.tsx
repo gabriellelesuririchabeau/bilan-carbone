@@ -10307,7 +10307,17 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
             <summary style={getSessionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
             <button style={styles.sidebarButtonActive}>🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}</button>
-            <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setIsInitialSessionSetup(true); setScreen("teacher_session_settings"); }}>➕ {lang === "en" ? "New session" : "Nouvelle session"}</button>
+            <button
+              style={styles.sidebarButton}
+              onClick={() => {
+                setMessage("");
+                setTeacherMenu("sessions");
+                setIsInitialSessionSetup(true);
+                setScreen("teacher_dashboard");
+              }}
+            >
+              ➕ {lang === "en" ? "New session" : "Nouvelle session"}
+            </button>
             <button style={styles.sidebarButton} onClick={() => { setTeacherMenu("sessions"); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
           </details>
 
@@ -11191,11 +11201,12 @@ if (screen === "student_vote") {
               </button>
 
               <button
-                style={isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
+                style={teacherMenu === "sessions" && isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
+                  setMessage("");
                   setTeacherMenu("sessions");
                   setIsInitialSessionSetup(true);
-                  setScreen("teacher_session_settings");
+                  setScreen("teacher_dashboard");
                 }}
               >
                 ➕ {lang === "en" ? "New session" : "Nouvelle session"}
