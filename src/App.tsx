@@ -214,12 +214,6 @@ const I18N = {
     projectionProposals: "Propositions",
     projectionVote: "Résultat des votes",
     projectionSynthesis: "Synthèse",
-    votePreferenceInstruction: "Classez jusqu’à 3 propositions selon votre préférence. Le choix 1 correspond à votre proposition préférée.",
-    voteSameOrderNotice: "Les propositions sont affichées dans le même ordre que sur l’écran projeté.",
-    voteChoice1Weighted: "Choix 1 — proposition préférée (3 points)",
-    voteChoice2Weighted: "Choix 2 — deuxième préférence (2 points)",
-    voteChoice3Weighted: "Choix 3 — troisième préférence (1 point)",
-    weightedScore: "Score pondéré",
     privacyTitle: "Protection des données personnelles",
     privacyButton: "Données personnelles / RGPD",
     close: "Fermer",
@@ -279,12 +273,6 @@ const I18N = {
     projectionProposals: "Proposals",
     projectionVote: "Vote results",
     projectionSynthesis: "Summary",
-    votePreferenceInstruction: "Rank up to 3 proposals according to your preference. Choice 1 must be your preferred proposal.",
-    voteSameOrderNotice: "The proposals are displayed in the same order as on the projection screen.",
-    voteChoice1Weighted: "Choice 1 — preferred proposal (3 points)",
-    voteChoice2Weighted: "Choice 2 — second preference (2 points)",
-    voteChoice3Weighted: "Choice 3 — third preference (1 point)",
-    weightedScore: "Weighted score",
     privacyTitle: "Personal data protection",
     privacyButton: "Personal data / GDPR",
     close: "Close",
@@ -2443,13 +2431,11 @@ function renderCarbonHistogram(title: string, rows: CarbonBarRow[]) {
 }
 
 type StudentSidebarProps = {
-  active: "mise_en_oeuvre" | "collecte" | "analyses" | "bilans" | "synthese" | "vote";
+  active: "mise_en_oeuvre" | "collecte" | "analyses" | "bilans" | "vote";
   onGo: (screen: Screen) => void;
   analysisUnlocked: boolean;
-  syntheseUnlocked: boolean;
   voteUnlocked: boolean;
   onBeforeOpenAnalysis?: () => Promise<boolean> | boolean;
-  onBeforeOpenSynthese?: () => Promise<boolean> | boolean;
   onBeforeOpenVote?: () => Promise<boolean> | boolean;
   sessionCode?: string;
   sessionId?: string;
@@ -2461,10 +2447,8 @@ function StudentSidebar({
   active,
   onGo,
   analysisUnlocked,
-  syntheseUnlocked,
   voteUnlocked,
   onBeforeOpenAnalysis,
-  onBeforeOpenSynthese,
   onBeforeOpenVote,
   sessionCode,
   sessionId,
@@ -2531,24 +2515,6 @@ function StudentSidebar({
             {t(lang, "vote")}
           </button>
 
-          <button
-            type="button"
-            style={active === "synthese" ? styles.studentMobileNavButtonActive : styles.studentMobileNavButton}
-            onClick={async () => {
-              const refreshedAccess = await onBeforeOpenSynthese?.();
-              const canOpenSynthese =
-                typeof refreshedAccess === "boolean" ? refreshedAccess : syntheseUnlocked;
-
-              if (!canOpenSynthese) {
-                window.alert(t(lang, "lockSynthese"));
-                return;
-              }
-
-              onGo("student_synthese");
-            }}
-          >
-            {t(lang, "synthese")}
-          </button>
         </div>
 
         <div style={styles.studentMobileUtilityRow} className="student-mobile-utility-row">
@@ -2639,24 +2605,6 @@ function StudentSidebar({
         {t(lang, "vote")} {voteUnlocked ? "🔓" : "🔒"}
       </button>
 
-      <button
-        type="button"
-        style={active === "synthese" ? styles.sidebarButtonActive : styles.sidebarButton}
-        onClick={async () => {
-          const refreshedAccess = await onBeforeOpenSynthese?.();
-          const canOpenSynthese =
-            typeof refreshedAccess === "boolean" ? refreshedAccess : syntheseUnlocked;
-
-          if (!canOpenSynthese) {
-            window.alert(t(lang, "lockSynthese"));
-            return;
-          }
-
-          onGo("student_synthese");
-        }}
-      >
-        {t(lang, "synthese")} {syntheseUnlocked ? "🔓" : "🔒"}
-      </button>
 
       {/* ✅ AJOUT : affichage debug session en bas de sidebar */}
       <div style={styles.sidebarFooter}>
@@ -3538,7 +3486,6 @@ const [studentSalleReportRowsDb, setStudentSalleReportRowsDb] =
   const [studentCompletion, setStudentCompletion] =
     useState<StudentCompletion>(EMPTY_STUDENT_COMPLETION);
   const [studentAnalysisUnlocked, setStudentAnalysisUnlocked] = useState(false);
-  const [studentSyntheseUnlocked, setStudentSyntheseUnlocked] = useState(false);
   const [studentVoteUnlocked, setStudentVoteUnlocked] = useState(false);
 const [consolidatedProposals, setConsolidatedProposals] = useState<ConsolidatedProposalOption[]>([]);
 const [importedProposalRawText, setImportedProposalRawText] = useState("");
@@ -3602,6 +3549,10 @@ const teacherVoteResults = useMemo<TeacherVoteResult[]>(() => {
   });
 }, [consolidatedProposals, teacherVoteRows]);
 
+const teacherVoteScoreTotal = useMemo(() => {
+  return teacherVoteResults.reduce((sum, item) => sum + Number(item.score ?? 0), 0);
+}, [teacherVoteResults]);
+
 const studentVotedEmails = useMemo(() => {
   return new Set(
     teacherVoteRows
@@ -3610,18 +3561,13 @@ const studentVotedEmails = useMemo(() => {
   );
 }, [teacherVoteRows]);
 
-const teacherVoteMaximumScore = useMemo(
-  () => studentVotedEmails.size * 3,
-  [studentVotedEmails]
-);
-
 function hasStudentVoted(email: string | null | undefined) {
   return studentVotedEmails.has(normalizeEmail(email ?? ""));
 }
 
 function getVoteScorePercent(score: number) {
-  if (!teacherVoteMaximumScore) return 0;
-  return Math.round((Number(score ?? 0) / teacherVoteMaximumScore) * 100);
+  if (!teacherVoteScoreTotal) return 0;
+  return Math.round((Number(score ?? 0) / teacherVoteScoreTotal) * 100);
 }
 
   const teacherTransportRows = useMemo(
@@ -3795,32 +3741,11 @@ const teacherSyntheseSourceRows = useMemo(
   ]
 );
 
-const studentSyntheseSourceRows = useMemo(
-  () => [
-    ...studentTransportReportRowsDb,
-    ...studentDejeunerReportRowsDb,
-    ...studentEquipementReportRowsDb,
-    ...studentAutresReportRowsDb,
-    ...studentSalleReportRowsDb,
-  ],
-  [
-    studentTransportReportRowsDb,
-    studentDejeunerReportRowsDb,
-    studentEquipementReportRowsDb,
-    studentAutresReportRowsDb,
-    studentSalleReportRowsDb,
-  ]
-);
-
 const teacherSyntheseData = useMemo(
   () => computeSynthese(teacherSyntheseSourceRows),
   [teacherSyntheseSourceRows]
 );
 
-const studentSyntheseData = useMemo(
-  () => computeSynthese(studentSyntheseSourceRows),
-  [studentSyntheseSourceRows]
-);
 
   const parsedStudentAssignments = useMemo(() => {
   return parseStudentAssignments(assignmentRawText);
@@ -3893,7 +3818,6 @@ const studentSyntheseData = useMemo(
 
     if (
       screen === "student_analyses" ||
-      screen === "student_synthese" ||
       screen === "student_vote"
     ) {
       setStudentGroupNumber(studentAssignedGroup);
@@ -3906,10 +3830,6 @@ const studentSyntheseData = useMemo(
     return;
   }
 
-  if (screen === "student_synthese" && !studentSyntheseUnlocked) {
-    setScreen("student_mise_en_oeuvre");
-    return;
-  }
 
   if (screen === "student_vote" && !studentVoteUnlocked) {
     setScreen("student_mise_en_oeuvre");
@@ -3917,7 +3837,6 @@ const studentSyntheseData = useMemo(
 }, [
   screen,
   studentAnalysisUnlocked,
-  studentSyntheseUnlocked,
   studentVoteUnlocked,
 ]);
 
@@ -3948,7 +3867,6 @@ const studentSyntheseData = useMemo(
           "student_autres",
           "student_analyses",
           "student_bilans",
-          "student_synthese",
           "student_vote",
         ].includes(screen)
           ? (screen as StudentDraft["screen"])
@@ -4017,7 +3935,11 @@ async function restoreStudentStateFromDraft(email: string, sessionCode: string) 
   setStudentCompletion(draft?.studentCompletion ?? EMPTY_STUDENT_COMPLETION);
 
   if (draft?.screen) {
-    setScreen(draft.screen);
+    setScreen(
+      draft.screen === "student_synthese" || draft.screen === "student_bilans"
+        ? "student_mise_en_oeuvre"
+        : draft.screen
+    );
   }
 }
 
@@ -4047,7 +3969,6 @@ async function restoreStudentStateFromDraft(email: string, sessionCode: string) 
         "student_equipement",
         "student_autres",
         "student_analyses",
-        "student_synthese",
         "student_vote",
       ].includes(screen)
         ? (screen as StudentDraft["screen"])
@@ -4211,8 +4132,7 @@ async function loadConsolidatedProposals(sessionId: string) {
     .select("id, text, theme, source_group_numbers, created_at")
     .eq("session_id", sessionId)
     .eq("theme", "vote")
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
+    .order("created_at", { ascending: true });
 
   if (error) {
     setMessage(`Erreur chargement consolidation : ${error.message}`);
@@ -5465,26 +5385,6 @@ async function loadSessionAnalysisAccess(sessionId: string) {
   return unlocked;
 }
 
-async function loadSessionSyntheseAccess(sessionId: string) {
-  if (!sessionId) {
-    setStudentSyntheseUnlocked(false);
-    return false;
-  }
-
-  const { data, error } = await supabase.rpc("get_session_synthese_access", {
-    p_session_id: sessionId,
-  });
-
-  if (error) {
-    setStudentSyntheseUnlocked(false);
-    return false;
-  }
-
-  const unlocked = Boolean(data);
-  setStudentSyntheseUnlocked(unlocked);
-  return unlocked;
-}
-
 async function loadSessionVoteAccess(sessionId: string) {
   if (!sessionId) {
     setStudentVoteUnlocked(false);
@@ -5525,25 +5425,6 @@ async function toggleStudentAnalysisAccess() {
   setStudentAnalysisUnlocked(nextValue);
   await loadSessionAnalysisAccess(selectedSessionId);
 }
-
-  async function toggleStudentSyntheseAccess() {
-    if (!selectedSessionId) return;
-
-    const nextValue = !studentSyntheseUnlocked;
-
-    const { error } = await supabase
-      .from("sessions")
-      .update({ student_synthese_unlocked: nextValue })
-      .eq("id", selectedSessionId);
-
-    if (error) {
-      setMessage(`Erreur mise à jour accès synthèse : ${error.message}`);
-      return;
-    }
-
-    setStudentSyntheseUnlocked(nextValue);
-    await loadSessionSyntheseAccess(selectedSessionId);
-  }
 
   async function toggleStudentVoteAccess() {
     if (!selectedSessionId) return;
@@ -6103,7 +5984,6 @@ async function saveSalleReportRow(params: {
     void loadAutresReportRows(studentSelectedSessionId, setStudentAutresReportRowsDb);
     void loadSalleReportRows(studentSelectedSessionId, setStudentSalleReportRowsDb);
     void loadSessionAnalysisAccess(studentSelectedSessionId);
-    void loadSessionSyntheseAccess(studentSelectedSessionId);
     void loadSessionVoteAccess(studentSelectedSessionId);
     void loadConsolidatedProposals(studentSelectedSessionId);
     void loadStudentVotes(studentSelectedSessionId, studentEmail);
@@ -6143,7 +6023,6 @@ async function saveSalleReportRow(params: {
       void loadAutresReportRows(selectedSessionId, setTeacherAutresReportRowsDb);
       void loadSalleReportRows(selectedSessionId, setTeacherSalleReportRowsDb);
       void loadSessionAnalysisAccess(selectedSessionId);
-      void loadSessionSyntheseAccess(selectedSessionId);
       void loadSessionVoteAccess(selectedSessionId);
       void loadTeacherGroupProposals(selectedSessionId);
       void loadConsolidatedProposals(selectedSessionId);
@@ -6441,7 +6320,6 @@ async function saveSalleReportRow(params: {
       void loadAutresReportRows(studentSelectedSessionId, setStudentAutresReportRowsDb);
       void loadSalleReportRows(studentSelectedSessionId, setStudentSalleReportRowsDb);
       void loadSessionAnalysisAccess(studentSelectedSessionId);
-      void loadSessionSyntheseAccess(studentSelectedSessionId);
       void loadSessionVoteAccess(studentSelectedSessionId);
       void loadTeacherGroupProposals(studentSelectedSessionId);
     }, 0);
@@ -6476,8 +6354,8 @@ async function saveSalleReportRow(params: {
   }, [teacherTheme, teacherAnalysesTab]);
 
   useEffect(() => {
-    if (screen === "student_bilans") {
-      setScreen("student_synthese");
+    if (screen === "student_bilans" || screen === "student_synthese") {
+      setScreen("student_mise_en_oeuvre");
     }
   }, [screen]);
 
@@ -6493,7 +6371,7 @@ async function saveSalleReportRow(params: {
     if (![
       "student_mise_en_oeuvre", "student_transport", "student_dejeuner",
       "student_equipement", "student_autres", "student_analyses",
-      "student_synthese", "student_vote",
+      "student_vote",
     ].includes(screen)) return;
     saveStudentDraft();
   }, [saveStudentDraft, screen, studentCodeSession, studentEmail]);
@@ -6736,7 +6614,6 @@ async function handleOpenSession(session: SessionRow) {
   setScreen("teacher_dashboard");
   await loadSessionAnalysisAccess(session.id);
   await loadSessionVoteAccess(session.id);
-  await loadSessionSyntheseAccess(session.id);
   await loadTeacherGroupProposals(session.id);
   await loadConsolidatedProposals(session.id);
   setMessage(`Session ouverte : ${formatSessionCode(session.session_code)}`);
@@ -7095,7 +6972,6 @@ async function handleStudentEnter() {
   await loadAutresReportRows(nextSessionId, setStudentAutresReportRowsDb);
   await loadSalleReportRows(nextSessionId, setStudentSalleReportRowsDb);
   await loadSessionAnalysisAccess(nextSessionId);
-  await loadSessionSyntheseAccess(nextSessionId);
   const voteUnlockedForStudent = await loadSessionVoteAccess(nextSessionId);
   await loadTeacherGroupProposals(nextSessionId);
 
@@ -7149,10 +7025,6 @@ async function refreshStudentAnalysisData() {
   return await loadSessionAnalysisAccess(studentSelectedSessionId);
 }
 
-  async function refreshStudentSyntheseData() {
-    if (!studentSelectedSessionId) return false;
-    return await loadSessionSyntheseAccess(studentSelectedSessionId);
-  }
 
   async function handleSaveTransport() {
     setTransportMessage("");
@@ -8881,9 +8753,7 @@ function renderSalleAnalysisTable(params: {
           active="mise_en_oeuvre"
           onGo={goToScreen}
           analysisUnlocked={studentAnalysisUnlocked}
-          syntheseUnlocked={studentSyntheseUnlocked}
           onBeforeOpenAnalysis={refreshStudentAnalysisData}
-          onBeforeOpenSynthese={refreshStudentSyntheseData}
           sessionCode={studentSelectedSessionCode}
           sessionId={studentSelectedSessionId}
           voteUnlocked={studentVoteUnlocked}
@@ -9373,9 +9243,7 @@ if (screen === "student_login") {
           active="collecte"
           onGo={goToScreen}
           analysisUnlocked={studentAnalysisUnlocked}
-          syntheseUnlocked={studentSyntheseUnlocked}
           onBeforeOpenAnalysis={refreshStudentAnalysisData}
-          onBeforeOpenSynthese={refreshStudentSyntheseData}
           sessionCode={studentSelectedSessionCode}
           sessionId={studentSelectedSessionId}
           voteUnlocked={studentVoteUnlocked}
@@ -9534,9 +9402,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           active="collecte"
           onGo={goToScreen}
          analysisUnlocked={studentAnalysisUnlocked}
-         syntheseUnlocked={studentSyntheseUnlocked}
          onBeforeOpenAnalysis={refreshStudentAnalysisData}
-         onBeforeOpenSynthese={refreshStudentSyntheseData}
          sessionCode={studentSelectedSessionCode}
          sessionId={studentSelectedSessionId}
          voteUnlocked={studentVoteUnlocked}
@@ -9776,9 +9642,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   active="collecte"
   onGo={goToScreen}
   analysisUnlocked={studentAnalysisUnlocked}
-  syntheseUnlocked={studentSyntheseUnlocked}
   onBeforeOpenAnalysis={refreshStudentAnalysisData}
-  onBeforeOpenSynthese={refreshStudentSyntheseData}
   sessionCode={studentSelectedSessionCode}
   sessionId={studentSelectedSessionId}
   voteUnlocked={studentVoteUnlocked}
@@ -9952,9 +9816,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   active="collecte"
   onGo={goToScreen}
   analysisUnlocked={studentAnalysisUnlocked}
-  syntheseUnlocked={studentSyntheseUnlocked}
   onBeforeOpenAnalysis={refreshStudentAnalysisData}
-  onBeforeOpenSynthese={refreshStudentSyntheseData}
   sessionCode={studentSelectedSessionCode}
   sessionId={studentSelectedSessionId}
   voteUnlocked={studentVoteUnlocked}
@@ -10417,7 +10279,6 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             <summary style={styles.sidebarSectionTitle}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>🔓</span><span>{lang === "en" ? "STUDENT ACCESS" : "ACCÈS ÉTUDIANTS"}</span></summary>
             <button type="button" style={studentAnalysisUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentAnalysisAccess}>{studentAnalysisUnlocked ? "🔓" : "🔒"} {t(lang, "analyses")}</button>
             <button type="button" style={studentVoteUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentVoteAccess}>{studentVoteUnlocked ? "🔓" : "🔒"} {t(lang, "vote")}</button>
-            <button type="button" style={studentSyntheseUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff} onClick={toggleStudentSyntheseAccess}>{studentSyntheseUnlocked ? "🔓" : "🔒"} {t(lang, "synthese")}</button>
           </details>
 
           <details className="teacher-sidebar-section" style={styles.sidebarSection}>
@@ -10680,9 +10541,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           active="analyses"
           onGo={goToScreen}
           analysisUnlocked={studentAnalysisUnlocked}
-          syntheseUnlocked={studentSyntheseUnlocked}
           onBeforeOpenAnalysis={refreshStudentAnalysisData}
-          onBeforeOpenSynthese={refreshStudentSyntheseData}
           sessionCode={studentSelectedSessionCode}
           sessionId={studentSelectedSessionId}
           voteUnlocked={studentVoteUnlocked}
@@ -11003,87 +10862,6 @@ onClick={() => {
     )}</Translated>);
   }
 
-  if (screen === "student_bilans") {
-    return (<Translated>{(
-      <div style={styles.appShell}>
-        <StudentSidebar
-          lang={lang}
-          setLang={setLang}
-          active="bilans"
-          onGo={goToScreen}
-          analysisUnlocked={studentAnalysisUnlocked}
-          syntheseUnlocked={studentSyntheseUnlocked}
-          onBeforeOpenAnalysis={refreshStudentAnalysisData}
-          onBeforeOpenSynthese={refreshStudentSyntheseData}
-          sessionCode={studentSelectedSessionCode}
-          sessionId={studentSelectedSessionId}
-          voteUnlocked={studentVoteUnlocked}
-onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
-        />
-        <main style={styles.mainArea}>
-          <header style={styles.topHeader}>
-<div style={styles.topHeader}>
-  <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
-  <div style={styles.topHeaderSub}>
-    {t(lang, "developedBy")}
-  </div>
-</div>
-          </header>
-
-          <section style={styles.bigPanel}>
-            <h2 style={styles.panelTitle}>Bilans</h2>
-            <div style={styles.innerCardFull}>
-              <p style={styles.bodyText}>Le menu Bilans a été retiré. Utilisez le menu Synthèse.</p>
-            </div>
-          </section>
-        </main>
-      </div>
-    )}</Translated>);
-  }
-
-  if (screen === "student_synthese") {
-    return (<Translated>{(
-      <div style={styles.appShell} className="student-responsive-shell">
-        <StudentSidebar
-          lang={lang}
-          setLang={setLang}
-          active="synthese"
-          onGo={goToScreen}
-          analysisUnlocked={studentAnalysisUnlocked}
-          syntheseUnlocked={studentSyntheseUnlocked}
-          onBeforeOpenAnalysis={refreshStudentAnalysisData}
-          onBeforeOpenSynthese={refreshStudentSyntheseData}
-          sessionCode={studentSelectedSessionCode}
-          sessionId={studentSelectedSessionId}
-          voteUnlocked={studentVoteUnlocked}
-onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
-        />
-        <main style={styles.mainArea}>
-          <header style={styles.topHeader}>
-<div style={styles.topHeader}>
-  <div style={styles.topHeaderTitle}>{t(lang, "appTitleUpper")}</div>
-  <div style={styles.topHeaderSub}>
-    {t(lang, "developedBy")}
-  </div>
-</div>
-          </header>
-
-          <section style={styles.bigPanel}>
-            <h2 style={styles.panelTitle}>Synthèse</h2>
-
-            {studentSyntheseData.length === 0 ? (
-              <div style={styles.innerCardFull}>
-                <h3 style={styles.innerTitle}>Synthèse étudiante</h3>
-                <p style={styles.bodyText}>Aucune donnée disponible pour la synthèse.</p>
-              </div>
-            ) : (
-              renderSyntheseDashboard(studentSyntheseData)
-            )}
-          </section>
-        </main>
-      </div>
-    )}</Translated>);
-  }
 if (screen === "student_vote") {
   return (<Translated>{(
     <div style={styles.appShell} className="student-responsive-shell">
@@ -11093,10 +10871,8 @@ if (screen === "student_vote") {
         active="vote"
         onGo={goToScreen}
         analysisUnlocked={studentAnalysisUnlocked}
-        syntheseUnlocked={studentSyntheseUnlocked}
         voteUnlocked={studentVoteUnlocked}
         onBeforeOpenAnalysis={refreshStudentAnalysisData}
-        onBeforeOpenSynthese={refreshStudentSyntheseData}
         onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
         sessionCode={studentSelectedSessionCode}
         sessionId={studentSelectedSessionId}
@@ -11128,23 +10904,20 @@ if (screen === "student_vote") {
           ) : (
             <>
               <div style={styles.innerCardFull}>
-                <h3 style={styles.innerTitle}>{lang === "en" ? "My choices" : "Mes choix"}</h3>
-                <p style={styles.bodyText}>{t(lang, "votePreferenceInstruction")}</p>
-                <p style={{ ...styles.bodyText, marginTop: 6, color: "#64748b", fontWeight: 700 }}>
-                  {t(lang, "voteSameOrderNotice")}
-                </p>
+                <h3 style={styles.innerTitle}>Mes choix</h3>
+                <p style={styles.bodyText}>Sélectionnez jusqu’à 3 propositions par ordre de priorité.</p>
 
 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
   <div style={styles.bodyText}>
-    <strong>{t(lang, "voteChoice1Weighted")} :</strong> {getProposalTextById(studentVotes.rank1)}
+    <strong>Choix 1 :</strong> {getProposalTextById(studentVotes.rank1)}
   </div>
 
   <div style={styles.bodyText}>
-    <strong>{t(lang, "voteChoice2Weighted")} :</strong> {getProposalTextById(studentVotes.rank2)}
+    <strong>Choix 2 :</strong> {getProposalTextById(studentVotes.rank2)}
   </div>
 
   <div style={styles.bodyText}>
-    <strong>{t(lang, "voteChoice3Weighted")} :</strong> {getProposalTextById(studentVotes.rank3)}
+    <strong>Choix 3 :</strong> {getProposalTextById(studentVotes.rank3)}
   </div>
 
   <div
@@ -11219,9 +10992,9 @@ if (screen === "student_vote") {
                       }}
                     >
                       <option value="">—</option>
-                      <option value="1">{t(lang, "voteChoice1Weighted")}</option>
-                      <option value="2">{t(lang, "voteChoice2Weighted")}</option>
-                      <option value="3">{t(lang, "voteChoice3Weighted")}</option>
+                      <option value="1">Choix 1</option>
+                      <option value="2">Choix 2</option>
+                      <option value="3">Choix 3</option>
                     </select>
                   </div>
                 ))}
@@ -11289,13 +11062,6 @@ if (screen === "student_vote") {
                 onClick={toggleStudentVoteAccess}
               >
                 {studentVoteUnlocked ? "🔓" : "🔒"} {t(lang, "vote")}
-              </button>
-              <button
-                type="button"
-                style={studentSyntheseUnlocked ? styles.teacherAccessToggleOn : styles.teacherAccessToggleOff}
-                onClick={toggleStudentSyntheseAccess}
-              >
-                {studentSyntheseUnlocked ? "🔓" : "🔒"} {t(lang, "synthese")}
               </button>
             </details>
 
@@ -12214,7 +11980,7 @@ style={
                 fontWeight: 900,
               }}
             >
-              {t(lang, "weightedScore")} : {getVoteScorePercent(row.score)} %
+              {getVoteScorePercent(row.score)} %
             </div>
           </div>
         ))}
@@ -12227,16 +11993,6 @@ style={
 
 {teacherSessionTab === "synthese" && (
   <>
-    <div style={styles.innerCardFull}>
-            <div style={styles.row}>
-        <button style={styles.primaryButton} onClick={toggleStudentSyntheseAccess}>
-          {studentSyntheseUnlocked
-            ? "🔓 Synthèse accessible aux étudiants"
-            : "🔒 Synthèse non accessible aux étudiants"}
-        </button>
-      </div>
-    </div>
-
     <h3 style={styles.innerTitle}>Synthèse finale de la session</h3>
 
     {teacherSyntheseData.length === 0 ? (
