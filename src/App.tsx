@@ -1289,6 +1289,46 @@ function getAccountDisplayName(account: any) {
   return String(account?.name ?? account?.full_name ?? "").trim();
 }
 
+type AccountRole = "teacher" | "admin";
+
+function generateTemporaryAccountPassword(length = 14) {
+  const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lowercase = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$%*?";
+  const allCharacters = `${uppercase}${lowercase}${digits}${symbols}`;
+
+  function pick(characters: string) {
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+      const array = new Uint32Array(1);
+      crypto.getRandomValues(array);
+      return characters[array[0] % characters.length];
+    }
+    return characters[Math.floor(Math.random() * characters.length)];
+  }
+
+  const requiredCharacters = [
+    pick(uppercase),
+    pick(lowercase),
+    pick(digits),
+    pick(symbols),
+  ];
+
+  while (requiredCharacters.length < length) {
+    requiredCharacters.push(pick(allCharacters));
+  }
+
+  for (let index = requiredCharacters.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [requiredCharacters[index], requiredCharacters[swapIndex]] = [
+      requiredCharacters[swapIndex],
+      requiredCharacters[index],
+    ];
+  }
+
+  return requiredCharacters.join("");
+}
+
 type AssignmentMode = "groups";
 type AssignmentMethod = "import" | "random";
 
@@ -3556,10 +3596,11 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
   const [adminSessions, setAdminSessions] = useState<any[]>([]);
   const [newTeacherName, setNewTeacherName] = useState("");
   const [newTeacherEmail, setNewTeacherEmail] = useState("");
-  const [newTeacherPassword, setNewTeacherPassword] = useState("");
+  const [newTeacherRole, setNewTeacherRole] = useState<AccountRole>("teacher");
   const [teacherSearch, setTeacherSearch] = useState("");
   const [sessionSearch, setSessionSearch] = useState("");
   const [isCreatingTeacher, setIsCreatingTeacher] = useState(false);
+  const [resettingPasswordUserId, setResettingPasswordUserId] = useState("");
 
   const [teacherGroupNumber, setTeacherGroupNumber] = useState(1);
   const [studentGroupNumber, setStudentGroupNumber] = useState(1);
@@ -5064,15 +5105,15 @@ async function handleAdminDeleteTeacher(userId: string) {
   }
 }
 
-async function handleCreateTeacher(name: string, email: string, password: string) {
+async function handleCreateTeacher(name: string, email: string, role: AccountRole) {
   setMessage("");
 
   const normalizedName = name.trim();
   const normalizedEmail = normalizeEmail(email);
-  const safePassword = password.trim();
+  const generatedPassword = generateTemporaryAccountPassword();
 
-  if (!normalizedName || !normalizedEmail || !safePassword) {
-    setMessage("Nom, email et mot de passe obligatoires.");
+  if (!normalizedName || !normalizedEmail) {
+    setMessage("Nom et email obligatoires pour créer un compte.");
     return;
   }
 
@@ -5098,7 +5139,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
         body: JSON.stringify({
           name: normalizedName,
           email: normalizedEmail,
-          password: safePassword,
+          password: generatedPassword,
         }),
       }
     );
@@ -5113,33 +5154,149 @@ async function handleCreateTeacher(name: string, email: string, password: string
     }
 
     if (!response.ok) {
-      setMessage(`Erreur création professeur : ${data?.error || rawText || response.status}`);
+      setMessage(`Erreur création compte : ${data?.error || rawText || response.status}`);
       return;
+    }
+
+    let createdUserId = String(data?.user_id ?? data?.user?.id ?? data?.id ?? "");
+
+    if (!createdUserId) {
+      const { data: accountRows, error: accountLookupError } = await supabase.rpc(
+        "admin_list_teacher_accounts_with_passwords"
+      );
+
+      if (accountLookupError) {
+        setMessage(`Compte créé, mais impossible de retrouver son identifiant : ${accountLookupError.message}`);
+        return;
+      }
+
+      const createdAccount = (accountRows ?? []).find(
+        (account: any) => normalizeEmail(account?.email) === normalizedEmail
+      );
+      createdUserId = String(createdAccount?.user_id ?? "");
+    }
+
+    if (role === "admin") {
+      if (!createdUserId) {
+        setMessage("Compte créé, mais promotion admin impossible : identifiant utilisateur introuvable.");
+        return;
+      }
+
+      const { error: promoteError } = await supabase.rpc("admin_promote_teacher_to_admin", {
+        p_target_user_id: createdUserId,
+      });
+
+      if (promoteError) {
+        setMessage(`Compte créé, mais promotion admin impossible : ${promoteError.message}`);
+        return;
+      }
     }
 
     const { error: passwordStoreError } = await supabase.rpc("admin_store_teacher_password", {
       p_target_email: normalizedEmail,
-      p_password: safePassword,
+      p_password: generatedPassword,
     });
 
     setNewTeacherName("");
     setNewTeacherEmail("");
-    setNewTeacherPassword("");
+    setNewTeacherRole("teacher");
+
+    await loadAdminTeachers();
+
+    const roleLabel = role === "admin" ? "administrateur" : "professeur";
+
+    if (passwordStoreError) {
+      setMessage(
+        `Compte ${roleLabel} créé : ${normalizedEmail}. Mot de passe généré : ${generatedPassword}. Mot de passe non ajouté au tableau : ${passwordStoreError.message}`
+      );
+    } else {
+      setMessage(`Compte ${roleLabel} créé : ${normalizedEmail}. Mot de passe généré et ajouté au tableau.`);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur réseau";
+    setMessage(`Erreur création compte : ${message}`);
+  } finally {
+    setIsCreatingTeacher(false);
+  }
+}
+
+async function handleResetAccountPassword(account: any) {
+  const targetUserId = String(account?.user_id ?? "").trim();
+  const targetEmail = normalizeEmail(account?.email);
+  const displayName = getAccountDisplayName(account) || targetEmail;
+
+  if (!targetUserId || !targetEmail) {
+    setMessage("Compte introuvable pour la réinitialisation du mot de passe.");
+    return;
+  }
+
+  const ok = window.confirm(
+    `Générer un nouveau mot de passe pour ${displayName} ? L'ancien mot de passe ne fonctionnera plus.`
+  );
+
+  if (!ok) return;
+
+  const generatedPassword = generateTemporaryAccountPassword();
+  setResettingPasswordUserId(targetUserId);
+  setMessage("");
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      setMessage("Vous devez être connecté en admin.");
+      return;
+    }
+
+    const response = await fetch(
+      "https://xfseuhgjfadxvwjgtlce.supabase.co/functions/v1/reset_teacher_password",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          user_id: targetUserId,
+          password: generatedPassword,
+        }),
+      }
+    );
+
+    const rawText = await response.text();
+
+    let data: any = {};
+    try {
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      data = { raw: rawText };
+    }
+
+    if (!response.ok) {
+      setMessage(`Erreur réinitialisation mot de passe : ${data?.error || rawText || response.status}`);
+      return;
+    }
+
+    const { error: passwordStoreError } = await supabase.rpc("admin_store_teacher_password", {
+      p_target_email: targetEmail,
+      p_password: generatedPassword,
+    });
 
     await loadAdminTeachers();
 
     if (passwordStoreError) {
       setMessage(
-        `Professeur créé avec succès : ${normalizedEmail}. Mot de passe non ajouté au tableau : ${passwordStoreError.message}`
+        `Mot de passe réinitialisé pour ${targetEmail}, mais non ajouté au tableau : ${passwordStoreError.message}`
       );
     } else {
-      setMessage(`Professeur créé avec succès : ${normalizedEmail}. Mot de passe ajouté au tableau.`);
+      setMessage(`Nouveau mot de passe généré et ajouté au tableau pour ${targetEmail}.`);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur réseau";
-    setMessage(`Erreur création professeur : ${message}`);
+    setMessage(`Erreur réinitialisation mot de passe : ${message}`);
   } finally {
-    setIsCreatingTeacher(false);
+    setResettingPasswordUserId("");
   }
 }
 
@@ -6720,7 +6877,7 @@ setQuickSessionSuffix("");
     setAdminSessions([]);
     setNewTeacherName("");
     setNewTeacherEmail("");
-    setNewTeacherPassword("");
+    setNewTeacherRole("teacher");
     setTeacherSearch("");
     setSessionSearch("");
     setIsCreatingTeacher(false);
@@ -10235,18 +10392,25 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                       padding: 18,
                     }}
                   >
-                    <h3 style={{ ...styles.innerTitle, marginBottom: 8 }}>Créer un professeur</h3>
+                    <h3 style={{ ...styles.innerTitle, marginBottom: 8 }}>Créer un compte</h3>
                     <div style={styles.bodyText}>
-                      Créez directement un compte professeur avec nom, email et mot de passe.
+                      Créez un professeur ou un administrateur. Le mot de passe est généré automatiquement puis ajouté au tableau.
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
-                      <input style={styles.input} placeholder="Nom du professeur" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} />
-                      <input style={styles.input} placeholder="Email du professeur" value={newTeacherEmail} onChange={(e) => setNewTeacherEmail(e.target.value)} />
-                      <input style={styles.input} type="password" placeholder="Mot de passe temporaire" value={newTeacherPassword} onChange={(e) => setNewTeacherPassword(e.target.value)} />
+                      <input style={styles.input} placeholder="Nom du compte" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} />
+                      <input style={styles.input} placeholder="Email du compte" value={newTeacherEmail} onChange={(e) => setNewTeacherEmail(e.target.value)} />
+                      <select
+                        style={styles.input}
+                        value={newTeacherRole}
+                        onChange={(event) => setNewTeacherRole(event.target.value as AccountRole)}
+                      >
+                        <option value="teacher">Professeur</option>
+                        <option value="admin">Administrateur</option>
+                      </select>
 
-                      <button type="button" style={isCreatingTeacher ? styles.secondaryButton : styles.primaryButton} disabled={isCreatingTeacher} onClick={() => { void handleCreateTeacher(newTeacherName, newTeacherEmail, newTeacherPassword); }}>
-                        {isCreatingTeacher ? "Création en cours..." : "Ajouter un professeur"}
+                      <button type="button" style={isCreatingTeacher ? styles.secondaryButton : styles.primaryButton} disabled={isCreatingTeacher} onClick={() => { void handleCreateTeacher(newTeacherName, newTeacherEmail, newTeacherRole); }}>
+                        {isCreatingTeacher ? "Création en cours..." : "Créer le compte"}
                       </button>
                     </div>
                   </div>
@@ -10447,6 +10611,20 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                                               }}
                                             >
                                               Modifier
+                                            </button>
+
+                                            <button
+                                              type="button"
+                                              style={styles.adminActionMenuItem}
+                                              disabled={resettingPasswordUserId === teacher.user_id}
+                                              onClick={() => {
+                                                setOpenTeacherActionsId(null);
+                                                void handleResetAccountPassword(teacher);
+                                              }}
+                                            >
+                                              {resettingPasswordUserId === teacher.user_id
+                                                ? "Génération..."
+                                                : "Générer un nouveau mot de passe"}
                                             </button>
 
                                             {teacher.role === "teacher" ? (
