@@ -3439,6 +3439,18 @@ export default function App() {
           min-width: 640px !important;
         }
 
+        .admin-responsive-shell table.admin-account-table {
+          min-width: 0 !important;
+          width: 100% !important;
+          table-layout: fixed !important;
+        }
+
+        .admin-responsive-shell .admin-account-table th,
+        .admin-responsive-shell .admin-account-table td {
+          overflow-wrap: anywhere !important;
+          word-break: normal !important;
+        }
+
         .teacher-responsive-shell th,
         .teacher-responsive-shell td,
         .admin-responsive-shell th,
@@ -3505,6 +3517,12 @@ export default function App() {
         .teacher-responsive-shell table,
         .admin-responsive-shell table {
           min-width: 560px !important;
+        }
+
+        .admin-responsive-shell table.admin-account-table {
+          min-width: 0 !important;
+          width: 100% !important;
+          table-layout: fixed !important;
         }
       }
 
@@ -10298,15 +10316,22 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                       {!section.rows.length ? (
                         <div style={styles.emptyText}>{section.emptyLabel}</div>
                       ) : (
-                        <div style={{ overflowX: "auto" }}>
-                          <table style={styles.reportTable}>
+                        <div style={styles.adminAccountTableWrap}>
+                          <table className="admin-account-table" style={{ ...styles.reportTable, ...styles.adminAccountTable }}>
+                            <colgroup>
+                              <col style={{ width: "32%" }} />
+                              <col style={{ width: "21%" }} />
+                              <col style={{ width: "14%" }} />
+                              <col style={{ width: "15%" }} />
+                              <col style={{ width: "18%" }} />
+                            </colgroup>
                             <thead>
                               <tr>
-                                <th style={styles.reportTh}>Compte</th>
-                                <th style={styles.reportTh}>Mot de passe</th>
-                                <th style={styles.reportTh}>Rôle</th>
-                                <th style={styles.reportTh}>Statut</th>
-                                <th style={{ ...styles.reportTh, width: 160 }}>Actions</th>
+                                <th style={styles.adminAccountTh}>Compte</th>
+                                <th style={styles.adminAccountTh}>Mot de passe</th>
+                                <th style={styles.adminAccountTh}>Rôle</th>
+                                <th style={styles.adminAccountTh}>Statut</th>
+                                <th style={styles.adminAccountTh}>Actions</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -10315,54 +10340,41 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
                                 return (
                                   <tr key={teacher.user_id}>
-                                    <td style={{ ...styles.reportTd, minWidth: 260 }}>
-                                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                    <td style={styles.adminAccountTd}>
+                                      <div style={styles.adminAccountIdentity}>
                                         <span style={{ fontWeight: 800, color: "#102a43" }}>
                                           {teacher.name || teacher.full_name || "Nom non renseigné"}
                                         </span>
-                                        <span style={{ color: "#486581", fontSize: 14, wordBreak: "break-word" }}>
+                                        <span style={styles.adminAccountEmail}>
                                           {teacher.email}
                                         </span>
                                       </div>
                                     </td>
-                                    <td style={{ ...styles.reportTd, minWidth: 190 }}>
+                                    <td style={styles.adminAccountTd}>
                                       {accountPassword ? (
-                                        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
-                                          <code
-                                            style={{
-                                              display: "inline-block",
-                                              maxWidth: 180,
-                                              padding: "6px 8px",
-                                              borderRadius: 10,
-                                              background: "#f8fafc",
-                                              border: "1px solid #d9e2ec",
-                                              color: "#102a43",
-                                              fontWeight: 800,
-                                              fontSize: 13,
-                                              wordBreak: "break-all",
-                                            }}
-                                          >
-                                            {accountPassword}
-                                          </code>
+                                        <div style={styles.adminPasswordInline}>
+                                          <code style={styles.adminPasswordCode}>{accountPassword}</code>
                                           <button
                                             type="button"
-                                            style={{ ...styles.secondaryButton, padding: "6px 10px", minHeight: 0, fontSize: 12 }}
+                                            aria-label="Copier le mot de passe"
+                                            title="Copier le mot de passe"
+                                            style={styles.adminPasswordCopyIconButton}
                                             onClick={() => { void handleCopyAccountPassword(accountPassword); }}
                                           >
-                                            Copier
+                                            <span aria-hidden="true" style={styles.adminPasswordCopyIcon}>⧉</span>
                                           </button>
                                         </div>
                                       ) : (
-                                        <span style={{ color: "#627d98", fontWeight: 700 }}>Non renseigné</span>
+                                        <span style={styles.adminAccountEmptyPassword}>Non renseigné</span>
                                       )}
                                     </td>
-                                    <td style={styles.reportTd}>
-                                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 86, padding: "8px 12px", borderRadius: 999, background: teacher.role === "admin" ? "#ede9fe" : "#eff6ff", color: teacher.role === "admin" ? "#6d28d9" : "#1d4ed8", fontWeight: 800, textTransform: "capitalize" }}>{teacher.role}</span>
+                                    <td style={styles.adminAccountTd}>
+                                      <span style={{ ...styles.adminAccountRoleBadge, background: teacher.role === "admin" ? "#ede9fe" : "#eff6ff", color: teacher.role === "admin" ? "#6d28d9" : "#1d4ed8" }}>{teacher.role}</span>
                                     </td>
-                                    <td style={styles.reportTd}>
-                                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 92, padding: "8px 12px", borderRadius: 999, background: teacher.is_active ? "#dcfce7" : "#fee2e2", color: teacher.is_active ? "#166534" : "#991b1b", fontWeight: 800 }}>{teacher.is_active ? "Actif" : "Inactif"}</span>
+                                    <td style={styles.adminAccountTd}>
+                                      <span style={{ ...styles.adminAccountStatusBadge, background: teacher.is_active ? "#dcfce7" : "#fee2e2", color: teacher.is_active ? "#166534" : "#991b1b" }}>{teacher.is_active ? "Actif" : "Inactif"}</span>
                                     </td>
-                                    <td style={{ ...styles.reportTd, position: "relative", overflow: "visible" }}>
+                                    <td style={{ ...styles.adminAccountTd, position: "relative", overflow: "visible" }}>
                                       <div ref={openTeacherActionsId === teacher.user_id ? actionsMenuRef : null}>
                                         <button
                                           type="button"
@@ -13506,15 +13518,142 @@ panelTitle: {
     color: "#123b64",
     fontSize: 15,
   },
+
+  adminAccountTableWrap: {
+    width: "100%",
+    maxWidth: "100%",
+    overflowX: "hidden" as const,
+    border: "1px solid #d9e2ec",
+    borderRadius: 14,
+    background: "#ffffff",
+  },
+
+  adminAccountTable: {
+    width: "100%",
+    minWidth: 0,
+    tableLayout: "fixed" as const,
+  },
+
+  adminAccountTh: {
+    background: "#edf3f8",
+    color: "#123b64",
+    fontWeight: 900,
+    fontSize: 14,
+    padding: "12px 8px",
+    borderBottom: "1px solid #d7dee8",
+    textAlign: "center" as const,
+    overflowWrap: "anywhere" as const,
+  },
+
+  adminAccountTd: {
+    padding: "12px 8px",
+    borderBottom: "1px solid #e2e8f0",
+    color: "#123b64",
+    fontSize: 13,
+    textAlign: "center" as const,
+    verticalAlign: "middle" as const,
+    overflowWrap: "anywhere" as const,
+  },
+
+  adminAccountIdentity: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 4,
+    minWidth: 0,
+  },
+
+  adminAccountEmail: {
+    color: "#486581",
+    fontSize: 12,
+    lineHeight: 1.25,
+    overflowWrap: "anywhere" as const,
+  },
+
+  adminPasswordInline: {
+    display: "inline-grid",
+    gridTemplateColumns: "minmax(0, 1fr) 30px",
+    alignItems: "center",
+    gap: 6,
+    width: "100%",
+    maxWidth: 150,
+  },
+
+  adminPasswordCode: {
+    display: "inline-block",
+    minWidth: 0,
+    padding: "6px 7px",
+    borderRadius: 9,
+    background: "#f8fafc",
+    border: "1px solid #d9e2ec",
+    color: "#102a43",
+    fontWeight: 800,
+    fontSize: 12,
+    lineHeight: 1.15,
+    overflowWrap: "anywhere" as const,
+  },
+
+  adminPasswordCopyIconButton: {
+    width: 30,
+    height: 30,
+    minWidth: 30,
+    minHeight: 30,
+    padding: 0,
+    borderRadius: 9,
+    border: "1px solid #cbd5e1",
+    background: "#ffffff",
+    color: "#123b64",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
+
+  adminPasswordCopyIcon: {
+    fontSize: 18,
+    lineHeight: 1,
+    fontWeight: 900,
+  },
+
+  adminAccountEmptyPassword: {
+    color: "#627d98",
+    fontWeight: 800,
+    fontSize: 12,
+  },
+
+  adminAccountRoleBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    maxWidth: "100%",
+    padding: "8px 10px",
+    borderRadius: 999,
+    fontWeight: 900,
+    textTransform: "capitalize" as const,
+    fontSize: 13,
+  },
+
+  adminAccountStatusBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    maxWidth: "100%",
+    padding: "8px 10px",
+    borderRadius: 999,
+    fontWeight: 900,
+    fontSize: 13,
+  },
+
   adminActionButton: {
     border: "1px solid #d6deea",
     background: "#ffffff",
     color: "#123b64",
     borderRadius: 12,
-    padding: "10px 14px",
-    fontWeight: 700,
+    padding: "9px 10px",
+    fontWeight: 800,
     cursor: "pointer",
-    minWidth: 110,
+    minWidth: 92,
+    maxWidth: "100%",
+    whiteSpace: "nowrap" as const,
   },
   adminActionMenu: {
     position: "absolute",
