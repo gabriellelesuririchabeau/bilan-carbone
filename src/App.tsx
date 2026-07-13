@@ -629,6 +629,13 @@ const DISPLAY_TRANSLATIONS_EN: Record<string, string> = {
   "Nom du professeur": "Teacher name",
   "Email du professeur": "Teacher email",
   "Mot de passe temporaire": "Temporary password",
+  "Le mot de passe temporaire est généré automatiquement. Il s'affichera une seule fois après création.": "The temporary password is generated automatically. It will be displayed only once after creation.",
+  "Identifiants temporaires générés": "Generated temporary credentials",
+  "Mot de passe temporaire généré": "Generated temporary password",
+  "Copier les identifiants": "Copy credentials",
+  "Identifiants copiés.": "Credentials copied.",
+  "Copiez ces identifiants maintenant : le mot de passe ne pourra pas être réaffiché plus tard.": "Copy these credentials now: the password cannot be displayed again later.",
+  "Nom et email obligatoires pour créer un professeur.": "Name and email are required to create a teacher.",
   "Recherche": "Search",
   "Rechercher un professeur par nom ou par email.": "Search for a teacher by name or email.",
   "Rechercher par nom ou email": "Search by name or email",
@@ -1862,6 +1869,61 @@ function formatFactorNumber(value: number | string | null | undefined) {
 
 function formatSessionCode(value: string | null | undefined) {
   return String(value ?? "").toUpperCase();
+}
+
+function getRandomPasswordCharacter(characters: string) {
+  if (!characters.length) return "";
+
+  try {
+    const randomValues = new Uint32Array(1);
+    crypto.getRandomValues(randomValues);
+    return characters[randomValues[0] % characters.length];
+  } catch {
+    return characters[Math.floor(Math.random() * characters.length)] ?? characters[0];
+  }
+}
+
+function shufflePasswordCharacters(characters: string[]) {
+  const result = [...characters];
+
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    let randomIndex = 0;
+
+    try {
+      const randomValues = new Uint32Array(1);
+      crypto.getRandomValues(randomValues);
+      randomIndex = randomValues[0] % (index + 1);
+    } catch {
+      randomIndex = Math.floor(Math.random() * (index + 1));
+    }
+
+    const current = result[index];
+    result[index] = result[randomIndex] ?? current;
+    result[randomIndex] = current;
+  }
+
+  return result;
+}
+
+function generateTemporaryTeacherPassword() {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$%*-_?";
+  const allCharacters = `${upper}${lower}${digits}${symbols}`;
+
+  const characters = [
+    getRandomPasswordCharacter(upper),
+    getRandomPasswordCharacter(lower),
+    getRandomPasswordCharacter(digits),
+    getRandomPasswordCharacter(symbols),
+  ];
+
+  while (characters.length < 14) {
+    characters.push(getRandomPasswordCharacter(allCharacters));
+  }
+
+  return shufflePasswordCharacters(characters).join("");
 }
 
 function parseStudentAssignments(rawText: string): StudentAssignmentDraft[] {
@@ -3523,7 +3585,7 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
   const [adminSessions, setAdminSessions] = useState<any[]>([]);
   const [newTeacherName, setNewTeacherName] = useState("");
   const [newTeacherEmail, setNewTeacherEmail] = useState("");
-  const [newTeacherPassword, setNewTeacherPassword] = useState("");
+  const [lastCreatedTeacherCredentials, setLastCreatedTeacherCredentials] = useState<{ email: string; password: string } | null>(null);
   const [teacherSearch, setTeacherSearch] = useState("");
   const [sessionSearch, setSessionSearch] = useState("");
   const [isCreatingTeacher, setIsCreatingTeacher] = useState(false);
@@ -4983,18 +5045,19 @@ async function handleAdminDeleteTeacher(userId: string) {
   }
 }
 
-async function handleCreateTeacher(name: string, email: string, password: string) {
+async function handleCreateTeacher(name: string, email: string) {
   setMessage("");
+  setLastCreatedTeacherCredentials(null);
 
   const normalizedName = name.trim();
   const normalizedEmail = normalizeEmail(email);
-  const safePassword = password.trim();
 
-  if (!normalizedName || !normalizedEmail || !safePassword) {
-    setMessage("Nom, email et mot de passe obligatoires.");
+  if (!normalizedName || !normalizedEmail) {
+    setMessage("Nom et email obligatoires pour créer un professeur.");
     return;
   }
 
+  const generatedPassword = generateTemporaryTeacherPassword();
   setIsCreatingTeacher(true);
 
   try {
@@ -5017,7 +5080,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
         body: JSON.stringify({
           name: normalizedName,
           email: normalizedEmail,
-          password: safePassword,
+          password: generatedPassword,
         }),
       }
     );
@@ -5038,7 +5101,7 @@ async function handleCreateTeacher(name: string, email: string, password: string
 
     setNewTeacherName("");
     setNewTeacherEmail("");
-    setNewTeacherPassword("");
+    setLastCreatedTeacherCredentials({ email: normalizedEmail, password: generatedPassword });
     setMessage(`Professeur créé avec succès : ${normalizedEmail}`);
 
     loadAdminTeachers().catch(console.error);
@@ -6627,7 +6690,7 @@ setQuickSessionSuffix("");
     setAdminSessions([]);
     setNewTeacherName("");
     setNewTeacherEmail("");
-    setNewTeacherPassword("");
+    setLastCreatedTeacherCredentials(null);
     setTeacherSearch("");
     setSessionSearch("");
     setIsCreatingTeacher(false);
@@ -10144,17 +10207,75 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   >
                     <h3 style={{ ...styles.innerTitle, marginBottom: 8 }}>Créer un professeur</h3>
                     <div style={styles.bodyText}>
-                      Créez directement un compte professeur avec nom, email et mot de passe.
+                      Créez directement un compte professeur avec nom et email. Le mot de passe temporaire est généré automatiquement.
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
                       <input style={styles.input} placeholder="Nom du professeur" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} />
                       <input style={styles.input} placeholder="Email du professeur" value={newTeacherEmail} onChange={(e) => setNewTeacherEmail(e.target.value)} />
-                      <input style={styles.input} type="password" placeholder="Mot de passe temporaire" value={newTeacherPassword} onChange={(e) => setNewTeacherPassword(e.target.value)} />
 
-                      <button type="button" style={isCreatingTeacher ? styles.secondaryButton : styles.primaryButton} disabled={isCreatingTeacher} onClick={() => { void handleCreateTeacher(newTeacherName, newTeacherEmail, newTeacherPassword); }}>
+                      <div
+                        style={{
+                          padding: 12,
+                          borderRadius: 14,
+                          background: "#fff7ed",
+                          border: "1px solid #fed7aa",
+                          color: "#9a3412",
+                          fontWeight: 800,
+                          fontSize: 13,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        Le mot de passe temporaire est généré automatiquement. Il s'affichera une seule fois après création.
+                      </div>
+
+                      <button type="button" style={isCreatingTeacher ? styles.secondaryButton : styles.primaryButton} disabled={isCreatingTeacher} onClick={() => { void handleCreateTeacher(newTeacherName, newTeacherEmail); }}>
                         {isCreatingTeacher ? "Création en cours..." : "Ajouter un professeur"}
                       </button>
+
+                      {lastCreatedTeacherCredentials ? (
+                        <div
+                          style={{
+                            padding: 14,
+                            borderRadius: 16,
+                            background: "#ecfdf5",
+                            border: "1px solid #86efac",
+                            color: "#064e3b",
+                            fontWeight: 800,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                          }}
+                        >
+                          <div style={{ fontSize: 16 }}>Identifiants temporaires générés</div>
+                          <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+                            Copiez ces identifiants maintenant : le mot de passe ne pourra pas être réaffiché plus tard.
+                          </div>
+                          <div style={{ fontSize: 13 }}>
+                            <strong>Email :</strong> {lastCreatedTeacherCredentials.email}
+                          </div>
+                          <div style={{ fontSize: 13 }}>
+                            <strong>Mot de passe temporaire généré :</strong>{" "}
+                            <span style={{ fontFamily: "monospace", fontSize: 15 }}>
+                              {lastCreatedTeacherCredentials.password}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            style={styles.secondaryButton}
+                            onClick={() => {
+                              const credentialsText = `Email : ${lastCreatedTeacherCredentials.email}
+Mot de passe temporaire : ${lastCreatedTeacherCredentials.password}`;
+                              navigator.clipboard
+                                ?.writeText(credentialsText)
+                                .then(() => setMessage("Identifiants copiés."))
+                                .catch(() => window.prompt("Copier les identifiants", credentialsText));
+                            }}
+                          >
+                            Copier les identifiants
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
