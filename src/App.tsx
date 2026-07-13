@@ -3541,6 +3541,7 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
   const [editingTeacherName, setEditingTeacherName] = useState("");
   const [editingTeacherEmail, setEditingTeacherEmail] = useState("");
+  const [editingTeacherRole, setEditingTeacherRole] = useState<"admin" | "teacher" | "">("");
 
   const [studentEmail, setStudentEmail] = useState("");
   const [studentCodeSession, setStudentCodeSession] = useState(() => initialUrlSessionCode);
@@ -4904,7 +4905,15 @@ async function loadTeacherProfileName(userId: string) {
     setEditingTeacherId(String(teacher.user_id));
     setEditingTeacherName(String(teacher.name ?? teacher.full_name ?? ""));
     setEditingTeacherEmail(String(teacher.email ?? ""));
+    setEditingTeacherRole(teacher.role === "admin" ? "admin" : "teacher");
     setOpenTeacherActionsId(null);
+  }
+
+  function clearTeacherEditForm() {
+    setEditingTeacherId(null);
+    setEditingTeacherName("");
+    setEditingTeacherEmail("");
+    setEditingTeacherRole("");
   }
 
   async function handleSaveTeacherEdit() {
@@ -4918,22 +4927,61 @@ async function loadTeacherProfileName(userId: string) {
       return;
     }
 
-    const { error } = await supabase.rpc("admin_update_teacher_profile", {
-      p_target_user_id: editingTeacherId,
-      p_name: normalizedName,
-      p_email: normalizedEmail,
-    });
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
 
-    if (error) {
-      setMessage(`Erreur modification professeur : ${error.message}`);
-      return;
+      if (!token) {
+        setMessage("Vous devez être connecté en admin.");
+        return;
+      }
+
+      const response = await fetch(
+        "https://xfseuhgjfadxvwjgtlce.supabase.co/functions/v1/update_teacher_profile",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            user_id: editingTeacherId,
+            name: normalizedName,
+            email: normalizedEmail,
+          }),
+        }
+      );
+
+      const rawText = await response.text();
+
+      let data: any = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        data = { raw: rawText };
+      }
+
+      if (!response.ok) {
+        setMessage(`Erreur modification compte : ${data?.error || rawText || response.status}`);
+        return;
+      }
+
+      const editedRole = editingTeacherRole;
+      const editedOwnAccount = editingTeacherId === teacherUserId;
+
+      if (editedOwnAccount) {
+        setTeacherUserEmail(normalizedEmail);
+        setTeacherDisplayName(normalizedName);
+      }
+
+      clearTeacherEditForm();
+      await loadAdminTeachers();
+      await loadAdminSessions();
+      setMessage(editedRole === "admin" ? "Administrateur modifié." : "Professeur modifié.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur réseau";
+      setMessage(`Erreur modification compte : ${message}`);
     }
-
-    setEditingTeacherId(null);
-    setEditingTeacherName("");
-    setEditingTeacherEmail("");
-    await loadAdminTeachers();
-    setMessage("Professeur modifié.");
   }
 
 async function handleAdminDeleteTeacher(userId: string) {
@@ -6631,6 +6679,7 @@ setQuickSessionSuffix("");
     setTeacherSearch("");
     setSessionSearch("");
     setIsCreatingTeacher(false);
+    clearTeacherEditForm();
     setAuthPortal("teacher");
     setMessage("");
     setIsInitialSessionSetup(false);
@@ -10167,14 +10216,19 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
                 {editingTeacherId ? (
                   <div style={styles.innerCardFull}>
-                    <h3 style={styles.innerTitle}>Modifier un professeur</h3>
+                    <h3 style={styles.innerTitle}>
+                      {editingTeacherRole === "admin" ? "Modifier un administrateur" : "Modifier un professeur"}
+                    </h3>
+                    <div style={{ ...styles.bodyText, marginTop: 6 }}>
+                      Modification du nom et de l’adresse e-mail du compte sélectionné.
+                    </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
-                      <input style={styles.input} placeholder="Nom du professeur" value={editingTeacherName} onChange={(e) => setEditingTeacherName(e.target.value)} />
-                      <input style={styles.input} placeholder="Email du professeur" value={editingTeacherEmail} onChange={(e) => setEditingTeacherEmail(e.target.value)} />
+                      <input style={styles.input} placeholder={editingTeacherRole === "admin" ? "Nom de l’administrateur" : "Nom du professeur"} value={editingTeacherName} onChange={(e) => setEditingTeacherName(e.target.value)} />
+                      <input style={styles.input} placeholder={editingTeacherRole === "admin" ? "Email de l’administrateur" : "Email du professeur"} value={editingTeacherEmail} onChange={(e) => setEditingTeacherEmail(e.target.value)} />
                     </div>
                     <div style={{ ...styles.row, marginTop: 12 }}>
                       <button style={styles.primaryButton} onClick={() => { void handleSaveTeacherEdit(); }}>Enregistrer les modifications</button>
-                      <button style={styles.secondaryButton} onClick={() => { setEditingTeacherId(null); setEditingTeacherName(""); setEditingTeacherEmail(""); }}>Annuler</button>
+                      <button style={styles.secondaryButton} onClick={clearTeacherEditForm}>Annuler</button>
                     </div>
                   </div>
                 ) : null}
@@ -10280,7 +10334,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                                           handleStartTeacherEdit(teacher);
                                         }}
                                       >
-                                        Modifier
+                                        {teacher.role === "admin" ? "Modifier l’administrateur" : "Modifier"}
                                       </button>
 
                                       {teacher.role === "teacher" ? (
