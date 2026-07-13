@@ -1274,6 +1274,21 @@ type TeacherVoteResult = {
   rank3Count: number;
 };
 
+function getAccountVisiblePassword(account: any) {
+  return String(
+    account?.account_password ??
+      account?.password_text ??
+      account?.temporary_password ??
+      account?.initial_password ??
+      account?.password ??
+      ""
+  ).trim();
+}
+
+function getAccountDisplayName(account: any) {
+  return String(account?.name ?? account?.full_name ?? "").trim();
+}
+
 type AssignmentMode = "groups";
 type AssignmentMethod = "import" | "random";
 
@@ -3907,13 +3922,31 @@ const teacherSyntheseData = useMemo(
 
   const filteredAdminTeachers = useMemo(() => {
     const q = teacherSearch.trim().toLowerCase();
-    if (!q) return adminTeachers;
+    const filtered = q
+      ? adminTeachers.filter((teacher) =>
+          getAccountDisplayName(teacher).toLowerCase().includes(q) ||
+          String(teacher.email ?? "").toLowerCase().includes(q) ||
+          String(teacher.role ?? "").toLowerCase().includes(q)
+        )
+      : adminTeachers;
 
-    return adminTeachers.filter((teacher) =>
-      String(teacher.name ?? teacher.full_name ?? "").toLowerCase().includes(q) ||
-      String(teacher.email ?? "").toLowerCase().includes(q)
-    );
+    return [...filtered].sort((a, b) => {
+      const roleA = String(a.role ?? "");
+      const roleB = String(b.role ?? "");
+      if (roleA !== roleB) return roleA.localeCompare(roleB, "fr");
+      return getAccountDisplayName(a).localeCompare(getAccountDisplayName(b), "fr", {
+        sensitivity: "base",
+      });
+    });
   }, [adminTeachers, teacherSearch]);
+
+  const filteredAdminAccounts = useMemo(() => {
+    return filteredAdminTeachers.filter((teacher) => String(teacher.role ?? "") === "admin");
+  }, [filteredAdminTeachers]);
+
+  const filteredTeacherAccounts = useMemo(() => {
+    return filteredAdminTeachers.filter((teacher) => String(teacher.role ?? "") === "teacher");
+  }, [filteredAdminTeachers]);
 
   const filteredAdminSessions = useMemo(() => {
     const q = sessionSearch.trim().toLowerCase();
@@ -4823,9 +4856,7 @@ async function loadTeacherProfileName(userId: string) {
 }
 
   async function loadAdminTeachers() {
-    const { data, error } = await supabase
-      .from("admin_teachers_overview")
-      .select("*");
+    const { data, error } = await supabase.rpc("admin_list_teacher_accounts_with_passwords");
 
     if (error) {
       setMessage(`Erreur chargement professeurs : ${error.message}`);
@@ -4905,6 +4936,18 @@ async function loadTeacherProfileName(userId: string) {
     setEditingTeacherName(String(teacher.name ?? teacher.full_name ?? ""));
     setEditingTeacherEmail(String(teacher.email ?? ""));
     setOpenTeacherActionsId(null);
+  }
+
+  async function handleCopyAccountPassword(password: string) {
+    const safePassword = password.trim();
+    if (!safePassword) return;
+
+    try {
+      await navigator.clipboard.writeText(safePassword);
+      setMessage("Mot de passe copié.");
+    } catch {
+      window.prompt("Copiez ce mot de passe :", safePassword);
+    }
   }
 
   async function handleSaveTeacherEdit() {
@@ -5056,12 +5099,24 @@ async function handleCreateTeacher(name: string, email: string, password: string
       return;
     }
 
+    const { error: passwordStoreError } = await supabase.rpc("admin_store_teacher_password", {
+      p_target_email: normalizedEmail,
+      p_password: safePassword,
+    });
+
     setNewTeacherName("");
     setNewTeacherEmail("");
     setNewTeacherPassword("");
-    setMessage(`Professeur créé avec succès : ${normalizedEmail}`);
 
-    loadAdminTeachers().catch(console.error);
+    await loadAdminTeachers();
+
+    if (passwordStoreError) {
+      setMessage(
+        `Professeur créé avec succès : ${normalizedEmail}. Mot de passe non ajouté au tableau : ${passwordStoreError.message}`
+      );
+    } else {
+      setMessage(`Professeur créé avec succès : ${normalizedEmail}. Mot de passe ajouté au tableau.`);
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur réseau";
     setMessage(`Erreur création professeur : ${message}`);
@@ -10199,132 +10254,214 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                   </div>
                 ) : null}
 
-                <div style={styles.innerCardFull}>
-                  {!filteredAdminTeachers.length ? (
-                    <div style={styles.emptyText}>Aucun professeur trouvé.</div>
-                  ) : (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={styles.reportTable}>
-                        <thead>
-                          <tr>
-                            <th style={styles.reportTh}>Professeur</th>
-                            <th style={styles.reportTh}>Rôle</th>
-                            <th style={styles.reportTh}>Statut</th>
-                            <th style={{ ...styles.reportTh, width: 160 }}>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredAdminTeachers.map((teacher) => (
-                            <tr key={teacher.user_id}>
-                              <td style={{ ...styles.reportTd, minWidth: 280 }}>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                                  <span style={{ fontWeight: 800, color: "#102a43" }}>{teacher.name || teacher.full_name || "Nom non renseigné"}</span>
-                                  <span style={{ color: "#486581", fontSize: 14, wordBreak: "break-word" }}>{teacher.email}</span>
-                                </div>
-                              </td>
-                              <td style={styles.reportTd}>
-                                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 86, padding: "8px 12px", borderRadius: 999, background: teacher.role === "admin" ? "#ede9fe" : "#eff6ff", color: teacher.role === "admin" ? "#6d28d9" : "#1d4ed8", fontWeight: 800, textTransform: "capitalize" }}>{teacher.role}</span>
-                              </td>
-                              <td style={styles.reportTd}>
-                                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 92, padding: "8px 12px", borderRadius: 999, background: teacher.is_active ? "#dcfce7" : "#fee2e2", color: teacher.is_active ? "#166534" : "#991b1b", fontWeight: 800 }}>{teacher.is_active ? "Actif" : "Inactif"}</span>
-                              </td>
-                              <td style={{ ...styles.reportTd, position: "relative", overflow: "visible" }}>
-                                <div ref={openTeacherActionsId === teacher.user_id ? actionsMenuRef : null}>
-                                  <button
-                                    type="button"
-                                    style={styles.adminActionButton}
-                                    onClick={() =>
-                                      setOpenTeacherActionsId((prev) =>
-                                        prev === teacher.user_id ? null : teacher.user_id
-                                      )
-                                    }
-                                  >
-                                    Actions ▾
-                                  </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                  {[
+                    {
+                      title: "Administrateurs",
+                      emptyLabel: "Aucun administrateur trouvé.",
+                      rows: filteredAdminAccounts,
+                    },
+                    {
+                      title: "Professeurs",
+                      emptyLabel: "Aucun professeur trouvé.",
+                      rows: filteredTeacherAccounts,
+                    },
+                  ].map((section) => (
+                    <div key={section.title} style={styles.innerCardFull}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          marginBottom: 12,
+                        }}
+                      >
+                        <h3 style={{ ...styles.innerTitle, marginBottom: 0 }}>{section.title}</h3>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minWidth: 36,
+                            padding: "6px 10px",
+                            borderRadius: 999,
+                            background: "#e8f1fb",
+                            color: "#0b315f",
+                            fontWeight: 900,
+                          }}
+                        >
+                          {section.rows.length}
+                        </span>
+                      </div>
 
-                                  {openTeacherActionsId === teacher.user_id ? (
-                                    <div style={styles.adminActionMenu}>
-                                      {teacher.is_active ? (
-                                        <button
-                                          type="button"
-                                          style={styles.adminActionMenuItem}
-                                          onClick={() => {
-                                            setOpenTeacherActionsId(null);
-                                            void handleAdminDeactivateTeacher(teacher.user_id);
-                                          }}
-                                        >
-                                          Désactiver
-                                        </button>
+                      {!section.rows.length ? (
+                        <div style={styles.emptyText}>{section.emptyLabel}</div>
+                      ) : (
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={styles.reportTable}>
+                            <thead>
+                              <tr>
+                                <th style={styles.reportTh}>Compte</th>
+                                <th style={styles.reportTh}>Mot de passe</th>
+                                <th style={styles.reportTh}>Rôle</th>
+                                <th style={styles.reportTh}>Statut</th>
+                                <th style={{ ...styles.reportTh, width: 160 }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {section.rows.map((teacher) => {
+                                const accountPassword = getAccountVisiblePassword(teacher);
+
+                                return (
+                                  <tr key={teacher.user_id}>
+                                    <td style={{ ...styles.reportTd, minWidth: 260 }}>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                        <span style={{ fontWeight: 800, color: "#102a43" }}>
+                                          {teacher.name || teacher.full_name || "Nom non renseigné"}
+                                        </span>
+                                        <span style={{ color: "#486581", fontSize: 14, wordBreak: "break-word" }}>
+                                          {teacher.email}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td style={{ ...styles.reportTd, minWidth: 190 }}>
+                                      {accountPassword ? (
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
+                                          <code
+                                            style={{
+                                              display: "inline-block",
+                                              maxWidth: 180,
+                                              padding: "6px 8px",
+                                              borderRadius: 10,
+                                              background: "#f8fafc",
+                                              border: "1px solid #d9e2ec",
+                                              color: "#102a43",
+                                              fontWeight: 800,
+                                              fontSize: 13,
+                                              wordBreak: "break-all",
+                                            }}
+                                          >
+                                            {accountPassword}
+                                          </code>
+                                          <button
+                                            type="button"
+                                            style={{ ...styles.secondaryButton, padding: "6px 10px", minHeight: 0, fontSize: 12 }}
+                                            onClick={() => { void handleCopyAccountPassword(accountPassword); }}
+                                          >
+                                            Copier
+                                          </button>
+                                        </div>
                                       ) : (
-                                        <button
-                                          type="button"
-                                          style={styles.adminActionMenuItem}
-                                          onClick={() => {
-                                            setOpenTeacherActionsId(null);
-                                            void handleAdminReactivateTeacher(teacher.user_id);
-                                          }}
-                                        >
-                                          Réactiver
-                                        </button>
+                                        <span style={{ color: "#627d98", fontWeight: 700 }}>Non renseigné</span>
                                       )}
-
-                                      {teacher.role === "teacher" ? (
+                                    </td>
+                                    <td style={styles.reportTd}>
+                                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 86, padding: "8px 12px", borderRadius: 999, background: teacher.role === "admin" ? "#ede9fe" : "#eff6ff", color: teacher.role === "admin" ? "#6d28d9" : "#1d4ed8", fontWeight: 800, textTransform: "capitalize" }}>{teacher.role}</span>
+                                    </td>
+                                    <td style={styles.reportTd}>
+                                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 92, padding: "8px 12px", borderRadius: 999, background: teacher.is_active ? "#dcfce7" : "#fee2e2", color: teacher.is_active ? "#166534" : "#991b1b", fontWeight: 800 }}>{teacher.is_active ? "Actif" : "Inactif"}</span>
+                                    </td>
+                                    <td style={{ ...styles.reportTd, position: "relative", overflow: "visible" }}>
+                                      <div ref={openTeacherActionsId === teacher.user_id ? actionsMenuRef : null}>
                                         <button
                                           type="button"
-                                          style={styles.adminActionMenuItem}
-                                          onClick={() => {
-                                            setOpenTeacherActionsId(null);
-                                            void handleAdminPromote(teacher.user_id);
-                                          }}
+                                          style={styles.adminActionButton}
+                                          onClick={() =>
+                                            setOpenTeacherActionsId((prev) =>
+                                              prev === teacher.user_id ? null : teacher.user_id
+                                            )
+                                          }
                                         >
-                                          Passer admin
+                                          Actions ▾
                                         </button>
-                                      ) : teacher.user_id !== teacherUserId ? (
-                                        <button
-                                          type="button"
-                                          style={styles.adminActionMenuItem}
-                                          onClick={() => {
-                                            setOpenTeacherActionsId(null);
-                                            void handleAdminDemote(teacher.user_id);
-                                          }}
-                                        >
-                                          Repasser prof
-                                        </button>
-                                      ) : null}
 
-                                      <button
-                                        type="button"
-                                        style={styles.adminActionMenuItem}
-                                        onClick={() => {
-                                          setOpenTeacherActionsId(null);
-                                          handleStartTeacherEdit(teacher);
-                                        }}
-                                      >
-                                        Modifier
-                                      </button>
+                                        {openTeacherActionsId === teacher.user_id ? (
+                                          <div style={styles.adminActionMenu}>
+                                            {teacher.is_active ? (
+                                              <button
+                                                type="button"
+                                                style={styles.adminActionMenuItem}
+                                                onClick={() => {
+                                                  setOpenTeacherActionsId(null);
+                                                  void handleAdminDeactivateTeacher(teacher.user_id);
+                                                }}
+                                              >
+                                                Désactiver
+                                              </button>
+                                            ) : (
+                                              <button
+                                                type="button"
+                                                style={styles.adminActionMenuItem}
+                                                onClick={() => {
+                                                  setOpenTeacherActionsId(null);
+                                                  void handleAdminReactivateTeacher(teacher.user_id);
+                                                }}
+                                              >
+                                                Réactiver
+                                              </button>
+                                            )}
 
-                                      {teacher.role === "teacher" ? (
-                                        <button
-                                          type="button"
-                                          style={styles.adminActionMenuItemDanger}
-                                          onClick={() => {
-                                            setOpenTeacherActionsId(null);
-                                            void handleAdminDeleteTeacher(teacher.user_id);
-                                          }}
-                                        >
-                                          Supprimer
-                                        </button>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                            {teacher.role === "teacher" ? (
+                                              <button
+                                                type="button"
+                                                style={styles.adminActionMenuItem}
+                                                onClick={() => {
+                                                  setOpenTeacherActionsId(null);
+                                                  void handleAdminPromote(teacher.user_id);
+                                                }}
+                                              >
+                                                Passer admin
+                                              </button>
+                                            ) : teacher.user_id !== teacherUserId ? (
+                                              <button
+                                                type="button"
+                                                style={styles.adminActionMenuItem}
+                                                onClick={() => {
+                                                  setOpenTeacherActionsId(null);
+                                                  void handleAdminDemote(teacher.user_id);
+                                                }}
+                                              >
+                                                Repasser prof
+                                              </button>
+                                            ) : null}
+
+                                            <button
+                                              type="button"
+                                              style={styles.adminActionMenuItem}
+                                              onClick={() => {
+                                                setOpenTeacherActionsId(null);
+                                                handleStartTeacherEdit(teacher);
+                                              }}
+                                            >
+                                              Modifier
+                                            </button>
+
+                                            {teacher.role === "teacher" ? (
+                                              <button
+                                                type="button"
+                                                style={styles.adminActionMenuItemDanger}
+                                                onClick={() => {
+                                                  setOpenTeacherActionsId(null);
+                                                  void handleAdminDeleteTeacher(teacher.user_id);
+                                                }}
+                                              >
+                                                Supprimer
+                                              </button>
+                                            ) : null}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
               </>
             )}
