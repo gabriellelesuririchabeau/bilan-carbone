@@ -3603,11 +3603,16 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
   const [isCreatingTeacher, setIsCreatingTeacher] = useState(false);
   const [resettingPasswordUserId, setResettingPasswordUserId] = useState("");
   const [visibleAccountPasswords, setVisibleAccountPasswords] = useState<Record<string, boolean>>({});
+  const [copiedAccountPasswords, setCopiedAccountPasswords] = useState<Record<string, boolean>>({});
   const passwordRevealTimeoutsRef = useRef<Record<string, number>>({});
+  const passwordCopyTimeoutsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     return () => {
       Object.values(passwordRevealTimeoutsRef.current).forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+      Object.values(passwordCopyTimeoutsRef.current).forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
       });
     };
@@ -5035,13 +5040,31 @@ async function loadTeacherProfileName(userId: string) {
     }, 8000);
   }
 
-  async function handleCopyAccountPassword(password: string) {
+  async function handleCopyAccountPassword(password: string, userId: string) {
     const safePassword = password.trim();
-    if (!safePassword) return;
+    const accountId = String(userId);
+    if (!safePassword || !accountId) return;
 
     try {
       await navigator.clipboard.writeText(safePassword);
-      setMessage("Mot de passe copié.");
+
+      if (passwordCopyTimeoutsRef.current[accountId]) {
+        window.clearTimeout(passwordCopyTimeoutsRef.current[accountId]);
+      }
+
+      setCopiedAccountPasswords((previous) => ({
+        ...previous,
+        [accountId]: true,
+      }));
+
+      passwordCopyTimeoutsRef.current[accountId] = window.setTimeout(() => {
+        setCopiedAccountPasswords((previous) => {
+          const next = { ...previous };
+          delete next[accountId];
+          return next;
+        });
+        delete passwordCopyTimeoutsRef.current[accountId];
+      }, 1800);
     } catch {
       window.prompt("Copiez ce mot de passe :", safePassword);
     }
@@ -10566,15 +10589,22 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                                               Afficher le mot de passe
                                             </button>
                                           )}
-                                          <button
-                                            type="button"
-                                            aria-label="Copier le mot de passe"
-                                            title="Copier le mot de passe"
-                                            style={styles.adminPasswordCopyIconButton}
-                                            onClick={() => { void handleCopyAccountPassword(accountPassword); }}
-                                          >
-                                            <span aria-hidden="true" style={styles.adminPasswordCopyIcon}>⧉</span>
-                                          </button>
+                                          <div style={styles.adminPasswordCopyWrap}>
+                                            <button
+                                              type="button"
+                                              aria-label={copiedAccountPasswords[String(teacher.user_id)] ? "Mot de passe copié" : "Copier le mot de passe"}
+                                              title={copiedAccountPasswords[String(teacher.user_id)] ? "Copié" : "Copier le mot de passe"}
+                                              style={styles.adminPasswordCopyIconButton}
+                                              onClick={() => { void handleCopyAccountPassword(accountPassword, String(teacher.user_id)); }}
+                                            >
+                                              <span aria-hidden="true" style={styles.adminPasswordCopyIcon}>⧉</span>
+                                            </button>
+                                            {copiedAccountPasswords[String(teacher.user_id)] ? (
+                                              <span style={styles.adminPasswordCopiedTooltip} role="status">
+                                                {lang === "en" ? "Copied" : "Copié"}
+                                              </span>
+                                            ) : null}
+                                          </div>
                                         </div>
                                       ) : (
                                         <span style={styles.adminAccountEmptyPassword}>Non renseigné</span>
@@ -13836,6 +13866,17 @@ panelTitle: {
     whiteSpace: "normal" as const,
   },
 
+  adminPasswordCopyWrap: {
+    position: "relative" as const,
+    width: 30,
+    height: 30,
+    minWidth: 30,
+    minHeight: 30,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   adminPasswordCopyIconButton: {
     width: 30,
     height: 30,
@@ -13850,6 +13891,23 @@ panelTitle: {
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
+  },
+
+  adminPasswordCopiedTooltip: {
+    position: "absolute" as const,
+    top: -31,
+    right: -8,
+    zIndex: 20,
+    padding: "5px 8px",
+    borderRadius: 999,
+    background: "#102a43",
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: 900,
+    lineHeight: 1,
+    whiteSpace: "nowrap" as const,
+    boxShadow: "0 8px 18px rgba(16,42,67,0.2)",
+    pointerEvents: "none" as const,
   },
 
   adminPasswordCopyIcon: {
