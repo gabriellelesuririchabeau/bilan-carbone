@@ -9338,16 +9338,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   }
 
   function handleProjectionBilansMenuClick() {
-    if (projectionBilansMenuOpen) {
-      setProjectionBilansMenuOpen(false);
-      return;
-    }
-
-    setProjectionBilansMenuOpen(true);
-
-    if (!teacherProjectionPreviewOpen || projectionStage !== "bilans") {
-      openProjectionStage("bilans", "all");
-    }
+    setProjectionBilansMenuOpen((currentValue) => !currentValue);
   }
 
   function getProjectionMenuButtonStyle(stage: ProjectionStage) {
