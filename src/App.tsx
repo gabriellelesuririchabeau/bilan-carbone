@@ -315,6 +315,7 @@ const DISPLAY_TRANSLATIONS_EN: Record<string, string> = {
   "Connexion administrateur": "Administrator login",
   "Adresse e-mail": "Email address",
   "Mot de passe": "Password",
+  "Afficher le mot de passe": "Show password",
   "Code session": "Session code",
   "Se connecter": "Sign in",
   "Entrer": "Enter",
@@ -3601,6 +3602,7 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
   const [sessionSearch, setSessionSearch] = useState("");
   const [isCreatingTeacher, setIsCreatingTeacher] = useState(false);
   const [resettingPasswordUserId, setResettingPasswordUserId] = useState("");
+  const [visibleAccountPasswords, setVisibleAccountPasswords] = useState<Record<string, boolean>>({});
 
   const [teacherGroupNumber, setTeacherGroupNumber] = useState(1);
   const [studentGroupNumber, setStudentGroupNumber] = useState(1);
@@ -5000,6 +5002,13 @@ async function loadTeacherProfileName(userId: string) {
     window.setTimeout(() => {
       teacherEditFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
+  }
+
+  function handleRevealAccountPassword(userId: string) {
+    setVisibleAccountPasswords((previous) => ({
+      ...previous,
+      [userId]: true,
+    }));
   }
 
   async function handleCopyAccountPassword(password: string) {
@@ -10522,7 +10531,17 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                                     <td style={styles.adminAccountTd}>
                                       {accountPassword ? (
                                         <div style={styles.adminPasswordInline}>
-                                          <code style={styles.adminPasswordCode}>{accountPassword}</code>
+                                          {visibleAccountPasswords[String(teacher.user_id)] ? (
+                                            <code style={styles.adminPasswordCode}>{accountPassword}</code>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              style={styles.adminPasswordRevealButton}
+                                              onClick={() => handleRevealAccountPassword(String(teacher.user_id))}
+                                            >
+                                              Afficher le mot de passe
+                                            </button>
+                                          )}
                                           <button
                                             type="button"
                                             aria-label="Copier le mot de passe"
@@ -13773,6 +13792,24 @@ panelTitle: {
     fontSize: 12,
     lineHeight: 1.15,
     overflowWrap: "anywhere" as const,
+  },
+
+  adminPasswordRevealButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 0,
+    width: "100%",
+    padding: "7px 8px",
+    borderRadius: 9,
+    border: "1px solid #cbd5e1",
+    background: "#f8fafc",
+    color: "#0b315f",
+    fontWeight: 900,
+    fontSize: 11,
+    lineHeight: 1.15,
+    cursor: "pointer",
+    whiteSpace: "normal" as const,
   },
 
   adminPasswordCopyIconButton: {
