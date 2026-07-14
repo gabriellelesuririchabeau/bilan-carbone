@@ -2789,6 +2789,10 @@ export default function App() {
   const [projectionTheme, setProjectionTheme] = useState<ProjectionThemeKey>(getInitialProjectionTheme);
   const [projectionSessionCode, setProjectionSessionCode] = useState(initialUrlSessionCode);
   const [projectionLoading, setProjectionLoading] = useState(false);
+  const [projectionBilansMenuOpen, setProjectionBilansMenuOpen] = useState(
+    getInitialProjectionStage() === "bilans"
+  );
+  const [teacherProjectionPreviewOpen, setTeacherProjectionPreviewOpen] = useState(false);
   const [lang, setLang] = useState<Lang>(getStoredLanguage);
   const isStudentMobileMain = useStudentMobileLayout();
   const [privacyModalAudience, setPrivacyModalAudience] = useState<"student" | "teacher" | null>(null);
@@ -6899,6 +6903,7 @@ async function handleTeacherLogin() {
   }
 
   await loadTeacherSessions(data.user.id);
+  setTeacherProjectionPreviewOpen(false);
   setTeacherMenu("sessions");
   setScreen("teacher_dashboard");
   setMessage(
@@ -6909,6 +6914,7 @@ async function handleTeacherLogin() {
 }
 
   async function handleTeacherLogout() {
+    setTeacherProjectionPreviewOpen(false);
     await supabase.auth.signOut();
     setTeacherEmail("");
     setTeacherPassword("");
@@ -7029,6 +7035,7 @@ async function handleCreateSessionQuick() {
   setMessage(`Session créée : ${normalizedCode}`);
 }
 async function handleOpenSession(session: SessionRow) {
+  setTeacherProjectionPreviewOpen(false);
   setMessage("");
   setSelectedSessionId(session.id);
   setSelectedSessionCode(session.session_code || "");
@@ -9298,12 +9305,20 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
   function openProjectionStage(stage: ProjectionStage, theme: ProjectionThemeKey = "all") {
     const nextProjectionTheme = stage === "bilans" ? theme : "all";
-    setProjectionStage(stage);
-    setProjectionTheme(nextProjectionTheme);
     const cleanCode = formatSessionCode(selectedSessionCode || projectionSessionCode || initialUrlSessionCode);
+
     if (!cleanCode) {
       setMessage(lang === "en" ? "Open a session before using projection." : "Ouvrez une session avant d'utiliser la projection.");
       return;
+    }
+
+    setProjectionStage(stage);
+    setProjectionTheme(nextProjectionTheme);
+    setProjectionBilansMenuOpen(stage === "bilans");
+    setTeacherProjectionPreviewOpen(true);
+
+    if (screen === "teacher_session_settings") {
+      setScreen("teacher_dashboard");
     }
 
     try {
@@ -9318,17 +9333,37 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     window.open(buildProjectionUrl(cleanCode, stage, nextProjectionTheme), "bilan_carbone_projection");
   }
 
+  function closeTeacherProjectionPreview() {
+    setTeacherProjectionPreviewOpen(false);
+  }
+
+  function handleProjectionBilansMenuClick() {
+    if (projectionBilansMenuOpen) {
+      setProjectionBilansMenuOpen(false);
+      return;
+    }
+
+    setProjectionBilansMenuOpen(true);
+
+    if (!teacherProjectionPreviewOpen || projectionStage !== "bilans") {
+      openProjectionStage("bilans", "all");
+    }
+  }
+
   function getProjectionMenuButtonStyle(stage: ProjectionStage) {
-    return projectionStage === stage ? styles.sidebarButtonActive : styles.sidebarButton;
+    return teacherProjectionPreviewOpen && projectionStage === stage
+      ? styles.sidebarButtonActive
+      : styles.sidebarButton;
   }
 
   function getProjectionThemeMenuButtonStyle(theme: ProjectionThemeKey) {
-    const baseStyle = projectionStage === "bilans" && projectionTheme === theme
-      ? styles.sidebarButtonActive
-      : styles.sidebarButton;
+    const isActive =
+      teacherProjectionPreviewOpen &&
+      projectionStage === "bilans" &&
+      projectionTheme === theme;
 
     return {
-      ...baseStyle,
+      ...(isActive ? styles.sidebarSubButtonActive : styles.sidebarButton),
       width: "calc(100% - 18px)",
       marginLeft: 18,
       padding: "9px 12px",
@@ -9361,16 +9396,34 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
   function renderProjectionBilansSubmenu() {
     return (
       <div style={styles.projectionBilansSubmenu}>
-        <div style={styles.projectionBilansSubmenuTitle}>📊 {t(lang, "projectionBilans")}</div>
-        {PROJECTION_THEME_KEYS.map((theme) => (
-          <button
-            key={theme}
-            style={getProjectionThemeMenuButtonStyle(theme)}
-            onClick={() => openProjectionStage("bilans", theme)}
-          >
-            {getProjectionThemeMenuIcon(theme)} {getProjectionThemeMenuLabel(theme)}
-          </button>
-        ))}
+        <button
+          type="button"
+          style={
+            projectionBilansMenuOpen ||
+            (teacherProjectionPreviewOpen && projectionStage === "bilans")
+              ? styles.sidebarButtonActive
+              : styles.sidebarButton
+          }
+          onClick={handleProjectionBilansMenuClick}
+          aria-expanded={projectionBilansMenuOpen}
+        >
+          📊 {t(lang, "projectionBilans")} {projectionBilansMenuOpen ? "▴" : "▾"}
+        </button>
+
+        {projectionBilansMenuOpen ? (
+          <div style={styles.projectionBilansSubmenuItems}>
+            {PROJECTION_THEME_KEYS.map((theme) => (
+              <button
+                key={theme}
+                type="button"
+                style={getProjectionThemeMenuButtonStyle(theme)}
+                onClick={() => openProjectionStage("bilans", theme)}
+              >
+                {getProjectionThemeMenuIcon(theme)} {getProjectionThemeMenuLabel(theme)}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -10900,6 +10953,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             <button
               style={styles.sidebarButton}
               onClick={() => {
+                closeTeacherProjectionPreview();
                 setScreen("teacher_dashboard");
                 setTeacherMenu("session_open");
                 setTeacherSessionTab("counts");
@@ -10910,6 +10964,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
             <button
               style={styles.sidebarButton}
               onClick={() => {
+                closeTeacherProjectionPreview();
                 setScreen("teacher_dashboard");
                 setTeacherMenu("session_open");
                 setTeacherSessionTab("users");
@@ -10927,9 +10982,9 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
           <details className="teacher-sidebar-section" open={false} style={styles.sidebarSection}>
             <summary style={getDebriefSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>🎬</span><span>{lang === "en" ? "ACTIVITY MONITORING" : "SUIVI DE L’ACTIVITÉ"}</span></summary>
-            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>📑 {t(lang, "analyses")}</button>
-            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>🗳️ {t(lang, "vote")}</button>
-            <button style={styles.sidebarButton} onClick={() => { setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>🧩 {t(lang, "synthese")}</button>
+            <button style={styles.sidebarButton} onClick={() => { closeTeacherProjectionPreview(); setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("analyses"); }}>📑 {t(lang, "analyses")}</button>
+            <button style={styles.sidebarButton} onClick={() => { closeTeacherProjectionPreview(); setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("vote"); }}>🗳️ {t(lang, "vote")}</button>
+            <button style={styles.sidebarButton} onClick={() => { closeTeacherProjectionPreview(); setScreen("teacher_dashboard"); setTeacherMenu("session_open"); setTeacherSessionTab("synthese"); }}>🧩 {t(lang, "synthese")}</button>
           </details>
 
           <details className="teacher-sidebar-section" open={false} style={styles.sidebarSection}>
@@ -10944,7 +10999,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <details className="teacher-sidebar-section" open style={styles.sidebarSection}>
             <summary style={getSessionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>⚙️</span><span>{lang === "en" ? "SESSION" : "SESSION"}</span></summary>
             <button style={styles.sidebarButtonActive}>🛠️ {lang === "en" ? "Session settings" : "Gestion de la session"}</button>
-            <button style={styles.sidebarButton} onClick={() => { setMessage(""); setTeacherMenu("sessions"); setIsInitialSessionSetup(false); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
+            <button style={styles.sidebarButton} onClick={() => { closeTeacherProjectionPreview(); setMessage(""); setTeacherMenu("sessions"); setIsInitialSessionSetup(false); setScreen("teacher_dashboard"); }}>📂 {lang === "en" ? "Other sessions" : "Autres sessions"}</button>
           </details>
 
           <div style={styles.sidebarFooter}>
@@ -11711,6 +11766,7 @@ if (screen === "student_vote") {
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "counts" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
+                  closeTeacherProjectionPreview();
                   setTeacherMenu("session_open");
                   setTeacherSessionTab("counts");
                 }}
@@ -11721,6 +11777,7 @@ if (screen === "student_vote") {
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "users" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
+                  closeTeacherProjectionPreview();
                   setTeacherMenu("session_open");
                   setTeacherSessionTab("users");
                 }}
@@ -11752,6 +11809,7 @@ if (screen === "student_vote") {
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "analyses" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
+                  closeTeacherProjectionPreview();
                   setTeacherMenu("session_open");
                   setTeacherSessionTab("analyses");
                 }}
@@ -11762,6 +11820,7 @@ if (screen === "student_vote") {
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "vote" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
+                  closeTeacherProjectionPreview();
                   setTeacherMenu("session_open");
                   setTeacherSessionTab("vote");
                 }}
@@ -11772,6 +11831,7 @@ if (screen === "student_vote") {
               <button
                 style={teacherMenu === "session_open" && teacherSessionTab === "synthese" ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
+                  closeTeacherProjectionPreview();
                   setTeacherMenu("session_open");
                   setTeacherSessionTab("synthese");
                 }}
@@ -11780,7 +11840,11 @@ if (screen === "student_vote") {
               </button>
             </details>
 
-            <details className="teacher-sidebar-section" style={styles.sidebarSection}>
+            <details
+              className="teacher-sidebar-section"
+              open={teacherProjectionPreviewOpen || undefined}
+              style={styles.sidebarSection}
+            >
               <summary style={getProjectionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
               <button
                 style={getProjectionMenuButtonStyle("qr")}
@@ -11814,6 +11878,7 @@ if (screen === "student_vote") {
               <button
                 style={(screen as string) === "teacher_session_settings" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
+                  closeTeacherProjectionPreview();
                   setMessage("");
                   setTeacherMenu("sessions");
                   setIsInitialSessionSetup(false);
@@ -11826,6 +11891,7 @@ if (screen === "student_vote") {
               <button
                 style={teacherMenu === "sessions" && !isInitialSessionSetup ? styles.sidebarButtonActive : styles.sidebarButton}
                 onClick={() => {
+                  closeTeacherProjectionPreview();
                   setMessage("");
                   setTeacherMenu("sessions");
                   setIsInitialSessionSetup(false);
@@ -11840,7 +11906,7 @@ if (screen === "student_vote") {
           <>
             <button
               style={teacherMenu === "sessions" ? styles.sidebarButtonActive : styles.sidebarButton}
-              onClick={() => { setTeacherMenu("sessions"); setIsInitialSessionSetup(true); }}
+              onClick={() => { closeTeacherProjectionPreview(); setTeacherMenu("sessions"); setIsInitialSessionSetup(true); }}
             >
               {lang === "en" ? "Create / open session" : "Créer / ouvrir une session"}
             </button>
@@ -11868,7 +11934,16 @@ if (screen === "student_vote") {
           </div>
         </header>
 
-        <section style={styles.bigPanel}>
+        <section style={teacherProjectionPreviewOpen ? styles.teacherProjectionPreviewPanel : styles.bigPanel}>
+          {teacherProjectionPreviewOpen ? (
+            <iframe
+              key={`${projectionStage}-${projectionTheme}-${formatSessionCode(selectedSessionCode)}`}
+              title={lang === "en" ? "Projection preview" : "Aperçu de la projection"}
+              src={buildProjectionUrl(selectedSessionCode, projectionStage, projectionTheme)}
+              style={styles.teacherProjectionPreviewFrame}
+            />
+          ) : (
+            <>
           {teacherMenu === "sessions" && (
             <>
               <h2 style={styles.panelTitle}>
@@ -12710,6 +12785,8 @@ style={
               </div>
             </>
           )}
+            </>
+          )}
         </section>
       </main>
     </div>
@@ -13465,6 +13542,23 @@ const styles: Record<string, React.CSSProperties> = {
     margin: "4px 0",
     boxShadow: "0 8px 18px rgba(239,125,50,0.16)",
   },
+  sidebarSubButtonActive: {
+    width: "100%",
+    background: "#f6b27a",
+    color: "#123b64",
+    border: "2px solid rgba(255,255,255,0.76)",
+    borderRadius: 999,
+    padding: "12px 14px",
+    fontSize: 14,
+    fontWeight: 900,
+    cursor: "pointer",
+    textAlign: "center",
+    lineHeight: 1.12,
+    whiteSpace: "normal",
+    overflowWrap: "break-word",
+    margin: "4px 0",
+    boxShadow: "0 7px 16px rgba(246,178,122,0.22)",
+  },
   projectionBilansSubmenu: {
     width: "100%",
     display: "flex",
@@ -13472,15 +13566,12 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 2,
     margin: "2px 0 6px",
   },
-  projectionBilansSubmenuTitle: {
+  projectionBilansSubmenuItems: {
     width: "100%",
-    color: "#dbeafe",
-    fontSize: 12,
-    fontWeight: 950,
-    letterSpacing: 0.25,
-    textTransform: "uppercase" as const,
-    padding: "8px 12px 4px",
-    boxSizing: "border-box" as const,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 2,
+    paddingTop: 2,
   },
   sidebarFooter: {
     marginTop: "auto",
@@ -13549,6 +13640,21 @@ topHeaderTitle: {
     flexDirection: "column",
     gap: 18,
     minHeight: "calc(100vh - 150px)",
+  },
+  teacherProjectionPreviewPanel: {
+    minHeight: "calc(100vh - 150px)",
+    height: "calc(100vh - 150px)",
+    overflow: "hidden" as const,
+    borderRadius: 32,
+    background: "#d7dee8",
+    boxShadow: "0 12px 26px rgba(0,0,0,0.12)",
+  },
+  teacherProjectionPreviewFrame: {
+    display: "block",
+    width: "100%",
+    height: "100%",
+    border: "none",
+    background: "#d7dee8",
   },
 panelTitle: {
   marginTop: 0,
