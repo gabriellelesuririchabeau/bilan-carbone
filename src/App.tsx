@@ -3612,6 +3612,7 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
   const [teacherDisplayName, setTeacherDisplayName] = useState("");
   const [openTeacherActionsId, setOpenTeacherActionsId] = useState<string | null>(null);
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
+  const teacherEditFormRef = useRef<HTMLDivElement | null>(null);
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
   const [editingTeacherName, setEditingTeacherName] = useState("");
   const [editingTeacherEmail, setEditingTeacherEmail] = useState("");
@@ -4995,6 +4996,10 @@ async function loadTeacherProfileName(userId: string) {
     setEditingTeacherName(String(teacher.name ?? teacher.full_name ?? ""));
     setEditingTeacherEmail(String(teacher.email ?? ""));
     setOpenTeacherActionsId(null);
+
+    window.setTimeout(() => {
+      teacherEditFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   }
 
   async function handleCopyAccountPassword(password: string) {
@@ -10423,7 +10428,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
                 </div>
 
                 {editingTeacherId ? (
-                  <div style={styles.innerCardFull}>
+                  <div ref={teacherEditFormRef} style={{ ...styles.innerCardFull, scrollMarginTop: 24 }}>
                     <h3 style={styles.innerTitle}>Modifier un compte professeur / administrateur</h3>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
                       <input style={styles.input} placeholder="Nom du compte" value={editingTeacherName} onChange={(e) => setEditingTeacherName(e.target.value)} />
