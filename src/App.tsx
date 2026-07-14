@@ -3603,6 +3603,15 @@ const [teacherGroupProposals, setTeacherGroupProposals] = useState<Record<number
   const [isCreatingTeacher, setIsCreatingTeacher] = useState(false);
   const [resettingPasswordUserId, setResettingPasswordUserId] = useState("");
   const [visibleAccountPasswords, setVisibleAccountPasswords] = useState<Record<string, boolean>>({});
+  const passwordRevealTimeoutsRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    return () => {
+      Object.values(passwordRevealTimeoutsRef.current).forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+    };
+  }, []);
 
   const [teacherGroupNumber, setTeacherGroupNumber] = useState(1);
   const [studentGroupNumber, setStudentGroupNumber] = useState(1);
@@ -5005,10 +5014,25 @@ async function loadTeacherProfileName(userId: string) {
   }
 
   function handleRevealAccountPassword(userId: string) {
+    const accountId = String(userId);
+
+    if (passwordRevealTimeoutsRef.current[accountId]) {
+      window.clearTimeout(passwordRevealTimeoutsRef.current[accountId]);
+    }
+
     setVisibleAccountPasswords((previous) => ({
       ...previous,
-      [userId]: true,
+      [accountId]: true,
     }));
+
+    passwordRevealTimeoutsRef.current[accountId] = window.setTimeout(() => {
+      setVisibleAccountPasswords((previous) => {
+        const next = { ...previous };
+        delete next[accountId];
+        return next;
+      });
+      delete passwordRevealTimeoutsRef.current[accountId];
+    }, 8000);
   }
 
   async function handleCopyAccountPassword(password: string) {
