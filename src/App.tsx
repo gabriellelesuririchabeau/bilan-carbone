@@ -66,6 +66,20 @@ import { EMPTY_COUNTS, buildTransportRowsForGroup } from "./utils/teacher";
 
 type Lang = "fr" | "en";
 type ProjectionStage = "qr" | "bilans" | "propositions" | "vote" | "synthese";
+type ProjectionThemeKey = "all" | "transport" | "dejeuner" | "equipement" | "autres_consommations" | "salle";
+
+const PROJECTION_THEME_KEYS: ProjectionThemeKey[] = [
+  "all",
+  "transport",
+  "dejeuner",
+  "equipement",
+  "autres_consommations",
+  "salle",
+];
+
+function isProjectionThemeKey(value: string): value is ProjectionThemeKey {
+  return PROJECTION_THEME_KEYS.includes(value as ProjectionThemeKey);
+}
 
 function getUrlParams() {
   if (typeof window === "undefined") return new URLSearchParams();
@@ -82,6 +96,11 @@ function getInitialProjectionStage(): ProjectionStage {
     return value as ProjectionStage;
   }
   return "qr";
+}
+
+function getInitialProjectionTheme(): ProjectionThemeKey {
+  const value = String(getUrlParams().get("theme") ?? "all").trim();
+  return isProjectionThemeKey(value) ? value : "all";
 }
 
 function shouldOpenProjectionFromUrl() {
@@ -114,12 +133,19 @@ function buildStudentJoinUrl(sessionCode: string, target: "home" | "vote" = "hom
   return `${getAppBaseUrl()}?${params.toString()}`;
 }
 
-function buildProjectionUrl(sessionCode: string, stage: ProjectionStage = "qr") {
+function buildProjectionUrl(
+  sessionCode: string,
+  stage: ProjectionStage = "qr",
+  theme: ProjectionThemeKey = "all"
+) {
   const cleanCode = formatSessionCode(sessionCode);
   const params = new URLSearchParams();
   params.set("view", "projection");
   params.set("session", cleanCode);
   params.set("stage", stage);
+  if (stage === "bilans") {
+    params.set("theme", theme);
+  }
   return `${getAppBaseUrl()}?${params.toString()}`;
 }
 
@@ -2760,6 +2786,7 @@ export default function App() {
         : "home"
   );
   const [projectionStage, setProjectionStage] = useState<ProjectionStage>(getInitialProjectionStage);
+  const [projectionTheme, setProjectionTheme] = useState<ProjectionThemeKey>(getInitialProjectionTheme);
   const [projectionSessionCode, setProjectionSessionCode] = useState(initialUrlSessionCode);
   const [projectionLoading, setProjectionLoading] = useState(false);
   const [lang, setLang] = useState<Lang>(getStoredLanguage);
@@ -6399,12 +6426,14 @@ async function saveSalleReportRow(params: {
       try {
         const raw = localStorage.getItem(PROJECTION_CONTROL_STORAGE_KEY);
         if (!raw) return;
-        const payload = JSON.parse(raw) as { sessionCode?: string; stage?: string };
+        const payload = JSON.parse(raw) as { sessionCode?: string; stage?: string; theme?: string };
         const nextStage = String(payload.stage ?? "");
+        const nextTheme = String(payload.theme ?? "all");
         const nextSessionCode = formatSessionCode(payload.sessionCode ?? "");
 
         if (["qr", "bilans", "propositions", "vote", "synthese"].includes(nextStage)) {
           setProjectionStage(nextStage as ProjectionStage);
+          setProjectionTheme(nextStage === "bilans" && isProjectionThemeKey(nextTheme) ? nextTheme : "all");
         }
 
         if (nextSessionCode) {
@@ -9267,8 +9296,10 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 
 
 
-  function openProjectionStage(stage: ProjectionStage) {
+  function openProjectionStage(stage: ProjectionStage, theme: ProjectionThemeKey = "all") {
+    const nextProjectionTheme = stage === "bilans" ? theme : "all";
     setProjectionStage(stage);
+    setProjectionTheme(nextProjectionTheme);
     const cleanCode = formatSessionCode(selectedSessionCode || projectionSessionCode || initialUrlSessionCode);
     if (!cleanCode) {
       setMessage(lang === "en" ? "Open a session before using projection." : "Ouvrez une session avant d'utiliser la projection.");
@@ -9278,17 +9309,70 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
     try {
       localStorage.setItem(
         PROJECTION_CONTROL_STORAGE_KEY,
-        JSON.stringify({ sessionCode: cleanCode, stage, updatedAt: Date.now() })
+        JSON.stringify({ sessionCode: cleanCode, stage, theme: nextProjectionTheme, updatedAt: Date.now() })
       );
     } catch {
       // Projection still works by URL navigation if localStorage is unavailable.
     }
 
-    window.open(buildProjectionUrl(cleanCode, stage), "bilan_carbone_projection");
+    window.open(buildProjectionUrl(cleanCode, stage, nextProjectionTheme), "bilan_carbone_projection");
   }
 
   function getProjectionMenuButtonStyle(stage: ProjectionStage) {
     return projectionStage === stage ? styles.sidebarButtonActive : styles.sidebarButton;
+  }
+
+  function getProjectionThemeMenuButtonStyle(theme: ProjectionThemeKey) {
+    const baseStyle = projectionStage === "bilans" && projectionTheme === theme
+      ? styles.sidebarButtonActive
+      : styles.sidebarButton;
+
+    return {
+      ...baseStyle,
+      width: "calc(100% - 18px)",
+      marginLeft: 18,
+      padding: "9px 12px",
+      fontSize: 12.5,
+      textAlign: "left" as const,
+    };
+  }
+
+  function getProjectionThemeMenuIcon(theme: ProjectionThemeKey) {
+    if (theme === "transport") return "🚲";
+    if (theme === "dejeuner") return "🍽️";
+    if (theme === "equipement") return "💻";
+    if (theme === "autres_consommations") return "☕";
+    if (theme === "salle") return "🏫";
+    return "📊";
+  }
+
+  function getProjectionThemeMenuLabel(theme: ProjectionThemeKey) {
+    if (theme === "all") return lang === "en" ? "All reports" : "Tous les bilans";
+    if (lang === "en") {
+      if (theme === "transport") return "Transport";
+      if (theme === "dejeuner") return "Lunch";
+      if (theme === "equipement") return "Equipment";
+      if (theme === "autres_consommations") return "Other consumption";
+      if (theme === "salle") return "Classroom";
+    }
+    return getSyntheseThemeLabel(theme);
+  }
+
+  function renderProjectionBilansSubmenu() {
+    return (
+      <div style={styles.projectionBilansSubmenu}>
+        <div style={styles.projectionBilansSubmenuTitle}>📊 {t(lang, "projectionBilans")}</div>
+        {PROJECTION_THEME_KEYS.map((theme) => (
+          <button
+            key={theme}
+            style={getProjectionThemeMenuButtonStyle(theme)}
+            onClick={() => openProjectionStage("bilans", theme)}
+          >
+            {getProjectionThemeMenuIcon(theme)} {getProjectionThemeMenuLabel(theme)}
+          </button>
+        ))}
+      </div>
+    );
   }
 
   function getProjectionSectionTitleStyle() {
@@ -9310,6 +9394,12 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
 if ((screen as string) === "projection") {
   const activeSessionCode = formatSessionCode(selectedSessionCode || projectionSessionCode || initialUrlSessionCode);
   const studentJoinUrl = buildStudentJoinUrl(activeSessionCode);
+  const visibleProjectionThemeDetails = projectionTheme === "all"
+    ? projectionThemeDetails
+    : projectionThemeDetails.filter((theme) => theme.theme === projectionTheme);
+  const projectionBilansTitle = projectionTheme === "all"
+    ? (lang === "en" ? "Thematic carbon reports" : "Bilans carbone thématiques")
+    : `${lang === "en" ? "Carbon report" : "Bilan carbone"} — ${getProjectionThemeMenuLabel(projectionTheme)}`;
 
   return (<Translated>{(
     <div style={styles.projectionPage}>
@@ -9356,12 +9446,12 @@ if ((screen as string) === "projection") {
 
       {projectionStage === "bilans" && (
         <section style={styles.projectionSectionClean}>
-          <h2 style={styles.projectionSectionTitle}>{lang === "en" ? "Thematic carbon reports" : "Bilans carbone thématiques"}</h2>
-          {projectionThemeDetails.length === 0 ? (
+          <h2 style={styles.projectionSectionTitle}>{projectionBilansTitle}</h2>
+          {visibleProjectionThemeDetails.length === 0 ? (
             <div style={styles.projectionCard}><p style={styles.bodyText}>{lang === "en" ? "No data available yet." : "Aucune donnée disponible pour le moment."}</p></div>
           ) : (
             <div style={styles.projectionThemeGrid}>
-              {projectionThemeDetails.map((theme, themeIndex) => {
+              {visibleProjectionThemeDetails.map((theme, themeIndex) => {
                 const maxAverage = Math.max(...theme.rows.map((row) => row.average), 0);
                 return (
                   <article key={theme.theme} style={styles.projectionThemeCard}>
@@ -10845,7 +10935,7 @@ onBeforeOpenVote={() => loadSessionVoteAccess(studentSelectedSessionId)}
           <details className="teacher-sidebar-section" open={false} style={styles.sidebarSection}>
             <summary style={getProjectionSectionTitleStyle()}><span className="teacher-sidebar-chevron" style={styles.sidebarChevron}>›</span><span style={styles.sidebarSectionIcon}>🖥️</span><span>{lang === "en" ? "PROJECTION" : "PROJECTION"}</span></summary>
             <button style={getProjectionMenuButtonStyle("qr")} onClick={() => openProjectionStage("qr")}>📱 {t(lang, "projectionQr")}</button>
-            <button style={getProjectionMenuButtonStyle("bilans")} onClick={() => openProjectionStage("bilans")}>📊 {t(lang, "projectionBilans")}</button>
+            {renderProjectionBilansSubmenu()}
             <button style={getProjectionMenuButtonStyle("propositions")} onClick={() => openProjectionStage("propositions")}>💡 {t(lang, "projectionProposals")}</button>
             <button style={getProjectionMenuButtonStyle("vote")} onClick={() => openProjectionStage("vote")}>🗳️ {t(lang, "projectionVote")}</button>
             <button style={getProjectionMenuButtonStyle("synthese")} onClick={() => openProjectionStage("synthese")}>🧩 {t(lang, "projectionSynthesis")}</button>
@@ -11698,12 +11788,7 @@ if (screen === "student_vote") {
               >
                 📱 {t(lang, "projectionQr")}
               </button>
-              <button
-                style={getProjectionMenuButtonStyle("bilans")}
-                onClick={() => openProjectionStage("bilans")}
-              >
-                📊 {t(lang, "projectionBilans")}
-              </button>
+              {renderProjectionBilansSubmenu()}
               <button
                 style={getProjectionMenuButtonStyle("propositions")}
                 onClick={() => openProjectionStage("propositions")}
@@ -13379,6 +13464,23 @@ const styles: Record<string, React.CSSProperties> = {
     overflowWrap: "break-word",
     margin: "4px 0",
     boxShadow: "0 8px 18px rgba(239,125,50,0.16)",
+  },
+  projectionBilansSubmenu: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    margin: "2px 0 6px",
+  },
+  projectionBilansSubmenuTitle: {
+    width: "100%",
+    color: "#dbeafe",
+    fontSize: 12,
+    fontWeight: 950,
+    letterSpacing: 0.25,
+    textTransform: "uppercase" as const,
+    padding: "8px 12px 4px",
+    boxSizing: "border-box" as const,
   },
   sidebarFooter: {
     marginTop: "auto",
