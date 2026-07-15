@@ -6398,7 +6398,6 @@ async function saveSalleReportRow(params: {
         setProjectionSessionCode(nextSessionCode);
 
         await Promise.all([
-          refreshSessionMonitoring(nextSessionId, { showLoading: false }),
           loadTransportReportRows(nextSessionId, setTeacherTransportReportRowsDb),
           loadTransportReportableRows(nextSessionId, setTeacherTransportReportableRows),
           loadTeacherDejeunerReportableRows(nextSessionId),
